@@ -27,4 +27,31 @@ describe("analyze request schema", () => {
       }),
     ).toThrow("At least two wallet addresses are required.");
   });
+
+  it("defaults data mode to auto", () => {
+    expect(
+      parseAnalyzeRequest({
+        addresses: [
+          "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        ],
+        chainId: "1",
+      }),
+    ).toMatchObject({
+      dataMode: "auto",
+    });
+  });
+
+  it("rejects unknown data modes", () => {
+    expect(() =>
+      parseAnalyzeRequest({
+        addresses: [
+          "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        ],
+        chainId: 1,
+        dataMode: "remote",
+      }),
+    ).toThrow("Data mode must be auto, fixture, or live.");
+  });
 });

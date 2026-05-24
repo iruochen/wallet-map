@@ -84,9 +84,15 @@ The current MVP runs in fixture mode:
 - Open the workbench with `pnpm dev`.
 - Use the sample wallet addresses on the homepage.
 - Submit the analysis form.
-- The app calls `/api/analyze`, builds a relationship graph from `fixtures/sample-events.json`, runs the default analyzers, and returns findings with evidence.
+- The app calls `/api/analyze`, builds a relationship graph, runs the default analyzers, and returns findings with evidence.
 
-Provider API keys can stay empty until live chain adapters are added.
+Data source modes:
+
+- `Auto`: uses live Etherscan-like data only when the relevant API key is present, otherwise falls back to fixture data.
+- `Fixture`: always uses `fixtures/sample-events.json`.
+- `Live`: requires the relevant scan API key and returns a clear error if it is missing.
+
+Provider API keys can stay empty while developing in fixture mode.
 
 ## Project Docs
 

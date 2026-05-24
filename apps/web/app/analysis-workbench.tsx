@@ -8,7 +8,8 @@ const sampleAddresses = [
 ].join("\n");
 
 interface AnalysisResponse {
-  mode: "fixture";
+  mode: "fixture" | "live";
+  source: string;
   score: {
     score: number;
     confidence: "low" | "medium" | "high";
@@ -38,6 +39,7 @@ interface AnalysisResponse {
 export function AnalysisWorkbench() {
   const [addresses, setAddresses] = useState(sampleAddresses);
   const [chainId, setChainId] = useState("1");
+  const [dataMode, setDataMode] = useState("auto");
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -67,6 +69,7 @@ export function AnalysisWorkbench() {
         body: JSON.stringify({
           addresses,
           chainId: Number(chainId),
+          dataMode,
         }),
       });
       const body = (await response.json()) as AnalysisResponse | { error?: string };
@@ -89,7 +92,7 @@ export function AnalysisWorkbench() {
         <div className="panelHeader">
           <div>
             <h2>分析输入</h2>
-            <p>Fixture mode</p>
+            <p>{dataMode === "auto" ? "Auto mode" : `${dataMode} mode`}</p>
           </div>
           <button type="button" className="secondaryButton" onClick={() => setAddresses(sampleAddresses)}>
             填入示例
@@ -115,9 +118,15 @@ export function AnalysisWorkbench() {
             </select>
           </label>
           <label>
-            时间范围
-            <select defaultValue="fixture" name="range">
+            数据源
+            <select
+              name="dataMode"
+              onChange={(event) => setDataMode(event.target.value)}
+              value={dataMode}
+            >
+              <option value="auto">Auto</option>
               <option value="fixture">Fixture</option>
+              <option value="live">Live</option>
             </select>
           </label>
         </div>
@@ -156,6 +165,9 @@ export function AnalysisWorkbench() {
                   <strong>{graphSummary.edges}</strong>
                 </div>
               </div>
+              <p className="sourceLine">
+                Source: <code>{result.source}</code>
+              </p>
             </>
           ) : (
             <p className="emptyState">运行一次分析后，这里会显示评分和图谱摘要。</p>

@@ -3,11 +3,15 @@ import type { Address, ChainId } from "@wallet-map/core";
 export interface AnalyzeRequestInput {
   addresses?: unknown;
   chainId?: unknown;
+  dataMode?: unknown;
 }
+
+export type AnalyzeDataMode = "auto" | "fixture" | "live";
 
 export interface ParsedAnalyzeRequest {
   addresses: Address[];
   chainId: ChainId;
+  dataMode: AnalyzeDataMode;
 }
 
 export function parseAnalyzeRequest(input: AnalyzeRequestInput): ParsedAnalyzeRequest {
@@ -21,6 +25,7 @@ export function parseAnalyzeRequest(input: AnalyzeRequestInput): ParsedAnalyzeRe
   return {
     addresses,
     chainId,
+    dataMode: parseDataMode(input.dataMode),
   };
 }
 
@@ -51,6 +56,18 @@ function parseChainId(input: unknown): ChainId {
   }
 
   return chainId;
+}
+
+function parseDataMode(input: unknown): AnalyzeDataMode {
+  if (input === undefined || input === null || input === "") {
+    return "auto";
+  }
+
+  if (input === "auto" || input === "fixture" || input === "live") {
+    return input;
+  }
+
+  throw new Error("Data mode must be auto, fixture, or live.");
 }
 
 function isEvmAddress(value: string): value is Address {

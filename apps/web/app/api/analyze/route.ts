@@ -1,6 +1,6 @@
 import { createDefaultAnalyzers } from "@wallet-map/analyzers";
-import { runAnalysis, type NormalizedEvent } from "@wallet-map/core";
-import fixtureEvents from "../../../../../fixtures/sample-events.json";
+import { runAnalysis } from "@wallet-map/core";
+import { resolveAnalyzeEvents } from "./data-source";
 import { parseAnalyzeRequest } from "./schema";
 
 export async function POST(request: Request): Promise<Response> {
@@ -9,17 +9,16 @@ export async function POST(request: Request): Promise<Response> {
     const parsed = parseAnalyzeRequest(
       typeof body === "object" && body !== null ? body : {},
     );
-    const events = (fixtureEvents as NormalizedEvent[]).filter((event) => {
-      return event.chainId === parsed.chainId;
-    });
+    const resolved = await resolveAnalyzeEvents(parsed);
     const result = await runAnalysis({
       watchedAddresses: parsed.addresses,
-      events,
+      events: resolved.events,
       analyzers: createDefaultAnalyzers(),
     });
 
     return Response.json({
-      mode: "fixture",
+      mode: resolved.mode,
+      source: resolved.source,
       input: parsed,
       ...result,
     });

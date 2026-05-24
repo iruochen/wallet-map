@@ -13,6 +13,7 @@ The format follows Keep a Changelog loosely, and the project uses semantic versi
 - Core normalized event, graph, finding, scoring, and analysis pipeline types.
 - First direct transfer analyzer.
 - Fixture-mode web workbench and `/api/analyze` endpoint.
+- Auto/live analysis data-source selection for Etherscan-like adapters.
 - Storage package contracts and initial PostgreSQL schema migration.
 - Etherscan-like adapter with mocked tests.
 - Shared counterparty and same-contract interaction analyzers.
