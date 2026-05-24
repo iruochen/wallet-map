@@ -21,13 +21,14 @@ This checklist tracks the early project setup needed before feature work grows.
 - [x] GitHub issue templates.
 - [x] GitHub pull request template.
 - [x] Basic tests for core packages.
+- [x] Parallel agent task records.
 
 ## Before Public Release
 
 - [ ] Add CI for `pnpm typecheck`, `pnpm test`, `pnpm lint`, and `pnpm build`.
-- [ ] Add database migrations and schema documentation.
+- [x] Add database migrations and schema documentation.
 - [ ] Add a public demo fixture that does not contain private wallet data.
-- [ ] Add report redaction guidance.
+- [x] Add report redaction guidance.
 - [ ] Add dependency update policy.
 - [ ] Decide whether docs should remain English-only or become bilingual.
 - [ ] Replace temporary security contact language with a concrete contact channel.
@@ -38,4 +39,3 @@ This checklist tracks the early project setup needed before feature work grows.
 - [ ] Update `CHANGELOG.md`.
 - [ ] Run the release checklist from `docs/release-process.md`.
 - [ ] Tag `v0.1.0`.
-

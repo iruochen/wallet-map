@@ -22,6 +22,8 @@ packages/
   adapters/            Data-source and chain adapter interfaces
   analyzers/           Relationship analyzer plugins
   exporters/           Report/export interfaces
+  storage/             Persistence contracts and SQL migrations
+agents/                Parallel agent task records
 docs/
   architecture-map.md  Product and architecture map
 fixtures/              Public sample datasets for tests and demos
@@ -93,6 +95,7 @@ Provider API keys can stay empty until live chain adapters are added.
 - [Code Style](docs/code-style.md)
 - [Commit Convention](docs/commit-convention.md)
 - [Documentation Style](docs/documentation-style.md)
+- [Database Schema](docs/database-schema.md)
 - [Analysis Guidelines](docs/analysis-guidelines.md)
 - [Open Source Guidelines](docs/open-source.md)
 - [Release Process](docs/release-process.md)
@@ -100,3 +103,4 @@ Provider API keys can stay empty until live chain adapters are added.
 - [Contributing](CONTRIBUTING.md)
 - [Security Policy](SECURITY.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Parallel Agent Work](agents/README.md)

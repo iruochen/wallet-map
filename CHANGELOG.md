@@ -13,4 +13,9 @@ The format follows Keep a Changelog loosely, and the project uses semantic versi
 - Core normalized event, graph, finding, scoring, and analysis pipeline types.
 - First direct transfer analyzer.
 - Fixture-mode web workbench and `/api/analyze` endpoint.
+- Storage package contracts and initial PostgreSQL schema migration.
+- Etherscan-like adapter with mocked tests.
+- Shared counterparty and same-contract interaction analyzers.
+- Expanded JSON and Markdown exporters with address redaction.
+- Parallel agent task records.
 - Project documentation for development, code style, analysis, open source, and environment safety.

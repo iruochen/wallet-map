@@ -17,7 +17,8 @@
       "@wallet-map/core": ["packages/core/src/index.ts"],
       "@wallet-map/adapters": ["packages/adapters/src/index.ts"],
       "@wallet-map/analyzers": ["packages/analyzers/src/index.ts"],
-      "@wallet-map/exporters": ["packages/exporters/src/index.ts"]
+      "@wallet-map/exporters": ["packages/exporters/src/index.ts"],
+      "@wallet-map/storage": ["packages/storage/src/index.ts"]
     }
   }
 }
