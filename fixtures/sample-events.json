@@ -1,0 +1,18 @@
+[
+  {
+    "id": "eth:0x111:0",
+    "type": "native_transfer",
+    "chainId": 1,
+    "txHash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "blockNumber": 19000000,
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "from": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "to": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "asset": {
+      "kind": "native",
+      "chainId": 1,
+      "symbol": "ETH"
+    },
+    "amount": "10000000000000000"
+  }
+]

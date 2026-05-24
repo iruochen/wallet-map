@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@wallet-map/core": ["packages/core/src/index.ts"],
+      "@wallet-map/adapters": ["packages/adapters/src/index.ts"],
+      "@wallet-map/analyzers": ["packages/analyzers/src/index.ts"],
+      "@wallet-map/exporters": ["packages/exporters/src/index.ts"]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@wallet-map/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@wallet-map/adapters": "workspace:*",
+    "@wallet-map/analyzers": "workspace:*",
+    "@wallet-map/core": "workspace:*",
+    "@wallet-map/exporters": "workspace:*",
+    "next": "^16.0.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
+  }
+}
