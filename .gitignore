@@ -1,8 +1,39 @@
+# Dependencies
 node_modules
+
+# Build outputs
 .next
 dist
+build
+out
 coverage
-.env
-.env.local
-.DS_Store
 *.tsbuildinfo
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local databases, caches, and generated analysis data
+*.sqlite
+*.sqlite3
+*.db
+.cache
+.turbo
+exports
+reports
+tmp
+temp
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS and editor files
+.DS_Store
+.idea
+.vscode

@@ -36,6 +36,16 @@ pnpm test
 pnpm dev
 ```
 
+## Environment
+
+Copy the example file before local development:
+
+```bash
+cp .env.example .env.local
+```
+
+Do not commit real `.env` files, API keys, RPC URLs with credentials, or private wallet data.
+
 ## Project Docs
 
 - [Architecture Map](docs/architecture-map.md)
