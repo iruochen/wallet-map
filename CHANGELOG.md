@@ -14,6 +14,9 @@ The format follows Keep a Changelog loosely, and the project uses semantic versi
 - First direct transfer analyzer.
 - Fixture-mode web workbench and `/api/analyze` endpoint.
 - Auto/live analysis data-source selection for Etherscan-like adapters.
+- Expanded fixture data to exercise direct transfers, shared counterparties, and same-contract interactions.
+- Improved workbench loading, error, empty, and result states.
+- Graph visualization tool-selection and scaling plan.
 - Storage package contracts and initial PostgreSQL schema migration.
 - Etherscan-like adapter with mocked tests.
 - Shared counterparty and same-contract interaction analyzers.

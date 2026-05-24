@@ -102,6 +102,7 @@ Provider API keys can stay empty while developing in fixture mode.
 - [Commit Convention](docs/commit-convention.md)
 - [Documentation Style](docs/documentation-style.md)
 - [Database Schema](docs/database-schema.md)
+- [Graph Visualization](docs/graph-visualization.md)
 - [Analysis Guidelines](docs/analysis-guidelines.md)
 - [Open Source Guidelines](docs/open-source.md)
 - [Release Process](docs/release-process.md)

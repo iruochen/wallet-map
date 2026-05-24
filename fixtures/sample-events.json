@@ -14,5 +14,106 @@
       "symbol": "ETH"
     },
     "amount": "10000000000000000"
+  },
+  {
+    "id": "eth:0x222:0",
+    "type": "native_transfer",
+    "chainId": 1,
+    "txHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+    "blockNumber": 19000012,
+    "timestamp": "2024-01-01T00:03:00.000Z",
+    "from": "0xcccccccccccccccccccccccccccccccccccccccc",
+    "to": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "asset": {
+      "kind": "native",
+      "chainId": 1,
+      "symbol": "ETH"
+    },
+    "amount": "25000000000000000"
+  },
+  {
+    "id": "eth:0x333:0",
+    "type": "native_transfer",
+    "chainId": 1,
+    "txHash": "0x3333333333333333333333333333333333333333333333333333333333333333",
+    "blockNumber": 19000025,
+    "timestamp": "2024-01-01T00:06:00.000Z",
+    "from": "0xcccccccccccccccccccccccccccccccccccccccc",
+    "to": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "asset": {
+      "kind": "native",
+      "chainId": 1,
+      "symbol": "ETH"
+    },
+    "amount": "24000000000000000"
+  },
+  {
+    "id": "eth:0x444:0",
+    "type": "token_transfer",
+    "chainId": 1,
+    "txHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
+    "blockNumber": 19000100,
+    "timestamp": "2024-01-01T00:20:00.000Z",
+    "from": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "to": "0xdddddddddddddddddddddddddddddddddddddddd",
+    "contract": "0xffffffffffffffffffffffffffffffffffffffff",
+    "asset": {
+      "kind": "erc20",
+      "chainId": 1,
+      "symbol": "USDC",
+      "contract": "0xffffffffffffffffffffffffffffffffffffffff"
+    },
+    "amount": "15000000"
+  },
+  {
+    "id": "eth:0x555:0",
+    "type": "token_transfer",
+    "chainId": 1,
+    "txHash": "0x5555555555555555555555555555555555555555555555555555555555555555",
+    "blockNumber": 19000110,
+    "timestamp": "2024-01-01T00:23:00.000Z",
+    "from": "0xdddddddddddddddddddddddddddddddddddddddd",
+    "to": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "contract": "0xffffffffffffffffffffffffffffffffffffffff",
+    "asset": {
+      "kind": "erc20",
+      "chainId": 1,
+      "symbol": "USDC",
+      "contract": "0xffffffffffffffffffffffffffffffffffffffff"
+    },
+    "amount": "14950000"
+  },
+  {
+    "id": "eth:0x666:0",
+    "type": "contract_call",
+    "chainId": 1,
+    "txHash": "0x6666666666666666666666666666666666666666666666666666666666666666",
+    "blockNumber": 19000200,
+    "timestamp": "2024-01-01T01:00:00.000Z",
+    "from": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "contract": "0x9999999999999999999999999999999999999999",
+    "methodId": "0xa9059cbb"
+  },
+  {
+    "id": "eth:0x777:0",
+    "type": "contract_call",
+    "chainId": 1,
+    "txHash": "0x7777777777777777777777777777777777777777777777777777777777777777",
+    "blockNumber": 19000208,
+    "timestamp": "2024-01-01T01:02:00.000Z",
+    "from": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "contract": "0x9999999999999999999999999999999999999999",
+    "methodId": "0xa9059cbb"
+  },
+  {
+    "id": "eth:0x888:0",
+    "type": "contract_call",
+    "chainId": 1,
+    "txHash": "0x8888888888888888888888888888888888888888888888888888888888888888",
+    "blockNumber": 19000216,
+    "timestamp": "2024-01-01T01:05:00.000Z",
+    "from": "0xdddddddddddddddddddddddddddddddddddddddd",
+    "contract": "0x9999999999999999999999999999999999999999",
+    "methodId": "0xa9059cbb"
   }
 ]

@@ -22,4 +22,5 @@ Use this pattern when work can be split into independent write scopes. The main 
 ## Current Run
 
 - [2026-05-24 MVP parallel run](2026-05-24-mvp-parallel-run.md)
-
+- [2026-05-24 graph visualization thread](2026-05-24-graph-visualization-thread.md)
+- [2026-05-24 UI interaction thread](2026-05-24-ui-interaction-thread.md)

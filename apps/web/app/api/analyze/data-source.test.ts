@@ -17,7 +17,7 @@ describe("resolveAnalyzeEvents", () => {
 
     expect(result.mode).toBe("fixture");
     expect(result.source).toBe("fixtures/sample-events.json");
-    expect(result.events).toHaveLength(1);
+    expect(result.events.length).toBeGreaterThan(1);
   });
 
   it("requires the scan API key in explicit live mode", async () => {
