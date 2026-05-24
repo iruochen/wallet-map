@@ -64,7 +64,8 @@ h1 {
 
 .statusPanel,
 .inputPanel,
-.checklist {
+.checklist,
+.resultPanel {
   border: 1px solid #dce2d8;
   border-radius: 8px;
   background: #ffffff;
@@ -88,14 +89,35 @@ h1 {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
   gap: 24px;
+  align-items: start;
+  margin-bottom: 24px;
 }
 
 .inputPanel {
   display: grid;
   gap: 18px;
   padding: 24px;
+}
+
+.panelHeader {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panelHeader h2,
+.resultPanel h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.panelHeader p {
+  margin: 4px 0 0;
+  color: #64736a;
+  font-size: 0.86rem;
 }
 
 label {
@@ -142,6 +164,128 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.secondaryButton {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #cfd8d1;
+  background: #f7f8f5;
+  color: #183d30;
+}
+
+.errorText {
+  margin: 0;
+  color: #a52828;
+  line-height: 1.5;
+}
+
+.resultsColumn {
+  display: grid;
+  gap: 16px;
+}
+
+.resultPanel {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+
+.scoreRow,
+.metricGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.scoreRow {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metricGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.scoreRow div,
+.metricGrid div {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #e1e7df;
+  border-radius: 8px;
+  background: #fbfcfa;
+}
+
+.scoreRow span,
+.metricGrid span {
+  color: #64736a;
+  font-size: 0.78rem;
+}
+
+.scoreRow strong {
+  font-size: 1.6rem;
+}
+
+.metricGrid strong {
+  font-size: 1.2rem;
+}
+
+.emptyState {
+  margin: 0;
+  color: #64736a;
+  line-height: 1.6;
+}
+
+.findingList,
+.edgeList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.findingList li,
+.edgeList li {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e1e7df;
+  border-radius: 8px;
+  background: #fbfcfa;
+}
+
+.findingList li div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.findingList li span,
+.edgeList li span {
+  color: #64736a;
+  font-size: 0.82rem;
+}
+
+.findingList p {
+  margin: 0;
+  color: #405047;
+  line-height: 1.45;
+}
+
+code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  border-radius: 6px;
+  color: #183d30;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+}
+
 .checklist {
   padding: 24px;
 }
@@ -184,7 +328,15 @@ button {
 
   .hero,
   .workspace,
-  .formRow {
+  .formRow,
+  .scoreRow,
+  .metricGrid {
     grid-template-columns: 1fr;
+  }
+
+  .panelHeader,
+  .findingList li div {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

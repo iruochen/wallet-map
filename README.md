@@ -75,6 +75,17 @@ Remove local database and Redis data:
 docker-compose down -v
 ```
 
+## MVP Flow
+
+The current MVP runs in fixture mode:
+
+- Open the workbench with `pnpm dev`.
+- Use the sample wallet addresses on the homepage.
+- Submit the analysis form.
+- The app calls `/api/analyze`, builds a relationship graph from `fixtures/sample-events.json`, runs the default analyzers, and returns findings with evidence.
+
+Provider API keys can stay empty until live chain adapters are added.
+
 ## Project Docs
 
 - [Architecture Map](docs/architecture-map.md)

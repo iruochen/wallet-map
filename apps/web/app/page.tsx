@@ -1,4 +1,5 @@
 import { DirectTransferAnalyzer } from "@wallet-map/analyzers";
+import { AnalysisWorkbench } from "./analysis-workbench";
 import { roadmapItems } from "./project-plan";
 
 const analyzer = new DirectTransferAnalyzer();
@@ -20,49 +21,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="workspace">
-        <form className="inputPanel">
-          <label htmlFor="addresses">钱包地址</label>
-          <textarea
-            id="addresses"
-            name="addresses"
-            placeholder={"0x...\n0x...\n0x..."}
-            rows={8}
-          />
-          <div className="formRow">
-            <label>
-              链
-              <select defaultValue="1" name="chainId">
-                <option value="1">Ethereum</option>
-                <option value="42161">Arbitrum</option>
-                <option value="8453">Base</option>
-                <option value="56">BSC</option>
-              </select>
-            </label>
-            <label>
-              时间范围
-              <select defaultValue="90d" name="range">
-                <option value="30d">30 天</option>
-                <option value="90d">90 天</option>
-                <option value="all">全部</option>
-              </select>
-            </label>
-          </div>
-          <button type="button">生成分析任务</button>
-        </form>
+      <AnalysisWorkbench />
 
-        <aside className="checklist">
-          <h2>第一阶段清单</h2>
-          <ul>
-            {roadmapItems.map((item) => (
-              <li key={item}>
-                <span aria-hidden="true" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </aside>
-      </section>
+      <aside className="checklist">
+        <h2>第一阶段清单</h2>
+        <ul>
+          {roadmapItems.map((item) => (
+            <li key={item}>
+              <span aria-hidden="true" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </aside>
     </main>
   );
 }

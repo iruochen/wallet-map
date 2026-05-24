@@ -36,4 +36,28 @@ describe("DirectTransferAnalyzer", () => {
       "0x1111111111111111111111111111111111111111111111111111111111111111",
     );
   });
+
+  it("ignores transfer edges to observed external wallets", async () => {
+    const events: NormalizedEvent[] = [
+      {
+        id: "event:1",
+        type: "native_transfer",
+        chainId: 1,
+        txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        blockNumber: 1,
+        timestamp: "2024-01-01T00:00:00.000Z",
+        from: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      },
+    ];
+    const context: AnalysisContext = {
+      graph: buildRelationshipGraph({
+        watchedAddresses: ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+        events,
+      }),
+      events,
+    };
+
+    await expect(new DirectTransferAnalyzer().run(context)).resolves.toEqual([]);
+  });
 });

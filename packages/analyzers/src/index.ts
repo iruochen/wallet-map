@@ -6,7 +6,9 @@ export class DirectTransferAnalyzer implements Analyzer {
 
   async run(context: AnalysisContext): Promise<Finding[]> {
     const walletNodeIds = new Set(
-      context.graph.nodes.filter((node) => node.kind === "wallet").map((node) => node.id),
+      context.graph.nodes
+        .filter((node) => node.kind === "wallet" && node.tags?.includes("watched"))
+        .map((node) => node.id),
     );
 
     const directEdges = context.graph.edges.filter((edge) => {
