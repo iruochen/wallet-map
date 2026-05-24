@@ -59,6 +59,8 @@ fix/scoring-confidence
 docs/analysis-guidelines
 ```
 
+Use commit messages from [Commit Convention](commit-convention.md).
+
 Pull requests should include:
 
 - What changed.
@@ -76,4 +78,3 @@ Fixtures should be:
 - Easy to inspect by hand.
 
 Prefer synthetic wallet addresses unless the fixture specifically tests behavior from a public protocol transaction.
-

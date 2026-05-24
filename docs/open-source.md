@@ -48,5 +48,4 @@ Contributions should:
 
 ## Security Reporting
 
-Until a dedicated security contact exists, open a private discussion with the maintainer before publishing details about vulnerabilities, leaked secrets, or unsafe defaults.
-
+Follow the repository [Security Policy](../SECURITY.md). Until a dedicated security contact exists, open a private discussion with the maintainer before publishing details about vulnerabilities, leaked secrets, or unsafe defaults.
