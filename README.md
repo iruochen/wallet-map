@@ -46,6 +46,35 @@ cp .env.example .env.local
 
 Do not commit real `.env` files, API keys, RPC URLs with credentials, or private wallet data.
 
+## Local Infrastructure
+
+This project uses Docker Compose for local PostgreSQL and Redis.
+
+If you use Colima on macOS:
+
+```bash
+colima start
+docker-compose up -d
+```
+
+Check services:
+
+```bash
+docker-compose ps
+```
+
+Stop services:
+
+```bash
+docker-compose down
+```
+
+Remove local database and Redis data:
+
+```bash
+docker-compose down -v
+```
+
 ## Project Docs
 
 - [Architecture Map](docs/architecture-map.md)
