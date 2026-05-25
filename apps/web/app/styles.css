@@ -14,7 +14,10 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #f4f6f2;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(31, 61, 44, 0.05) 0%, transparent 42%),
+    radial-gradient(circle at 100% 100%, rgba(176, 116, 16, 0.04) 0%, transparent 38%),
+    #eef2ec;
 }
 
 button,
@@ -156,7 +159,7 @@ button:disabled {
 
 .workbench {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr) 420px;
+  grid-template-columns: 300px minmax(0, 1fr) 380px;
   gap: 0;
   height: calc(100vh - var(--header-height));
   min-height: 600px;
@@ -193,7 +196,9 @@ button:disabled {
 }
 
 .workbenchGraph {
-  background: linear-gradient(180deg, #f4f6f2 0%, #eef2ec 100%);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(31, 61, 44, 0.06) 0%, transparent 55%),
+    linear-gradient(180deg, #eef2ec 0%, #e7ece4 100%);
   border-right: 1px solid #dce2d8;
 }
 
@@ -222,8 +227,71 @@ button:disabled {
 .workbenchColumnHeader p {
   margin: 4px 0 0;
   color: #64736a;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   line-height: 1.4;
+}
+
+.workbenchFindingsHeader {
+  padding-bottom: 10px;
+}
+
+.workbenchFindingsTitle {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.panelTabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #dce2d8;
+  border-radius: 999px;
+  background: #f4f6f2;
+}
+
+.panelTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #4c5b51;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.panelTab:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.panelTabActive {
+  background: #ffffff;
+  color: #183d30;
+  box-shadow: 0 1px 3px rgba(31, 61, 44, 0.08);
+}
+
+.panelTabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e7efe8;
+  color: #2b4a3a;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.panelTabActive .panelTabCount {
+  background: #1f3d2c;
+  color: #ffffff;
 }
 
 .workbenchGraphBody {
@@ -570,6 +638,44 @@ select {
   line-height: 1.45;
 }
 
+.edgeList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.edgeRow {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e1e7df;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.edgeRowHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.edgeRowBody {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.edgeRowFooter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .previewHint {
   margin: 0;
   color: #64736a;
@@ -665,6 +771,27 @@ select {
 .event-contract_call {
   background: #fff5e0;
   color: #7a5202;
+}
+
+.event-contract_interaction {
+  background: #fff5e0;
+  color: #7a5202;
+}
+
+.event-shared_counterparty {
+  background: #fff0ea;
+  color: #94391a;
+}
+
+.methodChip {
+  padding: 2px 7px;
+  border: 1px solid #e5d8b6;
+  border-radius: 4px;
+  background: #fff8e5;
+  color: #6a4c00;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 
 .amountChip {
@@ -955,13 +1082,66 @@ code {
   flex: 1;
   min-height: 320px;
   border: 1px solid #dce2d8;
-  border-radius: 12px;
+  border-radius: 14px;
   background:
-    radial-gradient(circle at 0% 0%, rgba(31, 61, 44, 0.04) 0%, transparent 60%),
-    radial-gradient(circle at 100% 100%, rgba(176, 116, 16, 0.04) 0%, transparent 60%),
+    radial-gradient(circle at 50% 50%, rgba(31, 61, 44, 0.03) 0%, transparent 70%),
     #f7faf6;
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.65),
+    0 10px 28px rgba(31, 61, 44, 0.06);
+  transition: opacity 180ms ease;
+}
+
+.graphCanvasLoading {
+  opacity: 0.55;
+}
+
+.graphCanvasReady {
+  opacity: 1;
+}
+
+.graphZoomControls {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: grid;
+  gap: 6px;
+  z-index: 3;
+}
+
+.graphZoomButton {
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid #cfd8d1;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #183d30;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(31, 61, 44, 0.08);
+}
+
+.graphZoomButton:hover {
+  background: #ffffff;
+  border-color: #1f3d2c;
+}
+
+.graphLayoutOverlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  justify-items: center;
+  border-radius: 14px;
+  background: rgba(247, 250, 246, 0.72);
+  color: #4c5b51;
+  font-size: 0.86rem;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .graphFootnote {

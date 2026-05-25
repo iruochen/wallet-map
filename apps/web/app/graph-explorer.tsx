@@ -24,7 +24,6 @@ import {
 } from "./format";
 
 if (typeof window !== "undefined") {
-  // cytoscape registers extensions globally; guard against double-register in HMR.
   const registry = cytoscape as unknown as { _walletMapFcoseRegistered?: boolean };
   if (!registry._walletMapFcoseRegistered) {
     cytoscape.use(fcose);
@@ -100,6 +99,8 @@ const edgePalette: Record<GraphExplorerEdge["kind"], string> = {
   bridge_route: "#1c66b4",
 };
 
+const DENSE_GRAPH_NODE_THRESHOLD = 28;
+
 export function GraphExplorer({
   chainId,
   nodes,
@@ -110,10 +111,13 @@ export function GraphExplorer({
 }: GraphExplorerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<Core | null>(null);
+  const layoutRunningRef = useRef(false);
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [hiddenKinds, setHiddenKinds] = useState<Set<GraphExplorerEdge["kind"]>>(new Set());
-  const [showEdgeLabels, setShowEdgeLabels] = useState(nodes.length <= 24);
+  const [showEdgeLabels, setShowEdgeLabels] = useState(nodes.length <= DENSE_GRAPH_NODE_THRESHOLD);
+  const [layoutReady, setLayoutReady] = useState(false);
 
+  const denseGraph = nodes.length > DENSE_GRAPH_NODE_THRESHOLD;
   const resolvedNodes = useMemo(() => resolveNodes(nodes, edges), [nodes, edges]);
   const nodeIndex = useMemo(() => {
     const map = new Map<string, ResolvedNode>();
@@ -131,6 +135,17 @@ export function GraphExplorer({
     return Array.from(set);
   }, [edges]);
 
+  const graphSignature = useMemo(
+    () =>
+      JSON.stringify({
+        chainId,
+        nodeIds: nodes.map((node) => node.id),
+        edgeIds: edges.map((edge) => edge.id),
+        denseGraph,
+      }),
+    [chainId, nodes, edges, denseGraph],
+  );
+
   useEffect(() => {
     if (!containerRef.current) {
       return;
@@ -138,12 +153,15 @@ export function GraphExplorer({
 
     const cy = cytoscape({
       container: containerRef.current,
-      wheelSensitivity: 0.25,
-      minZoom: 0.15,
-      maxZoom: 3,
+      wheelSensitivity: 0.18,
+      minZoom: 0.08,
+      maxZoom: 4,
       boxSelectionEnabled: false,
       autounselectify: false,
-      style: buildStylesheet(),
+      pixelRatio: 1,
+      hideEdgesOnViewport: edges.length > 120,
+      textureOnViewport: edges.length > 120,
+      style: buildStylesheet(denseGraph),
     });
 
     cyRef.current = cy;
@@ -157,11 +175,13 @@ export function GraphExplorer({
     cy.on("tap", "node", (event: EventObject) => {
       const node = event.target as NodeSingular;
       setSelection({ kind: "node", id: node.id() });
+      focusElements(cy, node.closedNeighborhood(), 1.35);
     });
 
     cy.on("tap", "edge", (event: EventObject) => {
       const edge = event.target as EdgeSingular;
       setSelection({ kind: "edge", id: edge.id() });
+      focusElements(cy, edge.connectedNodes().union(edge), 1.5);
     });
 
     cy.on("dblclick", "node", (event: EventObject) => {
@@ -183,8 +203,9 @@ export function GraphExplorer({
     return () => {
       cy.destroy();
       cyRef.current = null;
+      layoutRunningRef.current = false;
     };
-  }, []);
+  }, [denseGraph, edges.length]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -192,21 +213,74 @@ export function GraphExplorer({
       return;
     }
 
+    setLayoutReady(false);
+    layoutRunningRef.current = true;
+
     const elements = buildElements({
       chainId,
       resolvedNodes,
       edges,
-      hiddenKinds,
       showEdgeLabels,
+      denseGraph,
     });
 
     cy.batch(() => {
       cy.elements().remove();
       cy.add(elements);
+      if (denseGraph) {
+        cy.nodes().addClass("dense");
+      }
     });
 
-    runLayout(cy, resolvedNodes.length);
-  }, [chainId, resolvedNodes, edges, hiddenKinds, showEdgeLabels]);
+    const layout = cy.layout({
+      name: "fcose",
+      quality: resolvedNodes.length > 180 ? "draft" : "default",
+      randomize: true,
+      animate: false,
+      nodeRepulsion: resolvedNodes.length > 80 ? 12000 : 9000,
+      idealEdgeLength: resolvedNodes.length > 80 ? 150 : 120,
+      edgeElasticity: 0.42,
+      gravity: 0.12,
+      nodeSeparation: 90,
+      padding: 48,
+      fit: true,
+      tile: true,
+      packComponents: true,
+    } as cytoscape.LayoutOptions);
+
+    layout.one("layoutstop", () => {
+      layoutRunningRef.current = false;
+      setLayoutReady(true);
+    });
+    layout.run();
+  }, [graphSignature, chainId, resolvedNodes, edges, denseGraph]);
+
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy || layoutRunningRef.current) {
+      return;
+    }
+
+    cy.edges().forEach((edge) => {
+      const kind = edge.data("kind") as GraphExplorerEdge["kind"];
+      edge.toggleClass("hidden", hiddenKinds.has(kind));
+    });
+  }, [hiddenKinds, graphSignature]);
+
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy || layoutRunningRef.current) {
+      return;
+    }
+
+    cy.edges().forEach((edge) => {
+      const edgeModel = edges.find((entry) => entry.id === edge.id());
+      if (!edgeModel) {
+        return;
+      }
+      edge.data("label", buildEdgeLabel(edgeModel, chainId, showEdgeLabels));
+    });
+  }, [showEdgeLabels, edges, chainId, graphSignature]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -228,16 +302,17 @@ export function GraphExplorer({
       const neighborhood = node.closedNeighborhood();
       cy.elements().difference(neighborhood).addClass("hl-dim");
       neighborhood.addClass("hl-focus");
-    } else {
-      const edge = cy.getElementById(selection.id);
-      if (!edge || edge.length === 0) {
-        return;
-      }
-      const incident = edge.connectedNodes().union(edge);
-      cy.elements().difference(incident).addClass("hl-dim");
-      incident.addClass("hl-focus");
+      return;
     }
-  }, [selection]);
+
+    const edge = cy.getElementById(selection.id);
+    if (!edge || edge.length === 0) {
+      return;
+    }
+    const incident = edge.connectedNodes().union(edge);
+    cy.elements().difference(incident).addClass("hl-dim");
+    incident.addClass("hl-focus");
+  }, [selection, graphSignature]);
 
   const handleToggleKind = useCallback((kind: GraphExplorerEdge["kind"]) => {
     setHiddenKinds((current) => {
@@ -264,8 +339,24 @@ export function GraphExplorer({
     if (!cy) {
       return;
     }
-    cy.animate({ fit: { eles: cy.elements(), padding: 40 } }, { duration: 240 });
+    cy.animate({ fit: { eles: cy.elements(), padding: 48 } }, { duration: 260 });
     setSelection(null);
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    const cy = cyRef.current;
+    if (!cy) {
+      return;
+    }
+    cy.animate({ zoom: Math.min(cy.zoom() * 1.25, cy.maxZoom()) }, { duration: 180 });
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    const cy = cyRef.current;
+    if (!cy) {
+      return;
+    }
+    cy.animate({ zoom: Math.max(cy.zoom() * 0.8, cy.minZoom()) }, { duration: 180 });
   }, []);
 
   if (nodes.length === 0) {
@@ -311,21 +402,11 @@ export function GraphExplorer({
           >
             {showEdgeLabels ? "边标签 ON" : "边标签 OFF"}
           </button>
-          <button
-            type="button"
-            className="graphChipButton"
-            onClick={handleRelayout}
-            title="重新跑布局"
-          >
+          <button type="button" className="graphChipButton" onClick={handleRelayout} title="重新跑布局">
             重新布局
           </button>
-          <button
-            type="button"
-            className="graphChipButton"
-            onClick={handleResetView}
-            title="重置视图并清除选中"
-          >
-            重置视图
+          <button type="button" className="graphChipButton" onClick={handleResetView} title="重置视图">
+            适应画布
           </button>
           <span className="graphSummary">
             {nodes.length} 节点 · {visibleEdgeCount}/{totalEdges} 边
@@ -334,7 +415,29 @@ export function GraphExplorer({
         </div>
       </div>
       <div className="graphCanvasWrap">
-        <div ref={containerRef} className="graphCanvas" role="region" aria-label="Relationship graph canvas" />
+        <div
+          ref={containerRef}
+          className={`graphCanvas ${layoutReady ? "graphCanvasReady" : "graphCanvasLoading"}`}
+          role="region"
+          aria-label="Relationship graph canvas"
+        />
+        <div className="graphZoomControls" aria-label="Graph zoom controls">
+          <button type="button" className="graphZoomButton" onClick={handleZoomIn} title="放大">
+            +
+          </button>
+          <button type="button" className="graphZoomButton" onClick={handleZoomOut} title="缩小">
+            −
+          </button>
+          <button type="button" className="graphZoomButton" onClick={handleResetView} title="适应画布">
+            ◻
+          </button>
+        </div>
+        {!layoutReady ? (
+          <div className="graphLayoutOverlay" aria-live="polite">
+            <span className="buttonSpinner" aria-hidden="true" />
+            正在计算力导向布局…
+          </div>
+        ) : null}
         <SelectionDetail
           selection={selection}
           chainId={chainId}
@@ -344,9 +447,10 @@ export function GraphExplorer({
         />
       </div>
       <p className="graphFootnote">
-        {totalNodes > nodes.length
-          ? `当前画布展示前 ${nodes.length} / ${totalNodes} 节点。`
-          : `共 ${nodes.length} 节点，${totalEdges} 边。`}
+        {denseGraph
+          ? "大图模式：节点标签仅在选中时显示，点击节点/边可聚焦并查看详情。"
+          : "滚轮缩放 · 拖拽平移 · 单击聚焦 · 双击跳转 explorer。"}
+        {totalNodes > nodes.length ? ` 当前展示前 ${nodes.length} / ${totalNodes} 节点。` : ""}
       </p>
     </div>
   );
@@ -500,12 +604,12 @@ interface BuildElementsInput {
   chainId: number;
   resolvedNodes: ResolvedNode[];
   edges: GraphExplorerEdge[];
-  hiddenKinds: Set<GraphExplorerEdge["kind"]>;
   showEdgeLabels: boolean;
+  denseGraph: boolean;
 }
 
 function buildElements(input: BuildElementsInput): ElementDefinition[] {
-  const { chainId, resolvedNodes, edges, hiddenKinds, showEdgeLabels } = input;
+  const { chainId, resolvedNodes, edges, showEdgeLabels, denseGraph } = input;
   const elements: ElementDefinition[] = [];
 
   for (const node of resolvedNodes) {
@@ -524,37 +628,11 @@ function buildElements(input: BuildElementsInput): ElementDefinition[] {
         href: explorerHref,
         degree: node.degree,
       },
-      classes: `node-${node.role}`,
+      classes: `node-${node.role}${denseGraph ? " dense" : ""}`,
     });
   }
 
   for (const edge of edges) {
-    if (hiddenKinds.has(edge.kind)) {
-      continue;
-    }
-    const edgeChainId = edge.metadata?.chainId ?? chainId;
-    const eventChain = getSupportedAnalysisChain(edgeChainId);
-    const isNativeAsset = edge.metadata?.asset?.kind === "native";
-    const amountDecimals = isNativeAsset
-      ? eventChain?.nativeDecimals ?? 18
-      : edge.metadata?.asset?.decimals;
-    const canRenderAmount =
-      edge.metadata?.amount !== undefined &&
-      edge.metadata.amount !== "" &&
-      (isNativeAsset || edge.metadata?.asset?.decimals !== undefined);
-    const amountFormatted = canRenderAmount
-      ? formatAmount(edge.metadata?.amount, amountDecimals)
-      : undefined;
-    const amountSymbol =
-      edge.metadata?.asset?.symbol ?? (isNativeAsset ? eventChain?.nativeSymbol : undefined);
-
-    const labelPieces: string[] = [];
-    if (amountFormatted) {
-      labelPieces.push(amountSymbol ? `${amountFormatted} ${amountSymbol}` : amountFormatted);
-    } else if (edge.metadata?.methodId) {
-      labelPieces.push(edge.metadata.methodId);
-    }
-
     elements.push({
       group: "edges",
       data: {
@@ -563,9 +641,11 @@ function buildElements(input: BuildElementsInput): ElementDefinition[] {
         target: edge.target,
         kind: edge.kind,
         color: edgePalette[edge.kind] ?? "#525a52",
-        label: showEdgeLabels ? labelPieces.join(" · ") : "",
-        weight: Math.max(1, Math.log2((edge.evidenceEventIds?.length ?? 1) + 1) + 1),
-        txHref: edge.metadata?.txHash ? buildExplorerTxUrl(edgeChainId, edge.metadata.txHash) : undefined,
+        label: buildEdgeLabel(edge, chainId, showEdgeLabels),
+        weight: Math.max(1.2, Math.log2((edge.evidenceEventIds?.length ?? 1) + 1) + 0.8),
+        txHref: edge.metadata?.txHash
+          ? buildExplorerTxUrl(edge.metadata?.chainId ?? chainId, edge.metadata.txHash)
+          : undefined,
         dashed: edge.kind === "shared_counterparty",
       },
       classes: edge.kind === "shared_counterparty" ? "edge-dashed" : undefined,
@@ -573,6 +653,41 @@ function buildElements(input: BuildElementsInput): ElementDefinition[] {
   }
 
   return elements;
+}
+
+function buildEdgeLabel(
+  edge: GraphExplorerEdge,
+  chainId: number,
+  showEdgeLabels: boolean,
+): string {
+  if (!showEdgeLabels) {
+    return "";
+  }
+
+  const edgeChainId = edge.metadata?.chainId ?? chainId;
+  const eventChain = getSupportedAnalysisChain(edgeChainId);
+  const isNativeAsset = edge.metadata?.asset?.kind === "native";
+  const amountDecimals = isNativeAsset
+    ? eventChain?.nativeDecimals ?? 18
+    : edge.metadata?.asset?.decimals;
+  const canRenderAmount =
+    edge.metadata?.amount !== undefined &&
+    edge.metadata.amount !== "" &&
+    (isNativeAsset || edge.metadata?.asset?.decimals !== undefined);
+  const amountFormatted = canRenderAmount
+    ? formatAmount(edge.metadata?.amount, amountDecimals)
+    : undefined;
+  const amountSymbol =
+    edge.metadata?.asset?.symbol ?? (isNativeAsset ? eventChain?.nativeSymbol : undefined);
+
+  const labelPieces: string[] = [];
+  if (amountFormatted) {
+    labelPieces.push(amountSymbol ? `${amountFormatted} ${amountSymbol}` : amountFormatted);
+  } else if (edge.metadata?.methodId) {
+    labelPieces.push(edge.metadata.methodId);
+  }
+
+  return labelPieces.join(" · ");
 }
 
 function resolveNodes(
@@ -608,111 +723,148 @@ function resolveNodeRole(node: GraphExplorerNode): ResolvedNode["role"] {
 }
 
 function nodeSizeForDegree(degree: number, role: ResolvedNode["role"]): number {
-  const base = role === "watched" ? 56 : role === "observed" ? 38 : role === "contract" ? 36 : 32;
-  const bonus = Math.min(Math.log2(degree + 1) * 6, 28);
+  const base = role === "watched" ? 62 : role === "observed" ? 34 : role === "contract" ? 30 : 28;
+  const bonus = Math.min(Math.log2(degree + 1) * 5, 22);
   return base + bonus;
+}
+
+function focusElements(cy: Core, elements: cytoscape.CollectionReturnValue, _zoomFactor: number): void {
+  if (elements.length === 0) {
+    return;
+  }
+
+  cy.animate(
+    {
+      fit: { eles: elements, padding: 72 },
+    },
+    { duration: 260, easing: "ease-out-cubic" },
+  );
 }
 
 function runLayout(cy: Core, nodeCount: number, options: { fitAfter?: boolean } = {}): void {
   const layout = cy.layout({
     name: "fcose",
-    quality: nodeCount > 200 ? "draft" : "default",
+    quality: nodeCount > 180 ? "draft" : "default",
     randomize: true,
     animate: false,
-    nodeRepulsion: 8000,
-    idealEdgeLength: nodeCount > 80 ? 140 : 110,
-    edgeElasticity: 0.45,
-    gravity: 0.18,
-    nodeSeparation: 80,
-    padding: 40,
+    nodeRepulsion: nodeCount > 80 ? 12000 : 9000,
+    idealEdgeLength: nodeCount > 80 ? 150 : 120,
+    edgeElasticity: 0.42,
+    gravity: 0.12,
+    nodeSeparation: 90,
+    padding: 48,
     fit: true,
     tile: true,
     packComponents: true,
   } as cytoscape.LayoutOptions);
   layout.run();
   if (options.fitAfter) {
-    cy.animate({ fit: { eles: cy.elements(), padding: 40 } }, { duration: 240 });
+    cy.animate({ fit: { eles: cy.elements(), padding: 48 } }, { duration: 260 });
   }
 }
 
-function buildStylesheet(): cytoscape.StylesheetJson {
+function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
   return [
     {
       selector: "node",
       style: {
-        "background-color": "#f1f5ee",
-        "border-color": "#1f3d2c",
+        "background-color": "#eef4ea",
+        "border-color": "#5a8a6a",
         "border-width": 2,
         "color": "#162018",
         "label": "data(label)",
         "font-size": 10,
-        "font-weight": 600,
+        "font-weight": 700,
         "text-valign": "bottom",
-        "text-margin-y": 6,
+        "text-margin-y": 8,
         "text-background-color": "#ffffff",
-        "text-background-opacity": 0.85,
-        "text-background-padding": "2",
+        "text-background-opacity": 0.92,
+        "text-background-padding": "3",
         "text-background-shape": "roundrectangle",
         "width": "data(size)",
         "height": "data(size)",
         "shape": "ellipse",
-        "overlay-padding": 6,
-        "transition-property": "background-color, border-color, opacity",
-        "transition-duration": 160,
+        "overlay-padding": 8,
+        "underlay-color": "#1f3d2c",
+        "underlay-opacity": 0.06,
+        "underlay-padding": 4,
+        "transition-property": "background-color, border-color, opacity, underlay-opacity",
+        "transition-duration": 180,
       },
     },
     {
       selector: "node.node-watched",
       style: {
         "background-color": "#1f3d2c",
-        "border-color": "#0f1f15",
+        "border-color": "#0f2418",
+        "border-width": 3,
         "color": "#ffffff",
-        "text-background-color": "#0f1f15",
-        "text-background-opacity": 0.9,
+        "text-background-color": "#0f2418",
+        "text-background-opacity": 0.94,
+        "underlay-opacity": 0.18,
+        "underlay-padding": 8,
       },
     },
     {
       selector: "node.node-observed",
       style: {
-        "background-color": "#d6e9d2",
-        "border-color": "#3e7050",
+        "background-color": "#d8ead4",
+        "border-color": "#4f8a62",
+        "border-width": 2,
       },
     },
     {
       selector: "node.node-contract",
       style: {
-        "background-color": "#fff1d2",
-        "border-color": "#b07410",
-        "shape": "round-diamond",
+        "background-color": "#fff3d6",
+        "border-color": "#c58a1a",
+        "border-width": 2,
+        "shape": "ellipse",
       },
     },
     {
       selector: "node.node-entity",
       style: {
-        "background-color": "#e6e2f5",
-        "border-color": "#5a4ab0",
-        "shape": "round-hexagon",
+        "background-color": "#ebe6fb",
+        "border-color": "#6b57c4",
+        "border-width": 2,
+      },
+    },
+    {
+      selector: "node.dense",
+      style: {
+        "label": "",
+        "font-size": 0,
+      },
+    },
+    {
+      selector: "node.dense.hl-focus, node.dense:selected",
+      style: {
+        "label": "data(label)",
+        "font-size": 10,
       },
     },
     {
       selector: "edge",
       style: {
-        "curve-style": "bezier",
+        "curve-style": "unbundled-bezier",
+        "control-point-distances": 24,
+        "control-point-weights": 0.5,
         "width": "data(weight)",
         "line-color": "data(color)",
         "target-arrow-color": "data(color)",
         "target-arrow-shape": "triangle",
-        "arrow-scale": 0.9,
-        "opacity": 0.7,
+        "arrow-scale": 0.75,
+        "opacity": denseGraph ? 0.45 : 0.62,
         "label": "data(label)",
         "font-size": 9,
         "color": "data(color)",
         "text-background-color": "#ffffff",
-        "text-background-opacity": 0.9,
+        "text-background-opacity": 0.92,
         "text-background-padding": "2",
         "text-background-shape": "roundrectangle",
         "transition-property": "opacity, width",
-        "transition-duration": 160,
+        "transition-duration": 180,
       },
     },
     {
@@ -722,15 +874,21 @@ function buildStylesheet(): cytoscape.StylesheetJson {
       },
     },
     {
+      selector: ".hidden",
+      style: {
+        display: "none",
+      },
+    },
+    {
       selector: ".hl-dim",
       style: {
-        "opacity": 0.12,
+        opacity: 0.08,
       },
     },
     {
       selector: ".hl-focus",
       style: {
-        "opacity": 1,
+        opacity: 1,
         "z-index": 30,
       },
     },
@@ -738,12 +896,14 @@ function buildStylesheet(): cytoscape.StylesheetJson {
       selector: "node.hl-focus",
       style: {
         "border-width": 4,
+        "underlay-opacity": 0.24,
       },
     },
     {
       selector: "edge.hl-focus",
       style: {
-        "width": "mapData(weight, 1, 6, 3, 8)",
+        width: "mapData(weight, 1, 6, 2.5, 7)",
+        opacity: 0.95,
       },
     },
   ] as cytoscape.StylesheetJson;

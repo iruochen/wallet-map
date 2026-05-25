@@ -11,6 +11,7 @@ import {
 import {
   formatAbsoluteTime,
   formatAmount,
+  formatEdgeKindLabel,
   formatEventTypeLabel,
   formatRelativeTime,
   shortenAddress,
@@ -150,6 +151,7 @@ export function AnalysisWorkbench({
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [evidenceTab, setEvidenceTab] = useState<"findings" | "edges">("findings");
   const addressCount = useMemo(
     () => addresses.split(/\s+/).filter((address) => address.trim().length > 0).length,
     [addresses],
@@ -200,10 +202,19 @@ export function AnalysisWorkbench({
     };
   }, [result]);
 
+  const graphNodeIndex = useMemo(() => {
+    if (!result) {
+      return new Map<string, GraphNode>();
+    }
+
+    return new Map(result.graph.nodes.map((node) => [node.id, node]));
+  }, [result]);
+
   async function runAnalysis() {
     setIsRunning(true);
     setError(null);
     setResult(null);
+    setEvidenceTab("findings");
 
     try {
       const response = await fetch("/api/analyze", {
@@ -435,12 +446,35 @@ export function AnalysisWorkbench({
       </section>
 
       <aside className="workbenchColumn workbenchFindings">
-        <header className="workbenchColumnHeader">
-          <div>
-            <h2>Findings</h2>
+        <header className="workbenchColumnHeader workbenchFindingsHeader">
+          <div className="workbenchFindingsTitle">
+            <div className="panelTabs" role="tablist" aria-label="Evidence panels">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={evidenceTab === "findings"}
+                className={`panelTab ${evidenceTab === "findings" ? "panelTabActive" : ""}`}
+                onClick={() => setEvidenceTab("findings")}
+              >
+                Findings
+                {result ? <span className="panelTabCount">{result.findings.length}</span> : null}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={evidenceTab === "edges"}
+                className={`panelTab ${evidenceTab === "edges" ? "panelTabActive" : ""}`}
+                onClick={() => setEvidenceTab("edges")}
+              >
+                Edges
+                {result ? <span className="panelTabCount">{result.graph.totalEdges}</span> : null}
+              </button>
+            </div>
             <p>
               {result
-                ? `${result.findings.length} signals · ${result.meta.chainName}`
+                ? evidenceTab === "findings"
+                  ? `${result.meta.chainName} · 分析器信号`
+                  : `${result.graph.totalEdges} 条关系边 · 独立滚动`
                 : "分析器证据流"}
             </p>
           </div>
@@ -449,50 +483,69 @@ export function AnalysisWorkbench({
           {isRunning ? (
             <LoadingList />
           ) : result ? (
-            result.findings.length > 0 ? (
-              <ul className="findingList">
-                {result.findings.map((finding) => (
-                  <li key={finding.id}>
-                    <div className="findingHeader">
-                      <strong>{finding.title}</strong>
-                      <span className="findingMeta">
-                        <span className={`severityPill severity-${finding.severity}`}>
-                          {finding.severity}
+            evidenceTab === "findings" ? (
+              result.findings.length > 0 ? (
+                <ul className="findingList">
+                  {result.findings.map((finding) => (
+                    <li key={finding.id}>
+                      <div className="findingHeader">
+                        <strong>{finding.title}</strong>
+                        <span className="findingMeta">
+                          <span className={`severityPill severity-${finding.severity}`}>
+                            {finding.severity}
+                          </span>
+                          <span className={`confidencePill confidence-${finding.confidence}`}>
+                            {finding.confidence}
+                          </span>
                         </span>
-                        <span className={`confidencePill confidence-${finding.confidence}`}>
-                          {finding.confidence}
-                        </span>
-                      </span>
-                    </div>
-                    <p>{finding.description}</p>
-                    {finding.evidenceTruncated ? (
-                      <p className="previewHint">
-                        仅展示前 {finding.evidence.length} 条证据，共 {finding.evidenceTotal} 条。
-                      </p>
-                    ) : null}
-                    <div className="evidenceList">
-                      {finding.evidence.map((evidence) => (
-                        <EvidenceItemView
-                          key={evidence.eventId}
-                          evidence={evidence}
-                          chainId={result.meta.chainId}
-                          watchedAddressSet={watchedAddressSet}
-                        />
-                      ))}
-                    </div>
-                  </li>
+                      </div>
+                      <p>{finding.description}</p>
+                      {finding.evidenceTruncated ? (
+                        <p className="previewHint">
+                          仅展示前 {finding.evidence.length} 条证据，共 {finding.evidenceTotal} 条。
+                        </p>
+                      ) : null}
+                      <div className="evidenceList">
+                        {finding.evidence.map((evidence) => (
+                          <EvidenceItemView
+                            key={evidence.eventId}
+                            evidence={evidence}
+                            chainId={result.meta.chainId}
+                            watchedAddressSet={watchedAddressSet}
+                          />
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="emptyStateBlock emptyStatePositive">
+                  <strong>没有明显关联信号</strong>
+                  <p>分析器没有发现 watched 钱包之间的直接转账、共享 counterparty 或同合约交互。</p>
+                </div>
+              )
+            ) : result.graph.edges.length > 0 ? (
+              <ul className="edgeList">
+                {result.graph.edges.map((edge) => (
+                  <EdgeRow
+                    key={edge.id}
+                    edge={edge}
+                    chainId={result.meta.chainId}
+                    watchedAddressSet={watchedAddressSet}
+                    nodeIndex={graphNodeIndex}
+                  />
                 ))}
               </ul>
             ) : (
-              <div className="emptyStateBlock emptyStatePositive">
-                <strong>没有明显关联信号</strong>
-                <p>分析器没有发现 watched 钱包之间的直接转账、共享 counterparty 或同合约交互。</p>
+              <div className="emptyStateBlock">
+                <strong>暂无关系边</strong>
+                <p>当前分析没有产出可视化的 graph edges。</p>
               </div>
             )
           ) : (
             <div className="emptyStateBlock">
               <strong>暂无证据</strong>
-              <p>分析完成后这里会列出每条 finding 的事件证据。</p>
+              <p>分析完成后这里会列出 findings 和 graph edges，各自独立滚动，不会挤占图谱区域。</p>
             </div>
           )}
         </div>
@@ -672,6 +725,134 @@ function TokenLink({ chainId, contract, symbol }: TokenLinkProps) {
       {symbol ?? "token"} <span aria-hidden="true">↗</span>
     </a>
   );
+}
+
+interface EdgeRowProps {
+  edge: GraphEdge;
+  chainId: number;
+  watchedAddressSet: Set<string>;
+  nodeIndex: Map<string, GraphNode>;
+}
+
+function EdgeRow({ edge, chainId, watchedAddressSet, nodeIndex }: EdgeRowProps) {
+  const edgeChainId = edge.metadata?.chainId ?? chainId;
+  const eventChain = getSupportedAnalysisChain(edgeChainId);
+  const isNativeAsset = edge.metadata?.asset?.kind === "native";
+  const amountDecimals = isNativeAsset
+    ? eventChain?.nativeDecimals ?? 18
+    : edge.metadata?.asset?.decimals;
+  const canRenderAmount =
+    edge.metadata?.amount !== undefined &&
+    edge.metadata.amount !== "" &&
+    (isNativeAsset || edge.metadata?.asset?.decimals !== undefined);
+  const amountFormatted = canRenderAmount
+    ? formatAmount(edge.metadata?.amount, amountDecimals)
+    : undefined;
+  const amountSymbol =
+    edge.metadata?.asset?.symbol ?? (isNativeAsset ? eventChain?.nativeSymbol : undefined);
+  const txHash = edge.metadata?.txHash;
+  const txHref = txHash ? buildExplorerTxUrl(edgeChainId, txHash) : undefined;
+  const sourceNode = nodeIndex.get(edge.source);
+  const targetNode = nodeIndex.get(edge.target);
+
+  return (
+    <li className="edgeRow">
+      <div className="edgeRowHeader">
+        <span className={`eventTypePill event-${edge.kind}`}>{formatEdgeKindLabel(edge.kind)}</span>
+        {amountFormatted ? (
+          <span className="amountChip">
+            <strong>{amountFormatted}</strong>
+            {amountSymbol ? <span>{amountSymbol}</span> : null}
+          </span>
+        ) : null}
+        {edge.metadata?.methodId ? (
+          <span className="methodChip" title="Method selector">
+            {edge.metadata.methodId}
+          </span>
+        ) : null}
+      </div>
+      <div className="edgeRowBody">
+        <GraphNodeLink
+          node={sourceNode}
+          fallbackId={edge.source}
+          chainId={edgeChainId}
+          watchedAddressSet={watchedAddressSet}
+        />
+        <span className="evidenceArrow" aria-hidden="true">
+          →
+        </span>
+        <GraphNodeLink
+          node={targetNode}
+          fallbackId={edge.target}
+          chainId={edgeChainId}
+          watchedAddressSet={watchedAddressSet}
+        />
+      </div>
+      <div className="edgeRowFooter">
+        {txHash ? (
+          <a
+            className="txLink"
+            href={txHref}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={txHash}
+          >
+            <span aria-hidden="true">↗</span>
+            <code>{shortenTxHash(txHash)}</code>
+          </a>
+        ) : (
+          <code className="evidenceEventId" title={edge.id}>
+            {edge.id}
+          </code>
+        )}
+        {edge.metadata?.asset?.contract && !isNativeAsset ? (
+          <TokenLink
+            chainId={edgeChainId}
+            contract={edge.metadata.asset.contract}
+            symbol={edge.metadata.asset.symbol}
+          />
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+interface GraphNodeLinkProps {
+  node?: GraphNode;
+  fallbackId: string;
+  chainId: number;
+  watchedAddressSet: Set<string>;
+}
+
+function GraphNodeLink({ node, fallbackId, chainId, watchedAddressSet }: GraphNodeLinkProps) {
+  const address = node?.address ?? extractAddressFromNodeId(fallbackId);
+  const isContract = node?.kind === "contract";
+  const isWatched =
+    node?.kind === "wallet" &&
+    (node.tags?.includes("watched") ?? watchedAddressSet.has(address.toLowerCase()));
+  const roleLabel = isContract ? "contract" : isWatched ? "watched" : "observed";
+  const pillKind = isContract ? "contract" : isWatched ? "watched" : "observed";
+  const href = buildExplorerAddressUrl(node?.chainId ?? chainId, address);
+
+  return (
+    <span className={`addressLink addressLink-${pillKind}`}>
+      <span className="addressRoleTag">{roleLabel}</span>
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer noopener"
+        title={address}
+        className="addressValue"
+      >
+        {shortenAddress(address)}
+      </a>
+    </span>
+  );
+}
+
+function extractAddressFromNodeId(nodeId: string): string {
+  const match = /(0x[a-fA-F0-9]{40})/.exec(nodeId);
+  return match?.[1] ?? nodeId;
 }
 
 function LoadingResult() {
