@@ -88,7 +88,7 @@ The current MVP runs in fixture mode:
 
 Data source modes:
 
-- `Auto`: uses live Etherscan-like data only when the relevant API key is present, otherwise falls back to fixture data.
+- `Auto`: uses live Etherscan API V2 data only when `ETHERSCAN_API_KEY` is present, otherwise falls back to fixture data.
 - `Fixture`: always uses `fixtures/sample-events.json`.
 - `Live`: requires the relevant scan API key and returns a clear error if it is missing.
 

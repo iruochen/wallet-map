@@ -6,6 +6,7 @@ export interface EtherscanLikeAdapterConfig {
   apiKey?: string;
   chainId: ChainId;
   name: string;
+  useChainIdParam?: boolean;
   fetchImpl?: typeof fetch;
 }
 
@@ -51,6 +52,7 @@ export class EtherscanLikeAdapter implements ChainAdapter {
 
   private readonly baseUrl: string;
   private readonly apiKey?: string;
+  private readonly useChainIdParam: boolean;
   private readonly fetchImpl: typeof fetch;
 
   constructor(config: EtherscanLikeAdapterConfig) {
@@ -59,6 +61,7 @@ export class EtherscanLikeAdapter implements ChainAdapter {
     this.chainId = config.chainId;
     this.name = config.name;
     this.id = `etherscan-like:${config.chainId}:${slugify(config.name)}`;
+    this.useChainIdParam = config.useChainIdParam ?? false;
     this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
   }
 
@@ -108,6 +111,9 @@ export class EtherscanLikeAdapter implements ChainAdapter {
 
   private buildAccountUrl(request: AdapterRequest, action: EtherscanAction): URL {
     const url = new URL(this.baseUrl);
+    if (this.useChainIdParam) {
+      url.searchParams.set("chainid", String(this.chainId));
+    }
     url.searchParams.set("module", "account");
     url.searchParams.set("action", action);
     url.searchParams.set("address", request.address);

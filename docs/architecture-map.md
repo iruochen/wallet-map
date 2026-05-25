@@ -301,7 +301,7 @@ docs/
 - [ ] 设计标准事件模型。
 - [ ] 设计 PostgreSQL schema。
 - [ ] 实现 EVM 地址校验和 checksum。
-- [ ] 实现 Etherscan-like adapter。
+- [x] 实现 Etherscan-like adapter。
 - [ ] 实现 RPC log adapter。
 - [ ] 支持 CSV 导入。
 
@@ -352,4 +352,3 @@ docs/
 - 可列出直接交易、多跳路径、共同交互对象。
 - 可导出 Markdown/JSON 报告。
 - 有一组公开 fixture 测试数据，方便开源贡献者验证。
-

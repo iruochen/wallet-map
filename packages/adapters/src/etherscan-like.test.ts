@@ -122,6 +122,49 @@ describe("EtherscanLikeAdapter", () => {
     expect(txlistUrl.searchParams.get("endblock")).toBe("200");
   });
 
+  it("supports Etherscan API V2 chainid requests", async () => {
+    const fetchMock = mockEtherscanFetch({
+      txlist: [],
+      tokentx: [],
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new EtherscanLikeAdapter({
+      baseUrl: "https://api.etherscan.io/v2/api",
+      apiKey: "test-key",
+      chainId: 56,
+      name: "BSC",
+      useChainIdParam: true,
+    });
+
+    await adapter.getEvents({ address: watchedAddress });
+
+    const txlistUrl = calledUrl(fetchMock, "txlist");
+    expect(txlistUrl.origin + txlistUrl.pathname).toBe("https://api.etherscan.io/v2/api");
+    expect(txlistUrl.searchParams.get("chainid")).toBe("56");
+    expect(txlistUrl.searchParams.get("apikey")).toBe("test-key");
+  });
+
+  it("omits chainid for legacy Etherscan-like endpoints", async () => {
+    const fetchMock = mockEtherscanFetch({
+      txlist: [],
+      tokentx: [],
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new EtherscanLikeAdapter({
+      baseUrl: "https://api.bscscan.com/api",
+      chainId: 56,
+      name: "BSC Legacy",
+    });
+
+    await adapter.getEvents({ address: watchedAddress });
+
+    expect(calledUrl(fetchMock, "txlist").searchParams.has("chainid")).toBe(false);
+  });
+
   it("throws a clear error for Etherscan status=0 responses", async () => {
     const fetchMock = vi.fn(async (input: string | URL) => {
       const url = new URL(String(input));

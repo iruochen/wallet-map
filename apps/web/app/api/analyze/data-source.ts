@@ -6,8 +6,6 @@ import type { AnalyzeDataMode } from "./schema";
 interface ChainScanConfig {
   chainId: ChainId;
   name: string;
-  baseUrl: string;
-  apiKeyEnv: string;
 }
 
 export interface ResolveEventsInput {
@@ -15,6 +13,7 @@ export interface ResolveEventsInput {
   chainId: ChainId;
   dataMode: AnalyzeDataMode;
   env?: Record<string, string | undefined>;
+  fetchImpl?: typeof fetch;
 }
 
 export interface ResolveEventsResult {
@@ -27,35 +26,30 @@ const chainScanConfigs: Record<number, ChainScanConfig> = {
   1: {
     chainId: 1,
     name: "Ethereum",
-    baseUrl: "https://api.etherscan.io/api",
-    apiKeyEnv: "ETHERSCAN_API_KEY",
   },
   42161: {
     chainId: 42161,
     name: "Arbitrum",
-    baseUrl: "https://api.arbiscan.io/api",
-    apiKeyEnv: "ARBISCAN_API_KEY",
   },
   8453: {
     chainId: 8453,
     name: "Base",
-    baseUrl: "https://api.basescan.org/api",
-    apiKeyEnv: "BASESCAN_API_KEY",
   },
   56: {
     chainId: 56,
     name: "BSC",
-    baseUrl: "https://api.bscscan.com/api",
-    apiKeyEnv: "BSCSCAN_API_KEY",
   },
 };
+
+const etherscanV2BaseUrl = "https://api.etherscan.io/v2/api";
+const etherscanApiKeyEnv = "ETHERSCAN_API_KEY";
 
 export async function resolveAnalyzeEvents(
   input: ResolveEventsInput,
 ): Promise<ResolveEventsResult> {
   const env = input.env ?? process.env;
   const config = chainScanConfigs[input.chainId];
-  const apiKey = config ? env[config.apiKeyEnv]?.trim() : undefined;
+  const apiKey = env[etherscanApiKeyEnv]?.trim();
 
   if (input.dataMode === "fixture" || (input.dataMode === "auto" && !apiKey)) {
     return {
@@ -70,14 +64,16 @@ export async function resolveAnalyzeEvents(
   }
 
   if (!apiKey && input.dataMode === "live") {
-    throw new Error(`${config.apiKeyEnv} is required for live ${config.name} analysis.`);
+    throw new Error(`${etherscanApiKeyEnv} is required for live ${config.name} analysis.`);
   }
 
   const adapter = new EtherscanLikeAdapter({
-    baseUrl: config.baseUrl,
+    baseUrl: etherscanV2BaseUrl,
     apiKey,
     chainId: config.chainId,
     name: config.name,
+    useChainIdParam: true,
+    fetchImpl: input.fetchImpl,
   });
   const eventsByAddress = await Promise.all(
     input.addresses.map((address) => adapter.getEvents({ address })),
