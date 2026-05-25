@@ -460,8 +460,10 @@ button:disabled {
   min-width: 0;
 }
 
-.findingMeta,
-.edgeList li span {
+.findingMeta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
   color: #64736a;
   font-size: 0.82rem;
   white-space: nowrap;
@@ -482,36 +484,329 @@ button:disabled {
 
 .evidenceList {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
 .evidenceItem {
   display: grid;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border: 1px solid #e1e7df;
   border-radius: 8px;
   background: #ffffff;
 }
 
-.evidenceItem span {
-  color: #405047;
-  font-size: 0.82rem;
-  line-height: 1.45;
+.evidenceItemHeader,
+.evidenceItemBody,
+.evidenceItemFooter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
 }
 
-.evidenceItem code,
-.edgeList code,
+.evidenceItemFooter {
+  padding-top: 6px;
+  border-top: 1px dashed #e1e7df;
+}
+
+.evidenceTime {
+  margin-left: auto;
+  color: #64736a;
+  font-size: 0.78rem;
+}
+
+.evidenceArrow {
+  color: #889389;
+  font-weight: 700;
+}
+
+.evidenceUnknown {
+  color: #889389;
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.evidenceEventId {
+  display: inline-block;
+  max-width: 100%;
+  color: #64736a;
+}
+
+.eventTypePill,
+.edgeKindPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #eef2eb;
+  color: #2b4a3a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.event-native_transfer,
+.edge-native_transfer {
+  background: #e9f1ec;
+  color: #1c5b3a;
+}
+
+.event-token_transfer,
+.edge-token_transfer {
+  background: #eef2ff;
+  color: #2b3da7;
+}
+
+.event-nft_transfer,
+.edge-nft_transfer {
+  background: #fbecff;
+  color: #6b2391;
+}
+
+.event-contract_call,
+.edge-contract_interaction {
+  background: #fff5e0;
+  color: #7a5202;
+}
+
+.edge-shared_counterparty {
+  background: #fff0ec;
+  color: #94391a;
+}
+
+.edge-bridge_route {
+  background: #e8f4ff;
+  color: #1d5295;
+}
+
+.amountChip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+  padding: 3px 9px;
+  border: 1px solid #d6e3da;
+  border-radius: 999px;
+  background: #fbfcfa;
+}
+
+.amountChip strong {
+  font-size: 0.86rem;
+  color: #1c3527;
+  font-variant-numeric: tabular-nums;
+}
+
+.amountChip span {
+  color: #4c5b51;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.scopeChip {
+  padding: 2px 7px;
+  border: 1px solid #d6e3da;
+  border-radius: 999px;
+  background: #fbfcfa;
+  color: #4c5b51;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.methodChip {
+  padding: 2px 6px;
+  border: 1px solid #e5d8b6;
+  border-radius: 4px;
+  background: #fff8e5;
+  color: #6a4c00;
+  font-size: 0.76rem;
+}
+
+.severityPill,
+.confidencePill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.severity-info,
+.confidence-low {
+  background: #eef2eb;
+  color: #4c5b51;
+}
+
+.severity-low {
+  background: #ecf6ee;
+  color: #2b6c46;
+}
+
+.severity-medium,
+.confidence-medium {
+  background: #fff4dd;
+  color: #7a5202;
+}
+
+.severity-high,
+.confidence-high {
+  background: #ffe1dc;
+  color: #8d211b;
+}
+
+.addressLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 4px;
+  border: 1px solid #d6e3da;
+  border-radius: 999px;
+  background: #fbfcfa;
+  min-width: 0;
+}
+
+.addressLink .addressRoleTag {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #e6efe9;
+  color: #2b4a3a;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.addressLink-watched {
+  border-color: #b9d8c2;
+  background: #f1faf3;
+}
+
+.addressLink-watched .addressRoleTag {
+  background: #1c6b3d;
+  color: #ffffff;
+}
+
+.addressLink-contract {
+  border-color: #e0d4ab;
+  background: #fffaeb;
+}
+
+.addressLink-contract .addressRoleTag {
+  background: #7a5202;
+  color: #ffffff;
+}
+
+.addressLink-observed .addressRoleTag {
+  background: #cfd8d1;
+  color: #2b4a3a;
+}
+
+.addressValue {
+  color: #183d30;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.12s ease;
+}
+
+.addressValue:hover {
+  border-bottom-color: #183d30;
+}
+
+.txLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid #d6e3da;
+  border-radius: 6px;
+  background: #fbfcfa;
+  color: #183d30;
+  font-size: 0.78rem;
+  text-decoration: none;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.txLink:hover {
+  border-color: #183d30;
+  background: #f4fbf6;
+}
+
+.txLink code {
+  color: inherit;
+}
+
+.tokenChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid #cbd9e5;
+  border-radius: 999px;
+  background: #f3f7fc;
+  color: #2b3da7;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.tokenChip:hover {
+  background: #e7eefa;
+}
+
+.edgeList {
+  display: grid;
+  gap: 8px;
+}
+
+.edgeRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #e1e7df;
+  border-radius: 8px;
+  background: #fbfcfa;
+}
+
+.edgeRow .edgeKindPill {
+  justify-self: start;
+}
+
+.edgeNodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.edgeMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
 .sourceLine code {
   display: inline-block;
   max-width: 100%;
-}
-
-.edgeList li {
-  grid-template-columns: minmax(88px, 0.4fr) minmax(0, 1fr) minmax(0, 1fr);
-  align-items: center;
+  padding: 1px 6px;
+  border: 1px solid #e1e7df;
+  border-radius: 4px;
+  background: #fbfcfa;
 }
 
 code {
@@ -612,8 +907,16 @@ code {
   .metricGrid,
   .metaGrid,
   .skeletonGrid,
-  .edgeList li {
+  .edgeRow {
     grid-template-columns: 1fr;
+  }
+
+  .edgeMeta {
+    justify-content: flex-start;
+  }
+
+  .evidenceTime {
+    margin-left: 0;
   }
 
   .inputPanel {

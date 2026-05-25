@@ -1,11 +1,12 @@
 import { createDefaultAnalyzers } from "@wallet-map/analyzers";
+import type { NormalizedEvent } from "@wallet-map/core";
 import { runAnalysis } from "@wallet-map/core";
 import { resolveAnalyzeEvents } from "./data-source";
 import { parseAnalyzeRequest } from "./schema";
 
-const graphNodePreviewLimit = 120;
-const graphEdgePreviewLimit = 160;
-const findingEvidencePreviewLimit = 10;
+const graphNodePreviewLimit = 200;
+const graphEdgePreviewLimit = 240;
+const findingEvidencePreviewLimit = 20;
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -19,10 +20,12 @@ export async function POST(request: Request): Promise<Response> {
       events: resolved.events,
       analyzers: createDefaultAnalyzers(),
     });
+    const eventsById = new Map(resolved.events.map((event) => [event.id, event]));
 
     return Response.json({
       mode: resolved.mode,
       source: resolved.source,
+      sourceLabel: buildSourceLabel(resolved.mode, resolved.chainName),
       input: parsed,
       meta: {
         chainId: parsed.chainId,
@@ -44,13 +47,23 @@ export async function POST(request: Request): Promise<Response> {
         nodesTruncated: result.graph.nodes.length > graphNodePreviewLimit,
         edgesTruncated: result.graph.edges.length > graphEdgePreviewLimit,
         nodes: result.graph.nodes.slice(0, graphNodePreviewLimit),
-        edges: result.graph.edges.slice(0, graphEdgePreviewLimit),
+        edges: result.graph.edges.slice(0, graphEdgePreviewLimit).map((edge) => ({
+          ...edge,
+          metadata: enrichEdgeMetadata(edge.metadata, edge.evidenceEventIds, eventsById),
+        })),
       },
       findings: result.findings.map((finding) => ({
         ...finding,
         evidenceTotal: finding.evidence.length,
         evidenceTruncated: finding.evidence.length > findingEvidencePreviewLimit,
-        evidence: finding.evidence.slice(0, findingEvidencePreviewLimit),
+        evidence: finding.evidence.slice(0, findingEvidencePreviewLimit).map((evidence) => {
+          const event = eventsById.get(evidence.eventId);
+
+          return {
+            ...evidence,
+            event: event ? toEvidenceEvent(event) : undefined,
+          };
+        }),
       })),
       score: result.score,
     });
@@ -59,4 +72,100 @@ export async function POST(request: Request): Promise<Response> {
 
     return Response.json({ error: message }, { status: 400 });
   }
+}
+
+function buildSourceLabel(mode: "fixture" | "live", chainName: string): string {
+  if (mode === "live") {
+    return `Etherscan V2 live · ${chainName}`;
+  }
+
+  return `Local fixture · ${chainName}`;
+}
+
+interface EvidenceEvent {
+  type: NormalizedEvent["type"];
+  chainId: NormalizedEvent["chainId"];
+  txHash: string;
+  blockNumber: number;
+  timestamp: string;
+  from?: string;
+  to?: string;
+  contract?: string;
+  methodId?: string;
+  amount?: string;
+  asset?: {
+    kind: string;
+    symbol?: string;
+    contract?: string;
+    decimals?: number;
+    tokenId?: string;
+  };
+  transferScope?: string;
+}
+
+function enrichEdgeMetadata(
+  metadata: Record<string, unknown> | undefined,
+  evidenceEventIds: string[],
+  eventsById: Map<string, NormalizedEvent>,
+): Record<string, unknown> | undefined {
+  if (!metadata) {
+    return metadata;
+  }
+
+  const sampleEvent = evidenceEventIds
+    .map((id) => eventsById.get(id))
+    .find((candidate): candidate is NormalizedEvent => Boolean(candidate));
+  const tokenDecimalsRaw = (sampleEvent?.metadata as { tokenDecimal?: string } | undefined)?.tokenDecimal;
+  const tokenDecimals = tokenDecimalsRaw !== undefined ? Number(tokenDecimalsRaw) : undefined;
+  const existingAsset = metadata.asset as
+    | { kind?: string; symbol?: string; contract?: string; decimals?: number; tokenId?: string }
+    | undefined;
+
+  if (!existingAsset) {
+    return metadata;
+  }
+
+  const decimals =
+    existingAsset.decimals !== undefined
+      ? existingAsset.decimals
+      : Number.isFinite(tokenDecimals)
+        ? tokenDecimals
+        : undefined;
+
+  return {
+    ...metadata,
+    asset: {
+      ...existingAsset,
+      decimals,
+    },
+  };
+}
+
+function toEvidenceEvent(event: NormalizedEvent): EvidenceEvent {
+  const tokenDecimalsRaw = (event.metadata as { tokenDecimal?: string } | undefined)?.tokenDecimal;
+  const tokenDecimals = tokenDecimalsRaw !== undefined ? Number(tokenDecimalsRaw) : undefined;
+  const transferScope = (event.metadata as { transferScope?: string } | undefined)?.transferScope;
+
+  return {
+    type: event.type,
+    chainId: event.chainId,
+    txHash: event.txHash,
+    blockNumber: event.blockNumber,
+    timestamp: event.timestamp,
+    from: event.from,
+    to: event.to,
+    contract: event.contract,
+    methodId: event.methodId,
+    amount: event.amount,
+    asset: event.asset
+      ? {
+          kind: event.asset.kind,
+          symbol: event.asset.symbol,
+          contract: event.asset.contract,
+          decimals: Number.isFinite(tokenDecimals) ? tokenDecimals : undefined,
+          tokenId: event.asset.tokenId,
+        }
+      : undefined,
+    transferScope,
+  };
 }

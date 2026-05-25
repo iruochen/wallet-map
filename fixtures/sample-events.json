@@ -63,7 +63,10 @@
       "symbol": "USDC",
       "contract": "0xffffffffffffffffffffffffffffffffffffffff"
     },
-    "amount": "15000000"
+    "amount": "15000000",
+    "metadata": {
+      "tokenDecimal": "6"
+    }
   },
   {
     "id": "eth:0x555:0",
@@ -81,7 +84,10 @@
       "symbol": "USDC",
       "contract": "0xffffffffffffffffffffffffffffffffffffffff"
     },
-    "amount": "14950000"
+    "amount": "14950000",
+    "metadata": {
+      "tokenDecimal": "6"
+    }
   },
   {
     "id": "eth:0x666:0",
