@@ -254,6 +254,18 @@ button:disabled {
   color: #8d211b;
 }
 
+.stateBannerInfo {
+  border: 1px solid #cfe0f7;
+  background: #f5f9ff;
+  color: #20497d;
+}
+
+.stateBannerSuccess {
+  border: 1px solid #c8e2d1;
+  background: #f4fbf6;
+  color: #1f663c;
+}
+
 .resultsColumn {
   display: grid;
   gap: 16px;
@@ -302,7 +314,8 @@ button:disabled {
 }
 
 .scoreRow,
-.metricGrid {
+.metricGrid,
+.metaGrid {
   display: grid;
   gap: 12px;
 }
@@ -312,11 +325,16 @@ button:disabled {
 }
 
 .metricGrid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metaGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .scoreRow div,
-.metricGrid div {
+.metricGrid div,
+.metaGrid div {
   display: grid;
   gap: 6px;
   padding: 14px;
@@ -326,7 +344,8 @@ button:disabled {
 }
 
 .scoreRow span,
-.metricGrid span {
+.metricGrid span,
+.metaGrid span {
   color: #64736a;
   font-size: 0.78rem;
 }
@@ -337,6 +356,10 @@ button:disabled {
 
 .metricGrid strong {
   font-size: 1.2rem;
+}
+
+.metaGrid strong {
+  font-size: 0.96rem;
 }
 
 .reasonList {
@@ -383,6 +406,32 @@ button:disabled {
   line-height: 1.5;
 }
 
+.chainList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chainPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #d3ddd5;
+  border-radius: 999px;
+  background: #fbfcfa;
+  color: #4c5b51;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.chainPillActive {
+  border-color: #183d30;
+  background: #183d30;
+  color: #ffffff;
+}
+
 .findingList,
 .edgeList {
   display: grid;
@@ -423,10 +472,29 @@ button:disabled {
   line-height: 1.45;
 }
 
+.previewHint {
+  margin: 0;
+  color: #64736a;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .evidenceList {
   display: grid;
   gap: 6px;
   min-width: 0;
+}
+
+.evidenceItem {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.evidenceItem span {
+  color: #405047;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .edgeList li {
@@ -530,6 +598,7 @@ code {
   .formRow,
   .scoreRow,
   .metricGrid,
+  .metaGrid,
   .skeletonGrid,
   .edgeList li {
     grid-template-columns: 1fr;

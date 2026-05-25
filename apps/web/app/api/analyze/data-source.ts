@@ -1,12 +1,8 @@
 import { EtherscanLikeAdapter } from "@wallet-map/adapters";
 import type { Address, ChainId, NormalizedEvent } from "@wallet-map/core";
+import { getSupportedAnalysisChain } from "../../chains";
 import fixtureEvents from "../../../../../fixtures/sample-events.json";
 import type { AnalyzeDataMode } from "./schema";
-
-interface ChainScanConfig {
-  chainId: ChainId;
-  name: string;
-}
 
 export interface ResolveEventsInput {
   addresses: Address[];
@@ -20,26 +16,9 @@ export interface ResolveEventsResult {
   events: NormalizedEvent[];
   mode: "fixture" | "live";
   source: string;
+  chainName: string;
+  fallbackReason?: string;
 }
-
-const chainScanConfigs: Record<number, ChainScanConfig> = {
-  1: {
-    chainId: 1,
-    name: "Ethereum",
-  },
-  42161: {
-    chainId: 42161,
-    name: "Arbitrum",
-  },
-  8453: {
-    chainId: 8453,
-    name: "Base",
-  },
-  56: {
-    chainId: 56,
-    name: "BSC",
-  },
-};
 
 const etherscanV2BaseUrl = "https://api.etherscan.io/v2/api";
 const etherscanApiKeyEnv = "ETHERSCAN_API_KEY";
@@ -48,14 +27,21 @@ export async function resolveAnalyzeEvents(
   input: ResolveEventsInput,
 ): Promise<ResolveEventsResult> {
   const env = input.env ?? process.env;
-  const config = chainScanConfigs[input.chainId];
+  const config = getSupportedAnalysisChain(input.chainId);
   const apiKey = env[etherscanApiKeyEnv]?.trim();
 
   if (input.dataMode === "fixture" || (input.dataMode === "auto" && !apiKey)) {
+    const fallbackReason =
+      input.dataMode === "auto" && !apiKey
+        ? `${etherscanApiKeyEnv} is not configured, so Auto mode used fixture data instead.`
+        : undefined;
+
     return {
       events: getFixtureEvents(input.chainId),
       mode: "fixture",
       source: "fixtures/sample-events.json",
+      chainName: config?.name ?? `Chain ${input.chainId}`,
+      fallbackReason,
     };
   }
 
@@ -73,16 +59,21 @@ export async function resolveAnalyzeEvents(
     chainId: config.chainId,
     name: config.name,
     useChainIdParam: true,
+    requestThrottleMs: 350,
+    maxRateLimitRetries: 3,
     fetchImpl: input.fetchImpl,
   });
-  const eventsByAddress = await Promise.all(
-    input.addresses.map((address) => adapter.getEvents({ address })),
-  );
+  const eventsByAddress: NormalizedEvent[][] = [];
+
+  for (const address of input.addresses) {
+    eventsByAddress.push(await adapter.getEvents({ address }));
+  }
 
   return {
     events: dedupeEvents(eventsByAddress.flat()),
     mode: "live",
     source: adapter.id,
+    chainName: config.name,
   };
 }
 

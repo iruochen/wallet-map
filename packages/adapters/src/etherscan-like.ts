@@ -7,6 +7,8 @@ export interface EtherscanLikeAdapterConfig {
   chainId: ChainId;
   name: string;
   useChainIdParam?: boolean;
+  requestThrottleMs?: number;
+  maxRateLimitRetries?: number;
   fetchImpl?: typeof fetch;
 }
 
@@ -29,6 +31,19 @@ interface EtherscanNativeTx {
   contractAddress?: string;
 }
 
+interface EtherscanInternalTx {
+  blockNumber: string;
+  timeStamp: string;
+  hash: string;
+  from: string;
+  to: string;
+  value: string;
+  isError?: string;
+  errCode?: string;
+  contractAddress?: string;
+  traceId?: string;
+}
+
 interface EtherscanTokenTx {
   blockNumber: string;
   timeStamp: string;
@@ -43,7 +58,19 @@ interface EtherscanTokenTx {
   logIndex?: string;
 }
 
-type EtherscanAction = "txlist" | "tokentx";
+interface EtherscanNftTx {
+  blockNumber: string;
+  timeStamp: string;
+  hash: string;
+  from: string;
+  to: string;
+  contractAddress: string;
+  tokenSymbol?: string;
+  tokenID?: string;
+  logIndex?: string;
+}
+
+type EtherscanAction = "txlist" | "txlistinternal" | "tokentx" | "tokennfttx";
 
 export class EtherscanLikeAdapter implements ChainAdapter {
   readonly id: string;
@@ -53,6 +80,8 @@ export class EtherscanLikeAdapter implements ChainAdapter {
   private readonly baseUrl: string;
   private readonly apiKey?: string;
   private readonly useChainIdParam: boolean;
+  private readonly requestThrottleMs: number;
+  private readonly maxRateLimitRetries: number;
   private readonly fetchImpl: typeof fetch;
 
   constructor(config: EtherscanLikeAdapterConfig) {
@@ -62,51 +91,86 @@ export class EtherscanLikeAdapter implements ChainAdapter {
     this.name = config.name;
     this.id = `etherscan-like:${config.chainId}:${slugify(config.name)}`;
     this.useChainIdParam = config.useChainIdParam ?? false;
+    this.requestThrottleMs = Math.max(0, config.requestThrottleMs ?? 0);
+    this.maxRateLimitRetries = Math.max(0, config.maxRateLimitRetries ?? 2);
     this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
   }
 
   async getEvents(request: AdapterRequest): Promise<NormalizedEvent[]> {
-    const [nativeTransfers, tokenTransfers] = await Promise.all([
-      this.fetchAccountAction<EtherscanNativeTx[]>(request, "txlist"),
-      this.fetchAccountAction<EtherscanTokenTx[]>(request, "tokentx"),
-    ]);
+    const nativeTransfers = await this.fetchAccountAction<EtherscanNativeTx[]>(request, "txlist");
+    const internalTransfers = await this.fetchAccountAction<EtherscanInternalTx[]>(
+      request,
+      "txlistinternal",
+    );
+    const tokenTransfers = await this.fetchAccountAction<EtherscanTokenTx[]>(request, "tokentx");
+    const nftTransfers = await this.fetchAccountAction<EtherscanNftTx[]>(request, "tokennfttx");
 
     return [
       ...nativeTransfers.filter(isSuccessfulNativeTx).map((tx) => this.mapNativeTransfer(tx)),
+      ...internalTransfers
+        .filter(isSuccessfulInternalTx)
+        .map((tx) => this.mapInternalTransfer(tx)),
       ...tokenTransfers.map((tx) => this.mapTokenTransfer(tx)),
-    ].sort((left, right) => left.blockNumber - right.blockNumber);
+      ...nftTransfers.map((tx) => this.mapNftTransfer(tx)),
+    ].sort((left, right) => {
+      if (left.blockNumber !== right.blockNumber) {
+        return left.blockNumber - right.blockNumber;
+      }
+
+      return left.id.localeCompare(right.id);
+    });
   }
 
   private async fetchAccountAction<T>(
     request: AdapterRequest,
     action: EtherscanAction,
   ): Promise<T> {
-    const url = this.buildAccountUrl(request, action);
-    const response = await this.fetchImpl(url);
-
-    if (!response.ok) {
-      throw new Error(
-        `${this.name} ${action} request failed with HTTP ${response.status} ${response.statusText}`.trim(),
-      );
+    if (this.requestThrottleMs > 0) {
+      await sleep(this.requestThrottleMs);
     }
 
-    const payload = (await response.json()) as EtherscanResponse<T>;
+    let attempt = 0;
 
-    if (payload.status === "0" && Array.isArray(payload.result) && payload.result.length === 0) {
+    while (true) {
+      const url = this.buildAccountUrl(request, action);
+      const response = await this.fetchImpl(url);
+
+      if (!response.ok) {
+        if (response.status === 429 && attempt < this.maxRateLimitRetries) {
+          attempt += 1;
+          await sleep(backoffDelay(this.requestThrottleMs, attempt));
+          continue;
+        }
+
+        throw new Error(
+          `${this.name} ${action} request failed with HTTP ${response.status} ${response.statusText}`.trim(),
+        );
+      }
+
+      const payload = (await response.json()) as EtherscanResponse<T>;
+
+      if (payload.status === "0" && Array.isArray(payload.result) && payload.result.length === 0) {
+        return payload.result as T;
+      }
+
+      if (payload.status === "0") {
+        if (isRateLimitResult(payload.result) && attempt < this.maxRateLimitRetries) {
+          attempt += 1;
+          await sleep(backoffDelay(this.requestThrottleMs, attempt));
+          continue;
+        }
+
+        throw new Error(
+          `${this.name} ${action} request failed: ${payload.message} (${formatResult(payload.result)})`,
+        );
+      }
+
+      if (!Array.isArray(payload.result)) {
+        throw new Error(`${this.name} ${action} request returned an unexpected result shape`);
+      }
+
       return payload.result as T;
     }
-
-    if (payload.status === "0") {
-      throw new Error(
-        `${this.name} ${action} request failed: ${payload.message} (${formatResult(payload.result)})`,
-      );
-    }
-
-    if (!Array.isArray(payload.result)) {
-      throw new Error(`${this.name} ${action} request returned an unexpected result shape`);
-    }
-
-    return payload.result as T;
   }
 
   private buildAccountUrl(request: AdapterRequest, action: EtherscanAction): URL {
@@ -182,10 +246,63 @@ export class EtherscanLikeAdapter implements ChainAdapter {
       },
     };
   }
+
+  private mapInternalTransfer(tx: EtherscanInternalTx): NormalizedEvent {
+    return {
+      id: `etherscan:${this.chainId}:txlistinternal:${tx.hash.toLowerCase()}:${tx.traceId ?? "0"}`,
+      type: "native_transfer",
+      chainId: this.chainId,
+      txHash: normalizeTxHash(tx.hash),
+      blockNumber: Number(tx.blockNumber),
+      timestamp: toIsoTimestamp(tx.timeStamp),
+      from: normalizeAddress(tx.from),
+      to: normalizeAddress(tx.to),
+      asset: {
+        kind: "native",
+        chainId: this.chainId,
+      },
+      amount: tx.value,
+      metadata: {
+        source: this.id,
+        transferScope: "internal",
+        contractAddress: tx.contractAddress,
+        traceId: tx.traceId,
+      },
+    };
+  }
+
+  private mapNftTransfer(tx: EtherscanNftTx): NormalizedEvent {
+    return {
+      id: `etherscan:${this.chainId}:tokennfttx:${tx.hash.toLowerCase()}:${tx.logIndex ?? tx.tokenID ?? "0"}`,
+      type: "nft_transfer",
+      chainId: this.chainId,
+      txHash: normalizeTxHash(tx.hash),
+      blockNumber: Number(tx.blockNumber),
+      timestamp: toIsoTimestamp(tx.timeStamp),
+      from: normalizeAddress(tx.from),
+      to: normalizeAddress(tx.to),
+      contract: normalizeAddress(tx.contractAddress),
+      asset: {
+        kind: "erc721",
+        chainId: this.chainId,
+        symbol: tx.tokenSymbol,
+        contract: normalizeAddress(tx.contractAddress),
+        tokenId: tx.tokenID,
+      },
+      metadata: {
+        source: this.id,
+        logIndex: tx.logIndex,
+      },
+    };
+  }
 }
 
 function isSuccessfulNativeTx(tx: EtherscanNativeTx): boolean {
   return tx.isError !== "1" && tx.txreceipt_status !== "0";
+}
+
+function isSuccessfulInternalTx(tx: EtherscanInternalTx): boolean {
+  return tx.isError !== "1" && (!tx.errCode || tx.errCode === "");
 }
 
 function normalizeAddress(value: string): Address {
@@ -206,6 +323,20 @@ function formatResult(result: unknown): string {
   }
 
   return JSON.stringify(result);
+}
+
+function isRateLimitResult(result: unknown): boolean {
+  return typeof result === "string" && /rate limit/i.test(result);
+}
+
+function backoffDelay(baseDelayMs: number, attempt: number): number {
+  return Math.max(250, baseDelayMs || 250) * attempt;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 function slugify(value: string): string {

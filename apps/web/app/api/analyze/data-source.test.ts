@@ -17,6 +17,7 @@ describe("resolveAnalyzeEvents", () => {
 
     expect(result.mode).toBe("fixture");
     expect(result.source).toBe("fixtures/sample-events.json");
+    expect(result.fallbackReason).toBe("ETHERSCAN_API_KEY is not configured, so Auto mode used fixture data instead.");
     expect(result.events.length).toBeGreaterThan(1);
   });
 
@@ -45,7 +46,8 @@ describe("resolveAnalyzeEvents", () => {
 
     expect(result.mode).toBe("live");
     expect(result.source).toBe("etherscan-like:56:bsc");
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(result.chainName).toBe("BSC");
+    expect(fetchMock).toHaveBeenCalledTimes(8);
     expect(calledUrl(fetchMock, "txlist").searchParams.get("chainid")).toBe("56");
   });
 });
@@ -55,7 +57,12 @@ function mockEtherscanFetch() {
     const url = new URL(String(input));
     const action = url.searchParams.get("action");
 
-    if (action !== "txlist" && action !== "tokentx") {
+    if (
+      action !== "txlist" &&
+      action !== "txlistinternal" &&
+      action !== "tokentx" &&
+      action !== "tokennfttx"
+    ) {
       throw new Error(`Unexpected action ${action}`);
     }
 

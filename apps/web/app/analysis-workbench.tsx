@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { SupportedAnalysisChain } from "./chains";
 
 const sampleAddresses = [
   "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -11,6 +12,18 @@ const sampleAddresses = [
 interface AnalysisResponse {
   mode: "fixture" | "live";
   source: string;
+  meta: {
+    chainId: number;
+    chainName: string;
+    requestedMode: "auto" | "fixture" | "live";
+    resolvedMode: "fixture" | "live";
+    watchedAddressCount: number;
+    eventCount: number;
+    graphWalletCount: number;
+    graphContractCount: number;
+    fallbackReason?: string;
+    fetchedAt: string;
+  };
   score: {
     score: number;
     confidence: "low" | "medium" | "high";
@@ -18,6 +31,10 @@ interface AnalysisResponse {
     counterEvidence: string[];
   };
   graph: {
+    totalNodes: number;
+    totalEdges: number;
+    nodesTruncated: boolean;
+    edgesTruncated: boolean;
     nodes: Array<{ id: string; kind: string; label?: string; tags?: string[] }>;
     edges: Array<{
       id: string;
@@ -33,11 +50,21 @@ interface AnalysisResponse {
     description: string;
     severity: string;
     confidence: string;
+    evidenceTotal: number;
+    evidenceTruncated: boolean;
     evidence: Array<{ eventId: string; txHash?: string; summary: string }>;
   }>;
 }
 
-export function AnalysisWorkbench() {
+interface AnalysisWorkbenchProps {
+  liveConfigured: boolean;
+  supportedChains: SupportedAnalysisChain[];
+}
+
+export function AnalysisWorkbench({
+  liveConfigured,
+  supportedChains,
+}: AnalysisWorkbenchProps) {
   const [addresses, setAddresses] = useState(sampleAddresses);
   const [chainId, setChainId] = useState("1");
   const [dataMode, setDataMode] = useState("auto");
@@ -48,15 +75,34 @@ export function AnalysisWorkbench() {
     () => addresses.split(/\s+/).filter((address) => address.trim().length > 0).length,
     [addresses],
   );
+  const selectedChain = useMemo(
+    () => supportedChains.find((chain) => String(chain.chainId) === chainId) ?? supportedChains[0],
+    [chainId, supportedChains],
+  );
+  const modeDescription = useMemo(() => {
+    if (dataMode === "live") {
+      return liveConfigured
+        ? "直接拉取 Etherscan API V2 的实时数据。"
+        : "当前会请求实时数据；如果本地还没加载 key，这次运行会直接报错。";
+    }
+
+    if (dataMode === "fixture") {
+      return "固定使用本地 fixture 数据，适合演示和回归测试。";
+    }
+
+    return liveConfigured
+      ? "优先走实时数据；如果后面临时移除 key，会自动回退到 fixture。"
+      : "当前会自动回退到 fixture，直到本地环境加载了 Etherscan API key。";
+  }, [dataMode, liveConfigured]);
   const graphSummary = useMemo(() => {
     if (!result) {
       return null;
     }
 
     return {
-      wallets: result.graph.nodes.filter((node) => node.kind === "wallet").length,
-      contracts: result.graph.nodes.filter((node) => node.kind === "contract").length,
-      edges: result.graph.edges.length,
+      wallets: result.meta.graphWalletCount,
+      contracts: result.meta.graphContractCount,
+      edges: result.graph.totalEdges,
     };
   }, [result]);
 
@@ -103,9 +149,7 @@ export function AnalysisWorkbench() {
         <div className="panelHeader">
           <div>
             <h2>分析输入</h2>
-            <p>
-              {dataMode === "auto" ? "Auto mode" : `${dataMode} mode`} · {addressCount} addresses
-            </p>
+            <p>{selectedChain?.name ?? "Chain"} · {addressCount} addresses</p>
           </div>
           <button
             type="button"
@@ -129,6 +173,13 @@ export function AnalysisWorkbench() {
           />
           <p>每行或空格分隔一个地址；MVP 会先分析这些 watched wallets 之间的关系。</p>
         </div>
+        <div
+          className={`stateBanner ${liveConfigured ? "stateBannerSuccess" : "stateBannerInfo"}`}
+          aria-live="polite"
+        >
+          <strong>{liveConfigured ? "实时数据已就绪" : "当前默认走本地 fixture"}</strong>
+          <span>{modeDescription}</span>
+        </div>
         <div className="formRow">
           <label>
             链
@@ -138,10 +189,11 @@ export function AnalysisWorkbench() {
               onChange={(event) => setChainId(event.target.value)}
               value={chainId}
             >
-              <option value="1">Ethereum</option>
-              <option value="42161">Arbitrum</option>
-              <option value="8453">Base</option>
-              <option value="56">BSC</option>
+              {supportedChains.map((chain) => (
+                <option key={chain.chainId} value={chain.chainId}>
+                  {chain.name}
+                </option>
+              ))}
             </select>
           </label>
           <label>
@@ -157,6 +209,16 @@ export function AnalysisWorkbench() {
               <option value="live">Live</option>
             </select>
           </label>
+        </div>
+        <div className="chainList" aria-label="Supported live chains">
+          {supportedChains.map((chain) => (
+            <span
+              key={chain.chainId}
+              className={chain.chainId === selectedChain?.chainId ? "chainPill chainPillActive" : "chainPill"}
+            >
+              {chain.shortName}
+            </span>
+          ))}
         </div>
         <button type="submit" className="primaryButton" disabled={isRunning}>
           <span className={isRunning ? "buttonSpinner" : "buttonDot"} aria-hidden="true" />
@@ -178,7 +240,11 @@ export function AnalysisWorkbench() {
           <div className="resultHeader">
             <div>
               <h2>分析结果</h2>
-              <p>{result ? `${result.mode} · ${result.source}` : "等待任务运行"}</p>
+              <p>
+                {result
+                  ? `${result.meta.chainName} · ${result.meta.resolvedMode} · ${result.source}`
+                  : "等待任务运行"}
+              </p>
             </div>
             {result ? <span className="statusPill statusSuccess">Complete</span> : null}
             {isRunning ? <span className="statusPill statusRunning">Running</span> : null}
@@ -197,6 +263,12 @@ export function AnalysisWorkbench() {
                   <strong>{result.score.confidence}</strong>
                 </div>
               </div>
+              {result.meta.fallbackReason ? (
+                <div className="stateBanner stateBannerInfo">
+                  <strong>本次用了 fixture 回退</strong>
+                  <span>{result.meta.fallbackReason}</span>
+                </div>
+              ) : null}
               {result.score.reasons.length > 0 ? (
                 <ul className="reasonList">
                   {result.score.reasons.map((reason) => (
@@ -207,7 +279,11 @@ export function AnalysisWorkbench() {
               <div className="metricGrid">
                 <div>
                   <span>Wallets</span>
-                  <strong>{graphSummary.wallets}</strong>
+                  <strong>{result.meta.watchedAddressCount}</strong>
+                </div>
+                <div>
+                  <span>Events</span>
+                  <strong>{result.meta.eventCount}</strong>
                 </div>
                 <div>
                   <span>Contracts</span>
@@ -218,9 +294,17 @@ export function AnalysisWorkbench() {
                   <strong>{graphSummary.edges}</strong>
                 </div>
               </div>
-              <p className="sourceLine">
-                Source: <code>{result.source}</code>
-              </p>
+              <div className="metaGrid">
+                <div>
+                  <span>Requested mode</span>
+                  <strong>{result.meta.requestedMode}</strong>
+                </div>
+                <div>
+                  <span>Fetched at</span>
+                  <strong>{formatFetchTime(result.meta.fetchedAt)}</strong>
+                </div>
+              </div>
+              <p className="sourceLine">Source: <code>{result.source}</code></p>
             </>
           ) : (
             <div className="emptyStateBlock">
@@ -260,9 +344,15 @@ export function AnalysisWorkbench() {
                         </span>
                       </div>
                       <p>{finding.description}</p>
+                      {finding.evidenceTruncated ? (
+                        <p className="previewHint">仅展示前 {finding.evidence.length} 条证据，共 {finding.evidenceTotal} 条。</p>
+                      ) : null}
                       <div className="evidenceList">
                         {finding.evidence.map((evidence) => (
-                          <code key={evidence.eventId}>{evidence.txHash ?? evidence.eventId}</code>
+                          <div key={evidence.eventId} className="evidenceItem">
+                            <code>{evidence.txHash ?? evidence.eventId}</code>
+                            <span>{evidence.summary}</span>
+                          </div>
                         ))}
                       </div>
                     </li>
@@ -280,9 +370,14 @@ export function AnalysisWorkbench() {
               <div className="resultHeader">
                 <div>
                   <h2>Graph Edges</h2>
-                  <p>{result.graph.edges.length} normalized edges</p>
+                  <p>
+                    预览 {result.graph.edges.length} / {result.graph.totalEdges} normalized edges
+                  </p>
                 </div>
               </div>
+              {result.graph.edgesTruncated ? (
+                <p className="previewHint">大结果集已折叠为预览，后续我们可以接分页或图谱视图。</p>
+              ) : null}
               {result.graph.edges.length > 0 ? (
                 <ul className="edgeList">
                   {result.graph.edges.map((edge) => (
@@ -305,6 +400,22 @@ export function AnalysisWorkbench() {
       </div>
     </section>
   );
+}
+
+function formatFetchTime(timestamp: string): string {
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return timestamp;
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 function LoadingResult() {

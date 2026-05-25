@@ -1,10 +1,13 @@
 import { DirectTransferAnalyzer } from "@wallet-map/analyzers";
 import { AnalysisWorkbench } from "./analysis-workbench";
+import { supportedAnalysisChains } from "./chains";
 import { roadmapItems } from "./project-plan";
 
 const analyzer = new DirectTransferAnalyzer();
 
 export default function HomePage() {
+  const liveConfigured = Boolean(process.env.ETHERSCAN_API_KEY?.trim());
+
   return (
     <main className="shell">
       <section className="hero">
@@ -18,10 +21,15 @@ export default function HomePage() {
         <div className="statusPanel" aria-label="Project status">
           <span>First analyzer</span>
           <strong>{analyzer.name}</strong>
+          <span>Live data</span>
+          <strong>{liveConfigured ? "Configured" : "Fixture fallback"}</strong>
         </div>
       </section>
 
-      <AnalysisWorkbench />
+      <AnalysisWorkbench
+        liveConfigured={liveConfigured}
+        supportedChains={supportedAnalysisChains}
+      />
 
       <aside className="checklist">
         <h2>第一阶段清单</h2>

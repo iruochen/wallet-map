@@ -25,7 +25,9 @@ describe("EtherscanLikeAdapter", () => {
           txreceipt_status: "1",
         },
       ],
+      txlistinternal: [],
       tokentx: [],
+      tokennfttx: [],
     });
 
     vi.stubGlobal("fetch", fetchMock);
@@ -55,13 +57,14 @@ describe("EtherscanLikeAdapter", () => {
         },
       }),
     ]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(calledUrl(fetchMock, "txlist").searchParams.has("apikey")).toBe(false);
   });
 
   it("normalizes token transfers from tokentx responses", async () => {
     const fetchMock = mockEtherscanFetch({
       txlist: [],
+      txlistinternal: [],
       tokentx: [
         {
           blockNumber: "101",
@@ -76,6 +79,7 @@ describe("EtherscanLikeAdapter", () => {
           logIndex: "7",
         },
       ],
+      tokennfttx: [],
     });
 
     vi.stubGlobal("fetch", fetchMock);
@@ -122,10 +126,109 @@ describe("EtherscanLikeAdapter", () => {
     expect(txlistUrl.searchParams.get("endblock")).toBe("200");
   });
 
+  it("normalizes internal transfers from txlistinternal responses", async () => {
+    const fetchMock = mockEtherscanFetch({
+      txlist: [],
+      txlistinternal: [
+        {
+          blockNumber: "102",
+          timeStamp: "1704067320",
+          hash: "0x3333333333333333333333333333333333333333333333333333333333333333",
+          from: watchedAddress,
+          to: counterpartyAddress,
+          value: "4200000000000000",
+          isError: "0",
+          errCode: "",
+          traceId: "call_0_1",
+        },
+      ],
+      tokentx: [],
+      tokennfttx: [],
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new EtherscanLikeAdapter({
+      baseUrl: "https://api.etherscan.io/v2/api",
+      apiKey: "test-key",
+      chainId: 1,
+      name: "Ethereum",
+      useChainIdParam: true,
+    });
+
+    const events = await adapter.getEvents({ address: watchedAddress });
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        id: "etherscan:1:txlistinternal:0x3333333333333333333333333333333333333333333333333333333333333333:call_0_1",
+        type: "native_transfer",
+        amount: "4200000000000000",
+        from: watchedAddress,
+        to: counterpartyAddress,
+        metadata: expect.objectContaining({
+          transferScope: "internal",
+          traceId: "call_0_1",
+        }),
+      }),
+    ]);
+  });
+
+  it("normalizes ERC721 transfers from tokennfttx responses", async () => {
+    const fetchMock = mockEtherscanFetch({
+      txlist: [],
+      txlistinternal: [],
+      tokentx: [],
+      tokennfttx: [
+        {
+          blockNumber: "103",
+          timeStamp: "1704067380",
+          hash: "0x4444444444444444444444444444444444444444444444444444444444444444",
+          from: counterpartyAddress,
+          to: watchedAddress,
+          contractAddress: tokenAddress,
+          tokenSymbol: "NFT",
+          tokenID: "1234",
+          logIndex: "3",
+        },
+      ],
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new EtherscanLikeAdapter({
+      baseUrl: "https://api.etherscan.io/v2/api",
+      apiKey: "test-key",
+      chainId: 8453,
+      name: "Base",
+      useChainIdParam: true,
+    });
+
+    const events = await adapter.getEvents({ address: watchedAddress });
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        id: "etherscan:8453:tokennfttx:0x4444444444444444444444444444444444444444444444444444444444444444:3",
+        type: "nft_transfer",
+        from: counterpartyAddress,
+        to: watchedAddress,
+        contract: tokenAddress,
+        asset: {
+          kind: "erc721",
+          chainId: 8453,
+          symbol: "NFT",
+          contract: tokenAddress,
+          tokenId: "1234",
+        },
+      }),
+    ]);
+  });
+
   it("supports Etherscan API V2 chainid requests", async () => {
     const fetchMock = mockEtherscanFetch({
       txlist: [],
+      txlistinternal: [],
       tokentx: [],
+      tokennfttx: [],
     });
 
     vi.stubGlobal("fetch", fetchMock);
@@ -149,7 +252,9 @@ describe("EtherscanLikeAdapter", () => {
   it("omits chainid for legacy Etherscan-like endpoints", async () => {
     const fetchMock = mockEtherscanFetch({
       txlist: [],
+      txlistinternal: [],
       tokentx: [],
+      tokennfttx: [],
     });
 
     vi.stubGlobal("fetch", fetchMock);
@@ -237,17 +342,65 @@ describe("EtherscanLikeAdapter", () => {
       "Ethereum txlist request failed with HTTP 503 Service Unavailable",
     );
   });
+
+  it("retries rate-limited responses and eventually succeeds", async () => {
+    let calls = 0;
+    const fetchMock = vi.fn(async () => {
+      calls += 1;
+
+      if (calls === 1) {
+        return new Response(
+          JSON.stringify({
+            status: "0",
+            message: "NOTOK",
+            result: "Max calls per sec rate limit reached (3/sec)",
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          status: "1",
+          message: "OK",
+          result: [],
+        }),
+        { status: 200 },
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new EtherscanLikeAdapter({
+      baseUrl: "https://api.etherscan.io/v2/api",
+      apiKey: "test-key",
+      chainId: 1,
+      name: "Ethereum",
+      useChainIdParam: true,
+      maxRateLimitRetries: 1,
+    });
+
+    await expect(adapter.getEvents({ address: watchedAddress })).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
 });
 
 function mockEtherscanFetch(payloads: {
   txlist: Array<Record<string, string>>;
+  txlistinternal: Array<Record<string, string>>;
   tokentx: Array<Record<string, string>>;
+  tokennfttx: Array<Record<string, string>>;
 }) {
   return vi.fn(async (input: string | URL) => {
     const url = new URL(String(input));
     const action = url.searchParams.get("action");
 
-    if (action !== "txlist" && action !== "tokentx") {
+    if (
+      action !== "txlist" &&
+      action !== "txlistinternal" &&
+      action !== "tokentx" &&
+      action !== "tokennfttx"
+    ) {
       throw new Error(`Unexpected action ${action}`);
     }
 

@@ -44,9 +44,12 @@ Copy the example file before local development:
 
 ```bash
 cp .env.example .env.local
+cp apps/web/.env.example apps/web/.env.local
 ```
 
 Do not commit real `.env` files, API keys, RPC URLs with credentials, or private wallet data.
+
+The Next.js app reads runtime secrets from `apps/web/.env.local`.
 
 ## Local Infrastructure
 
@@ -93,6 +96,20 @@ Data source modes:
 - `Live`: requires the relevant scan API key and returns a clear error if it is missing.
 
 Provider API keys can stay empty while developing in fixture mode.
+
+With `ETHERSCAN_API_KEY` configured locally, the current live pipeline supports:
+
+- Ethereum (`chainId=1`)
+- Arbitrum (`chainId=42161`)
+- Base (`chainId=8453`)
+- BSC (`chainId=56`)
+
+The adapter currently ingests:
+
+- native transfers
+- internal native transfers
+- ERC20 transfers
+- ERC721 transfers
 
 ## Project Docs
 
