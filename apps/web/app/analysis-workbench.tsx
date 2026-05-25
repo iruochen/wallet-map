@@ -136,13 +136,16 @@ interface AnalysisResponse {
 interface AnalysisWorkbenchProps {
   liveConfigured: boolean;
   supportedChains: SupportedAnalysisChain[];
+  initialAddresses?: string;
 }
 
 export function AnalysisWorkbench({
   liveConfigured,
   supportedChains,
+  initialAddresses,
 }: AnalysisWorkbenchProps) {
-  const [addresses, setAddresses] = useState(sampleAddresses);
+  const defaultAddresses = initialAddresses?.trim() ? initialAddresses : sampleAddresses;
+  const [addresses, setAddresses] = useState(defaultAddresses);
   const [chainId, setChainId] = useState("1");
   const [dataMode, setDataMode] = useState("auto");
   const [result, setResult] = useState<AnalysisResponse | null>(null);
@@ -256,7 +259,7 @@ export function AnalysisWorkbench({
             type="button"
             className="secondaryButton"
             disabled={isRunning}
-            onClick={() => setAddresses(sampleAddresses)}
+            onClick={() => setAddresses(defaultAddresses)}
           >
             填入示例
           </button>

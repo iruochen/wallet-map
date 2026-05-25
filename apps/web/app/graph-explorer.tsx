@@ -136,6 +136,8 @@ export function GraphExplorer({
     return Array.from(present);
   }, [edges]);
   const [hiddenKinds, setHiddenKinds] = useState<Set<string>>(new Set());
+  const denseGraph = nodes.length > 24;
+  const [showEdgeLabels, setShowEdgeLabels] = useState(!denseGraph);
 
   function toggleKind(kind: string) {
     setHiddenKinds((current) => {
@@ -152,8 +154,8 @@ export function GraphExplorer({
   }
 
   const flow = useMemo(
-    () => buildFlow({ chainId, nodes, edges, hiddenKinds }),
-    [chainId, nodes, edges, hiddenKinds],
+    () => buildFlow({ chainId, nodes, edges, hiddenKinds, showEdgeLabels }),
+    [chainId, nodes, edges, hiddenKinds, showEdgeLabels],
   );
 
   if (nodes.length === 0) {
@@ -185,6 +187,15 @@ export function GraphExplorer({
             </button>
           );
         })}
+        <button
+          type="button"
+          className={`graphLegendToggle ${showEdgeLabels ? "graphLegendTogglePressed" : ""}`}
+          onClick={() => setShowEdgeLabels((value) => !value)}
+          aria-pressed={showEdgeLabels}
+          title={showEdgeLabels ? "隐藏边标签" : "显示边标签"}
+        >
+          {showEdgeLabels ? "边标签：开" : "边标签：关"}
+        </button>
         <div className="graphLegendSummary">
           {truncated ? "已截断预览" : null}
           <span>
@@ -223,6 +234,7 @@ interface BuildFlowInput {
   nodes: GraphExplorerNode[];
   edges: GraphExplorerEdge[];
   hiddenKinds: Set<string>;
+  showEdgeLabels: boolean;
 }
 
 interface BuildFlowResult {
@@ -232,7 +244,7 @@ interface BuildFlowResult {
 }
 
 function buildFlow(input: BuildFlowInput): BuildFlowResult {
-  const { chainId, nodes, edges, hiddenKinds } = input;
+  const { chainId, nodes, edges, hiddenKinds, showEdgeLabels } = input;
   const metricsByNodeId = new Map<string, NodeMetrics>();
 
   for (const node of nodes) {
@@ -265,34 +277,7 @@ function buildFlow(input: BuildFlowInput): BuildFlowResult {
     (node) => node.kind !== "wallet" && node.kind !== "contract",
   );
 
-  const columns: Array<{ list: GraphExplorerNode[]; x: number; kind: string }> = [
-    { list: observed, x: -420, kind: "observed" },
-    { list: watched, x: 0, kind: "watched" },
-    { list: contracts, x: 420, kind: "contract" },
-  ];
-
-  if (others.length > 0) {
-    columns.push({ list: others, x: 840, kind: "entity" });
-  }
-
-  const positions = new Map<string, { x: number; y: number }>();
-
-  for (const column of columns) {
-    const list = column.list;
-    if (list.length === 0) {
-      continue;
-    }
-
-    const verticalSpacing = 140;
-    const totalHeight = (list.length - 1) * verticalSpacing;
-
-    list.forEach((node, index) => {
-      positions.set(node.id, {
-        x: column.x,
-        y: index * verticalSpacing - totalHeight / 2,
-      });
-    });
-  }
+  const positions = layoutColumns({ watched, observed, contracts, others });
 
   const flowNodes: Node<GraphNodeData>[] = nodes.map((node) => {
     const position = positions.get(node.id) ?? { x: 0, y: 0 };
@@ -355,7 +340,7 @@ function buildFlow(input: BuildFlowInput): BuildFlowResult {
   const visibleEdges = edges.filter((edge) => !hiddenKinds.has(edge.kind));
   const flowEdges: Edge[] = visibleEdges.map((edge) => {
     const color = edgeColorByKind[edge.kind] ?? "#4c5b51";
-    const label = buildEdgeLabel(edge, chainId);
+    const label = showEdgeLabels ? buildEdgeLabel(edge, chainId) : undefined;
     const tooltip = buildEdgeTooltip(edge, chainId);
 
     return {
@@ -372,6 +357,7 @@ function buildFlow(input: BuildFlowInput): BuildFlowResult {
         stroke: color,
         strokeWidth: edge.kind === "shared_counterparty" ? 1.5 : 2,
         strokeDasharray: edge.kind === "shared_counterparty" ? "4 3" : undefined,
+        opacity: 0.85,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
@@ -391,6 +377,110 @@ function buildFlow(input: BuildFlowInput): BuildFlowResult {
     flowEdges,
     visibleEdgeCount: visibleEdges.length,
   };
+}
+
+interface LayoutInput {
+  watched: GraphExplorerNode[];
+  observed: GraphExplorerNode[];
+  contracts: GraphExplorerNode[];
+  others: GraphExplorerNode[];
+}
+
+function layoutColumns(input: LayoutInput): Map<string, { x: number; y: number }> {
+  const positions = new Map<string, { x: number; y: number }>();
+  const watchedColumnX = 0;
+  const watchedSpacing = 160;
+  const sideColumnWidth = 280;
+  const sideRowHeight = 100;
+  const sideMaxRows = 14;
+  const watchedGap = 360;
+
+  layoutCentralColumn(input.watched, watchedColumnX, watchedSpacing, positions);
+
+  const observedColumns = Math.max(1, Math.ceil(input.observed.length / sideMaxRows));
+  const observedStartX = -watchedGap - (observedColumns - 1) * sideColumnWidth;
+  layoutSideGrid({
+    nodes: input.observed,
+    startX: observedStartX,
+    columnWidth: sideColumnWidth,
+    rowHeight: sideRowHeight,
+    maxRows: sideMaxRows,
+    positions,
+  });
+
+  layoutSideGrid({
+    nodes: input.contracts,
+    startX: watchedGap,
+    columnWidth: sideColumnWidth,
+    rowHeight: sideRowHeight,
+    maxRows: sideMaxRows,
+    positions,
+  });
+
+  if (input.others.length > 0) {
+    const contractColumns = Math.max(1, Math.ceil(input.contracts.length / sideMaxRows));
+    const othersStartX = watchedGap + contractColumns * sideColumnWidth + 40;
+    layoutSideGrid({
+      nodes: input.others,
+      startX: othersStartX,
+      columnWidth: sideColumnWidth,
+      rowHeight: sideRowHeight,
+      maxRows: sideMaxRows,
+      positions,
+    });
+  }
+
+  return positions;
+}
+
+function layoutCentralColumn(
+  nodes: GraphExplorerNode[],
+  x: number,
+  verticalSpacing: number,
+  positions: Map<string, { x: number; y: number }>,
+): void {
+  if (nodes.length === 0) {
+    return;
+  }
+
+  const totalHeight = (nodes.length - 1) * verticalSpacing;
+
+  nodes.forEach((node, index) => {
+    positions.set(node.id, {
+      x,
+      y: index * verticalSpacing - totalHeight / 2,
+    });
+  });
+}
+
+interface SideGridInput {
+  nodes: GraphExplorerNode[];
+  startX: number;
+  columnWidth: number;
+  rowHeight: number;
+  maxRows: number;
+  positions: Map<string, { x: number; y: number }>;
+}
+
+function layoutSideGrid(input: SideGridInput): void {
+  const { nodes, startX, columnWidth, rowHeight, maxRows, positions } = input;
+
+  if (nodes.length === 0) {
+    return;
+  }
+
+  const columns = Math.max(1, Math.ceil(nodes.length / maxRows));
+  const rowsPerColumn = Math.ceil(nodes.length / columns);
+  const totalHeight = (rowsPerColumn - 1) * rowHeight;
+
+  nodes.forEach((node, index) => {
+    const column = Math.floor(index / rowsPerColumn);
+    const row = index % rowsPerColumn;
+    positions.set(node.id, {
+      x: startX + column * columnWidth,
+      y: row * rowHeight - totalHeight / 2,
+    });
+  });
 }
 
 function buildEdgeLabel(edge: GraphExplorerEdge, fallbackChainId: number): string {

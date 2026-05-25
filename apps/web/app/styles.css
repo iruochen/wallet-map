@@ -863,6 +863,31 @@ code {
   text-decoration: line-through;
 }
 
+.graphLegendToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #c7d3c1;
+  background: #fff;
+  color: #2f3b34;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.graphLegendToggle:hover {
+  background: #f1f5ee;
+}
+
+.graphLegendTogglePressed {
+  background: #1f3d2c;
+  border-color: #1f3d2c;
+  color: #fff;
+}
+
 .graphLegendSummary {
   margin-left: auto;
   display: inline-flex;

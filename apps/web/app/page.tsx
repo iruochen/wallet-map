@@ -7,6 +7,7 @@ const analyzer = new DirectTransferAnalyzer();
 
 export default function HomePage() {
   const liveConfigured = Boolean(process.env.ETHERSCAN_API_KEY?.trim());
+  const initialAddresses = readInitialAddresses();
 
   return (
     <main className="shell">
@@ -29,6 +30,7 @@ export default function HomePage() {
       <AnalysisWorkbench
         liveConfigured={liveConfigured}
         supportedChains={supportedAnalysisChains}
+        initialAddresses={initialAddresses}
       />
 
       <aside className="checklist">
@@ -44,4 +46,18 @@ export default function HomePage() {
       </aside>
     </main>
   );
+}
+
+function readInitialAddresses(): string | undefined {
+  const raw = process.env.WALLET_MAP_DEFAULT_ADDRESSES?.trim();
+
+  if (!raw) {
+    return undefined;
+  }
+
+  return raw
+    .split(/[,\s]+/)
+    .map((address) => address.trim())
+    .filter(Boolean)
+    .join("\n");
 }
