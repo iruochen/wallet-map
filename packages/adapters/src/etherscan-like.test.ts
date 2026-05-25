@@ -61,6 +61,53 @@ describe("EtherscanLikeAdapter", () => {
     expect(calledUrl(fetchMock, "txlist").searchParams.has("apikey")).toBe(false);
   });
 
+  it("adds contract call events for successful transactions with calldata", async () => {
+    const fetchMock = mockEtherscanFetch({
+      txlist: [
+        {
+          blockNumber: "104",
+          timeStamp: "1704067440",
+          hash: "0x5555555555555555555555555555555555555555555555555555555555555555",
+          from: watchedAddress,
+          to: tokenAddress,
+          value: "0",
+          input: "0xa9059cbb000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          isError: "0",
+          txreceipt_status: "1",
+        },
+      ],
+      txlistinternal: [],
+      tokentx: [],
+      tokennfttx: [],
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new EtherscanLikeAdapter({
+      baseUrl: "https://api.etherscan.io/v2/api",
+      apiKey: "test-key",
+      chainId: 1,
+      name: "Ethereum",
+      useChainIdParam: true,
+    });
+
+    const events = await adapter.getEvents({ address: watchedAddress });
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        id: "etherscan:1:contract:0x5555555555555555555555555555555555555555555555555555555555555555",
+        type: "contract_call",
+        from: watchedAddress,
+        contract: tokenAddress,
+        methodId: "0xa9059cbb",
+        metadata: expect.objectContaining({
+          input: "0xa9059cbb000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          value: "0",
+        }),
+      }),
+    ]);
+  });
+
   it("normalizes token transfers from tokentx responses", async () => {
     const fetchMock = mockEtherscanFetch({
       txlist: [],

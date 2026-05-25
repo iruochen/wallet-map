@@ -106,7 +106,8 @@ export class EtherscanLikeAdapter implements ChainAdapter {
     const nftTransfers = await this.fetchAccountAction<EtherscanNftTx[]>(request, "tokennfttx");
 
     return [
-      ...nativeTransfers.filter(isSuccessfulNativeTx).map((tx) => this.mapNativeTransfer(tx)),
+      ...nativeTransfers.filter(isNativeTransferTx).map((tx) => this.mapNativeTransfer(tx)),
+      ...nativeTransfers.filter(isContractCallTx).map((tx) => this.mapContractCall(tx)),
       ...internalTransfers
         .filter(isSuccessfulInternalTx)
         .map((tx) => this.mapInternalTransfer(tx)),
@@ -227,6 +228,27 @@ export class EtherscanLikeAdapter implements ChainAdapter {
     };
   }
 
+  private mapContractCall(tx: EtherscanNativeTx): NormalizedEvent {
+    const input = tx.input ?? "0x";
+
+    return {
+      id: `etherscan:${this.chainId}:contract:${tx.hash.toLowerCase()}`,
+      type: "contract_call",
+      chainId: this.chainId,
+      txHash: normalizeTxHash(tx.hash),
+      blockNumber: Number(tx.blockNumber),
+      timestamp: toIsoTimestamp(tx.timeStamp),
+      from: normalizeAddress(tx.from),
+      contract: normalizeAddress(tx.to),
+      methodId: getMethodId(input),
+      metadata: {
+        source: this.id,
+        input,
+        value: tx.value,
+      },
+    };
+  }
+
   private mapTokenTransfer(tx: EtherscanTokenTx): NormalizedEvent {
     return {
       id: `etherscan:${this.chainId}:tokentx:${tx.hash.toLowerCase()}:${tx.logIndex ?? "0"}`,
@@ -308,6 +330,14 @@ function isSuccessfulNativeTx(tx: EtherscanNativeTx): boolean {
   return tx.isError !== "1" && tx.txreceipt_status !== "0";
 }
 
+function isNativeTransferTx(tx: EtherscanNativeTx): boolean {
+  return isSuccessfulNativeTx(tx) && (!tx.input || tx.input === "0x");
+}
+
+function isContractCallTx(tx: EtherscanNativeTx): tx is EtherscanNativeTx & { to: string; input: string } {
+  return isSuccessfulNativeTx(tx) && Boolean(tx.to) && Boolean(tx.input) && tx.input !== "0x";
+}
+
 function isSuccessfulInternalTx(tx: EtherscanInternalTx): boolean {
   return tx.isError !== "1" && (!tx.errCode || tx.errCode === "");
 }
@@ -322,6 +352,14 @@ function normalizeTxHash(value: string): TxHash {
 
 function toIsoTimestamp(unixSeconds: string): string {
   return new Date(Number(unixSeconds) * 1000).toISOString();
+}
+
+function getMethodId(input: string): string | undefined {
+  if (!input.startsWith("0x") || input.length < 10) {
+    return undefined;
+  }
+
+  return input.slice(0, 10);
 }
 
 function formatResult(result: unknown): string {
