@@ -15,12 +15,14 @@
     "@wallet-map/analyzers": "workspace:*",
     "@wallet-map/core": "workspace:*",
     "@wallet-map/exporters": "workspace:*",
-    "@xyflow/react": "^12.10.2",
+    "cytoscape": "^3.33.4",
+    "cytoscape-fcose": "^2.2.0",
     "next": "^16.0.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@types/cytoscape": "^3.31.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "typescript": "^5.9.3",

@@ -11,7 +11,6 @@ import {
 import {
   formatAbsoluteTime,
   formatAmount,
-  formatEdgeKindLabel,
   formatEventTypeLabel,
   formatRelativeTime,
   shortenAddress,
@@ -189,14 +188,6 @@ export function AnalysisWorkbench({
     );
   }, [result]);
 
-  const nodeById = useMemo(() => {
-    if (!result) {
-      return new Map<string, GraphNode>();
-    }
-
-    return new Map(result.graph.nodes.map((node) => [node.id, node]));
-  }, [result]);
-
   const graphSummary = useMemo(() => {
     if (!result) {
       return null;
@@ -241,109 +232,100 @@ export function AnalysisWorkbench({
   }
 
   return (
-    <>
-    <section className="workspace">
-      <form
-        className="inputPanel"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void runAnalysis();
-        }}
-      >
-        <div className="panelHeader">
-          <div>
-            <h2>分析输入</h2>
-            <p>{selectedChain?.name ?? "Chain"} · {addressCount} addresses</p>
-          </div>
-          <button
-            type="button"
-            className="secondaryButton"
-            disabled={isRunning}
-            onClick={() => setAddresses(defaultAddresses)}
-          >
-            填入示例
-          </button>
-        </div>
-        <div className="fieldGroup">
-          <label htmlFor="addresses">钱包地址</label>
-          <textarea
-            id="addresses"
-            name="addresses"
-            disabled={isRunning}
-            onChange={(event) => setAddresses(event.target.value)}
-            placeholder={"0x...\n0x...\n0x..."}
-            rows={8}
-            value={addresses}
-          />
-          <p>每行或空格分隔一个地址；MVP 会先分析这些 watched wallets 之间的关系。</p>
-        </div>
-        <div
-          className={`stateBanner ${liveConfigured ? "stateBannerSuccess" : "stateBannerInfo"}`}
-          aria-live="polite"
+    <section className="workbench" aria-label="Wallet Map workbench">
+      <aside className="workbenchColumn workbenchInput">
+        <form
+          className="inputPanel"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void runAnalysis();
+          }}
         >
-          <strong>{liveConfigured ? "实时数据已就绪" : "当前默认走本地 fixture"}</strong>
-          <span>{modeDescription}</span>
-        </div>
-        <div className="formRow">
-          <label>
-            链
-            <select
+          <div className="panelHeader">
+            <div>
+              <h2>分析输入</h2>
+              <p>
+                {selectedChain?.name ?? "Chain"} · {addressCount} addresses
+              </p>
+            </div>
+            <button
+              type="button"
+              className="secondaryButton"
               disabled={isRunning}
-              name="chainId"
-              onChange={(event) => setChainId(event.target.value)}
-              value={chainId}
+              onClick={() => setAddresses(defaultAddresses)}
             >
-              {supportedChains.map((chain) => (
-                <option key={chain.chainId} value={chain.chainId}>
-                  {chain.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            数据源
-            <select
-              disabled={isRunning}
-              name="dataMode"
-              onChange={(event) => setDataMode(event.target.value)}
-              value={dataMode}
-            >
-              <option value="auto">Auto</option>
-              <option value="fixture">Fixture</option>
-              <option value="live">Live</option>
-            </select>
-          </label>
-        </div>
-        <div className="chainList" aria-label="Supported live chains">
-          {supportedChains.map((chain) => (
-            <span
-              key={chain.chainId}
-              className={chain.chainId === selectedChain?.chainId ? "chainPill chainPillActive" : "chainPill"}
-            >
-              {chain.shortName}
-            </span>
-          ))}
-        </div>
-        <button type="submit" className="primaryButton" disabled={isRunning}>
-          <span className={isRunning ? "buttonSpinner" : "buttonDot"} aria-hidden="true" />
-          {isRunning ? "分析中..." : "生成分析任务"}
-        </button>
-        <div aria-live="polite" className="runStatus">
-          {isRunning ? "正在拉取事件、构建关系图并运行分析器。" : "准备就绪"}
-        </div>
-        {error ? (
-          <div className="stateBanner stateBannerError" role="alert">
-            <strong>分析失败</strong>
-            <span>{error}</span>
+              填入示例
+            </button>
           </div>
-        ) : null}
-      </form>
+          <div className="fieldGroup">
+            <label htmlFor="addresses">钱包地址</label>
+            <textarea
+              id="addresses"
+              name="addresses"
+              disabled={isRunning}
+              onChange={(event) => setAddresses(event.target.value)}
+              placeholder={"0x...\n0x...\n0x..."}
+              rows={6}
+              value={addresses}
+            />
+            <p>每行或空格分隔一个地址；MVP 会先分析这些 watched wallets 之间的关系。</p>
+          </div>
+          <div
+            className={`stateBanner ${liveConfigured ? "stateBannerSuccess" : "stateBannerInfo"}`}
+            aria-live="polite"
+          >
+            <strong>{liveConfigured ? "实时数据已就绪" : "当前默认走本地 fixture"}</strong>
+            <span>{modeDescription}</span>
+          </div>
+          <div className="formRow">
+            <label>
+              链
+              <select
+                disabled={isRunning}
+                name="chainId"
+                onChange={(event) => setChainId(event.target.value)}
+                value={chainId}
+              >
+                {supportedChains.map((chain) => (
+                  <option key={chain.chainId} value={chain.chainId}>
+                    {chain.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              数据源
+              <select
+                disabled={isRunning}
+                name="dataMode"
+                onChange={(event) => setDataMode(event.target.value)}
+                value={dataMode}
+              >
+                <option value="auto">Auto</option>
+                <option value="fixture">Fixture</option>
+                <option value="live">Live</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit" className="primaryButton" disabled={isRunning}>
+            <span className={isRunning ? "buttonSpinner" : "buttonDot"} aria-hidden="true" />
+            {isRunning ? "分析中..." : "生成分析任务"}
+          </button>
+          <div aria-live="polite" className="runStatus">
+            {isRunning ? "正在拉取事件、构建关系图并运行分析器。" : "准备就绪"}
+          </div>
+          {error ? (
+            <div className="stateBanner stateBannerError" role="alert">
+              <strong>分析失败</strong>
+              <span>{error}</span>
+            </div>
+          ) : null}
+        </form>
 
-      <div className="resultsColumn">
-        <section className="resultPanel">
+        <section className="resultPanel summaryPanel">
           <div className="resultHeader">
             <div>
-              <h2>分析结果</h2>
+              <h2>分析摘要</h2>
               <p>
                 {result
                   ? result.sourceLabel ??
@@ -385,7 +367,7 @@ export function AnalysisWorkbench({
               ) : (
                 <div className="emptyStateBlock emptyStatePositive">
                   <strong>没有命中任何关联规则</strong>
-                  <p>当前分析器没有发现 watched 钱包之间的直接或间接关联。可以扩大地址、时间范围或切换链再试。</p>
+                  <p>当前分析器没有发现 watched 钱包之间的直接或间接关联。</p>
                 </div>
               )}
               <div className="metricGrid">
@@ -406,19 +388,6 @@ export function AnalysisWorkbench({
                   <strong>{graphSummary.edges}</strong>
                 </div>
               </div>
-              <div className="metaGrid">
-                <div>
-                  <span>Requested mode</span>
-                  <strong>{result.meta.requestedMode}</strong>
-                </div>
-                <div>
-                  <span>Fetched at</span>
-                  <strong>{formatFetchTime(result.meta.fetchedAt)}</strong>
-                </div>
-              </div>
-              <p className="sourceLine">
-                数据源: <code>{result.sourceLabel ?? result.source}</code>
-              </p>
             </>
           ) : (
             <div className="emptyStateBlock">
@@ -427,127 +396,108 @@ export function AnalysisWorkbench({
             </div>
           )}
         </section>
+      </aside>
 
-        {isRunning ? (
-          <section className="resultPanel">
-            <div className="resultHeader">
-              <div>
-                <h2>Findings</h2>
-                <p>分析器正在整理证据</p>
-              </div>
-            </div>
-            <LoadingList />
-          </section>
-        ) : result ? (
-          <>
-            <section className="resultPanel">
-              <div className="resultHeader">
-                <div>
-                  <h2>Findings</h2>
-                  <p>
-                    {result.findings.length} signals · {result.meta.chainName}
-                  </p>
-                </div>
-              </div>
-              {result.findings.length > 0 ? (
-                <ul className="findingList">
-                  {result.findings.map((finding) => (
-                    <li key={finding.id}>
-                      <div className="findingHeader">
-                        <strong>{finding.title}</strong>
-                        <span className="findingMeta">
-                          <span className={`severityPill severity-${finding.severity}`}>
-                            {finding.severity}
-                          </span>
-                          <span className={`confidencePill confidence-${finding.confidence}`}>
-                            {finding.confidence}
-                          </span>
-                        </span>
-                      </div>
-                      <p>{finding.description}</p>
-                      {finding.evidenceTruncated ? (
-                        <p className="previewHint">
-                          仅展示前 {finding.evidence.length} 条证据，共 {finding.evidenceTotal} 条。
-                        </p>
-                      ) : null}
-                      <div className="evidenceList">
-                        {finding.evidence.map((evidence) => (
-                          <EvidenceItemView
-                            key={evidence.eventId}
-                            evidence={evidence}
-                            chainId={result.meta.chainId}
-                            watchedAddressSet={watchedAddressSet}
-                          />
-                        ))}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="emptyStateBlock emptyStatePositive">
-                  <strong>没有明显关联信号</strong>
-                  <p>当前分析器没有发现 watched 钱包之间的直接转账、共享 counterparty 或同合约交互。</p>
-                </div>
-              )}
-            </section>
-
-            <section className="resultPanel">
-              <div className="resultHeader">
-                <div>
-                  <h2>Graph Edges</h2>
-                  <p>
-                    预览 {result.graph.edges.length} / {result.graph.totalEdges} normalized edges
-                  </p>
-                </div>
-              </div>
-              {result.graph.edgesTruncated ? (
-                <p className="previewHint">大结果集已折叠为预览，后续我们可以接分页或图谱视图。</p>
-              ) : null}
-              {result.graph.edges.length > 0 ? (
-                <ul className="edgeList">
-                  {result.graph.edges.map((edge) => (
-                    <EdgeRow
-                      key={edge.id}
-                      edge={edge}
-                      chainId={result.meta.chainId}
-                      watchedAddressSet={watchedAddressSet}
-                      nodeById={nodeById}
-                    />
-                  ))}
-                </ul>
-              ) : (
-                <div className="emptyStateBlock">
-                  <strong>暂无边数据</strong>
-                  <p>当前数据源没有生成可展示的关系边。</p>
-                </div>
-              )}
-            </section>
-          </>
-        ) : null}
-      </div>
-    </section>
-
-    {result ? (
-      <section className="resultPanel graphPanel">
-        <div className="resultHeader">
+      <section className="workbenchColumn workbenchGraph">
+        <header className="workbenchColumnHeader">
           <div>
             <h2>关系图谱</h2>
             <p>
-              {result.meta.graphWalletCount} wallets · {result.meta.graphContractCount} contracts · {result.graph.totalEdges} edges
+              {result
+                ? `${result.meta.graphWalletCount} wallets · ${result.meta.graphContractCount} contracts · ${result.graph.totalEdges} edges`
+                : "拖拽 / 滚轮缩放 · 点击节点查看详情 · 双击跳 explorer"}
             </p>
           </div>
+        </header>
+        <div className="workbenchGraphBody">
+          {isRunning ? (
+            <div className="graphLoadingState" aria-live="polite">
+              <div className="skeletonBlock skeletonTall" />
+              <p>正在拉取事件、构建关系图…</p>
+            </div>
+          ) : result ? (
+            <GraphExplorer
+              chainId={result.meta.chainId}
+              nodes={result.graph.nodes}
+              edges={result.graph.edges}
+              totalNodes={result.graph.totalNodes}
+              totalEdges={result.graph.totalEdges}
+              truncated={result.graph.nodesTruncated || result.graph.edgesTruncated}
+            />
+          ) : (
+            <div className="graphPlaceholder">
+              <div className="graphPlaceholderOrb" aria-hidden="true" />
+              <strong>提交一次分析就能看到图谱</strong>
+              <p>左侧填入钱包地址、选择链和数据源，然后点击 “生成分析任务”。</p>
+            </div>
+          )}
         </div>
-        <GraphExplorer
-          chainId={result.meta.chainId}
-          nodes={result.graph.nodes}
-          edges={result.graph.edges}
-          totalNodes={result.graph.totalNodes}
-          totalEdges={result.graph.totalEdges}
-          truncated={result.graph.nodesTruncated || result.graph.edgesTruncated}
-        />
       </section>
-    ) : null}
-    </>
+
+      <aside className="workbenchColumn workbenchFindings">
+        <header className="workbenchColumnHeader">
+          <div>
+            <h2>Findings</h2>
+            <p>
+              {result
+                ? `${result.findings.length} signals · ${result.meta.chainName}`
+                : "分析器证据流"}
+            </p>
+          </div>
+        </header>
+        <div className="workbenchScroll">
+          {isRunning ? (
+            <LoadingList />
+          ) : result ? (
+            result.findings.length > 0 ? (
+              <ul className="findingList">
+                {result.findings.map((finding) => (
+                  <li key={finding.id}>
+                    <div className="findingHeader">
+                      <strong>{finding.title}</strong>
+                      <span className="findingMeta">
+                        <span className={`severityPill severity-${finding.severity}`}>
+                          {finding.severity}
+                        </span>
+                        <span className={`confidencePill confidence-${finding.confidence}`}>
+                          {finding.confidence}
+                        </span>
+                      </span>
+                    </div>
+                    <p>{finding.description}</p>
+                    {finding.evidenceTruncated ? (
+                      <p className="previewHint">
+                        仅展示前 {finding.evidence.length} 条证据，共 {finding.evidenceTotal} 条。
+                      </p>
+                    ) : null}
+                    <div className="evidenceList">
+                      {finding.evidence.map((evidence) => (
+                        <EvidenceItemView
+                          key={evidence.eventId}
+                          evidence={evidence}
+                          chainId={result.meta.chainId}
+                          watchedAddressSet={watchedAddressSet}
+                        />
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="emptyStateBlock emptyStatePositive">
+                <strong>没有明显关联信号</strong>
+                <p>分析器没有发现 watched 钱包之间的直接转账、共享 counterparty 或同合约交互。</p>
+              </div>
+            )
+          ) : (
+            <div className="emptyStateBlock">
+              <strong>暂无证据</strong>
+              <p>分析完成后这里会列出每条 finding 的事件证据。</p>
+            </div>
+          )}
+        </div>
+      </aside>
+    </section>
   );
 }
 
@@ -722,126 +672,6 @@ function TokenLink({ chainId, contract, symbol }: TokenLinkProps) {
       {symbol ?? "token"} <span aria-hidden="true">↗</span>
     </a>
   );
-}
-
-interface EdgeRowProps {
-  edge: GraphEdge;
-  chainId: number;
-  watchedAddressSet: Set<string>;
-  nodeById: Map<string, GraphNode>;
-}
-
-function EdgeRow({ edge, chainId, watchedAddressSet, nodeById }: EdgeRowProps) {
-  const sourceNode = nodeById.get(edge.source);
-  const targetNode = nodeById.get(edge.target);
-  const edgeChainId = edge.metadata?.chainId ?? chainId;
-  const txHash = edge.metadata?.txHash;
-  const txHref = txHash ? buildExplorerTxUrl(edgeChainId, txHash) : undefined;
-  const isAssetNative = edge.metadata?.asset?.kind === "native";
-  const edgeChain = getSupportedAnalysisChain(edgeChainId);
-  const amountDecimals = isAssetNative
-    ? edgeChain?.nativeDecimals ?? 18
-    : edge.metadata?.asset?.decimals;
-  const canRenderAmount =
-    edge.metadata?.amount !== undefined &&
-    edge.metadata.amount !== "" &&
-    (isAssetNative || edge.metadata?.asset?.decimals !== undefined);
-  const amountFormatted = canRenderAmount
-    ? formatAmount(edge.metadata?.amount, amountDecimals)
-    : undefined;
-  const amountSymbol =
-    edge.metadata?.asset?.symbol ?? (isAssetNative ? edgeChain?.nativeSymbol : undefined);
-
-  return (
-    <li className="edgeRow">
-      <span className={`edgeKindPill edge-${edge.kind}`}>{formatEdgeKindLabel(edge.kind)}</span>
-      <div className="edgeNodes">
-        <GraphNodeLink
-          node={sourceNode}
-          chainId={edgeChainId}
-          fallbackId={edge.source}
-          watchedAddressSet={watchedAddressSet}
-        />
-        <span className="evidenceArrow" aria-hidden="true">
-          →
-        </span>
-        <GraphNodeLink
-          node={targetNode}
-          chainId={edgeChainId}
-          fallbackId={edge.target}
-          watchedAddressSet={watchedAddressSet}
-        />
-      </div>
-      <div className="edgeMeta">
-        {amountFormatted ? (
-          <span className="amountChip">
-            <strong>{amountFormatted}</strong>
-            {amountSymbol ? <span>{amountSymbol}</span> : null}
-          </span>
-        ) : null}
-        {edge.metadata?.methodId ? (
-          <code className="methodChip" title="Method selector">
-            {edge.metadata.methodId}
-          </code>
-        ) : null}
-        {txHash ? (
-          <a
-            className="txLink"
-            href={txHref}
-            target="_blank"
-            rel="noreferrer noopener"
-            title={txHash}
-          >
-            <span aria-hidden="true">↗</span>
-            <code>{shortenTxHash(txHash)}</code>
-          </a>
-        ) : null}
-      </div>
-    </li>
-  );
-}
-
-interface GraphNodeLinkProps {
-  node: GraphNode | undefined;
-  chainId: number;
-  fallbackId: string;
-  watchedAddressSet: Set<string>;
-}
-
-function GraphNodeLink({ node, chainId, fallbackId, watchedAddressSet }: GraphNodeLinkProps) {
-  if (!node || !node.address) {
-    return <code className="evidenceEventId" title={fallbackId}>{shortenAddress(fallbackId)}</code>;
-  }
-
-  const isContract = node.kind === "contract";
-  const isWatched = node.tags?.includes("watched") ?? watchedAddressSet.has(node.address.toLowerCase());
-
-  return (
-    <AddressLink
-      address={node.address}
-      chainId={chainId}
-      role={isContract ? "contract" : "source"}
-      watchedAddressSet={watchedAddressSet}
-      label={isContract ? "contract" : isWatched ? "watched" : "observed"}
-      isContract={isContract}
-    />
-  );
-}
-
-function formatFetchTime(timestamp: string): string {
-  const date = new Date(timestamp);
-
-  if (Number.isNaN(date.getTime())) {
-    return timestamp;
-  }
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
 }
 
 function LoadingResult() {

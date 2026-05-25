@@ -1,20 +1,14 @@
 "use client";
 
-import "@xyflow/react/dist/style.css";
-
-import {
-  Background,
-  Controls,
-  Handle,
-  MarkerType,
-  MiniMap,
-  Position,
-  ReactFlow,
-  type Edge,
-  type Node,
-  type NodeProps,
-} from "@xyflow/react";
-import { useMemo, useState } from "react";
+import cytoscape, {
+  type Core,
+  type ElementDefinition,
+  type EventObject,
+  type NodeSingular,
+  type EdgeSingular,
+} from "cytoscape";
+import fcose from "cytoscape-fcose";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildExplorerAddressUrl,
   buildExplorerTokenUrl,
@@ -24,9 +18,19 @@ import {
 import {
   formatAmount,
   formatEdgeKindLabel,
+  formatEventTypeLabel,
   shortenAddress,
   shortenTxHash,
 } from "./format";
+
+if (typeof window !== "undefined") {
+  // cytoscape registers extensions globally; guard against double-register in HMR.
+  const registry = cytoscape as unknown as { _walletMapFcoseRegistered?: boolean };
+  if (!registry._walletMapFcoseRegistered) {
+    cytoscape.use(fcose);
+    registry._walletMapFcoseRegistered = true;
+  }
+}
 
 export interface GraphExplorerNode {
   id: string;
@@ -75,49 +79,25 @@ interface GraphExplorerProps {
   truncated: boolean;
 }
 
-type WalletRole = "watched" | "observed";
-
-interface WalletNodeData extends Record<string, unknown> {
-  kind: "wallet";
-  role: WalletRole;
-  address: string;
-  chainId: number;
+interface ResolvedNode extends GraphExplorerNode {
+  role: "watched" | "observed" | "contract" | "entity";
+  degree: number;
   shortLabel: string;
-  href?: string;
-  metrics: NodeMetrics;
 }
 
-interface ContractNodeData extends Record<string, unknown> {
-  kind: "contract";
-  address: string;
-  chainId: number;
-  shortLabel: string;
-  href?: string;
-  metrics: NodeMetrics;
+interface SelectionState {
+  kind: "node" | "edge";
+  id: string;
 }
 
-interface OtherNodeData extends Record<string, unknown> {
-  kind: "entity" | "asset";
-  shortLabel: string;
-  metrics: NodeMetrics;
-}
-
-type GraphNodeData = WalletNodeData | ContractNodeData | OtherNodeData;
-
-interface NodeMetrics {
-  incoming: number;
-  outgoing: number;
-  edges: number;
-}
-
-const edgeColorByKind: Record<GraphExplorerEdge["kind"], string> = {
-  native_transfer: "#1c6b3d",
-  token_transfer: "#2b3da7",
-  nft_transfer: "#6b2391",
-  contract_interaction: "#7a5202",
-  shared_counterparty: "#94391a",
-  temporal_similarity: "#3a3a3a",
-  bridge_route: "#1d5295",
+const edgePalette: Record<GraphExplorerEdge["kind"], string> = {
+  native_transfer: "#2f7d4f",
+  token_transfer: "#2e44b8",
+  nft_transfer: "#7a2da6",
+  contract_interaction: "#b07410",
+  shared_counterparty: "#a44320",
+  temporal_similarity: "#525a52",
+  bridge_route: "#1c66b4",
 };
 
 export function GraphExplorer({
@@ -128,502 +108,643 @@ export function GraphExplorer({
   totalEdges,
   truncated,
 }: GraphExplorerProps) {
-  const allKinds = useMemo(() => {
-    const present = new Set<GraphExplorerEdge["kind"]>();
-    for (const edge of edges) {
-      present.add(edge.kind);
-    }
-    return Array.from(present);
-  }, [edges]);
-  const [hiddenKinds, setHiddenKinds] = useState<Set<string>>(new Set());
-  const denseGraph = nodes.length > 24;
-  const [showEdgeLabels, setShowEdgeLabels] = useState(!denseGraph);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const cyRef = useRef<Core | null>(null);
+  const [selection, setSelection] = useState<SelectionState | null>(null);
+  const [hiddenKinds, setHiddenKinds] = useState<Set<GraphExplorerEdge["kind"]>>(new Set());
+  const [showEdgeLabels, setShowEdgeLabels] = useState(nodes.length <= 24);
 
-  function toggleKind(kind: string) {
+  const resolvedNodes = useMemo(() => resolveNodes(nodes, edges), [nodes, edges]);
+  const nodeIndex = useMemo(() => {
+    const map = new Map<string, ResolvedNode>();
+    for (const node of resolvedNodes) {
+      map.set(node.id, node);
+    }
+    return map;
+  }, [resolvedNodes]);
+
+  const edgeKinds = useMemo(() => {
+    const set = new Set<GraphExplorerEdge["kind"]>();
+    for (const edge of edges) {
+      set.add(edge.kind);
+    }
+    return Array.from(set);
+  }, [edges]);
+
+  useEffect(() => {
+    if (!containerRef.current) {
+      return;
+    }
+
+    const cy = cytoscape({
+      container: containerRef.current,
+      wheelSensitivity: 0.25,
+      minZoom: 0.15,
+      maxZoom: 3,
+      boxSelectionEnabled: false,
+      autounselectify: false,
+      style: buildStylesheet(),
+    });
+
+    cyRef.current = cy;
+
+    cy.on("tap", (event: EventObject) => {
+      if (event.target === cy) {
+        setSelection(null);
+      }
+    });
+
+    cy.on("tap", "node", (event: EventObject) => {
+      const node = event.target as NodeSingular;
+      setSelection({ kind: "node", id: node.id() });
+    });
+
+    cy.on("tap", "edge", (event: EventObject) => {
+      const edge = event.target as EdgeSingular;
+      setSelection({ kind: "edge", id: edge.id() });
+    });
+
+    cy.on("dblclick", "node", (event: EventObject) => {
+      const node = event.target as NodeSingular;
+      const href = node.data("href") as string | undefined;
+      if (href) {
+        window.open(href, "_blank", "noopener,noreferrer");
+      }
+    });
+
+    cy.on("dblclick", "edge", (event: EventObject) => {
+      const edge = event.target as EdgeSingular;
+      const href = edge.data("txHref") as string | undefined;
+      if (href) {
+        window.open(href, "_blank", "noopener,noreferrer");
+      }
+    });
+
+    return () => {
+      cy.destroy();
+      cyRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) {
+      return;
+    }
+
+    const elements = buildElements({
+      chainId,
+      resolvedNodes,
+      edges,
+      hiddenKinds,
+      showEdgeLabels,
+    });
+
+    cy.batch(() => {
+      cy.elements().remove();
+      cy.add(elements);
+    });
+
+    runLayout(cy, resolvedNodes.length);
+  }, [chainId, resolvedNodes, edges, hiddenKinds, showEdgeLabels]);
+
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) {
+      return;
+    }
+
+    cy.elements().removeClass("hl-focus hl-dim");
+
+    if (!selection) {
+      return;
+    }
+
+    if (selection.kind === "node") {
+      const node = cy.getElementById(selection.id);
+      if (!node || node.length === 0) {
+        return;
+      }
+      const neighborhood = node.closedNeighborhood();
+      cy.elements().difference(neighborhood).addClass("hl-dim");
+      neighborhood.addClass("hl-focus");
+    } else {
+      const edge = cy.getElementById(selection.id);
+      if (!edge || edge.length === 0) {
+        return;
+      }
+      const incident = edge.connectedNodes().union(edge);
+      cy.elements().difference(incident).addClass("hl-dim");
+      incident.addClass("hl-focus");
+    }
+  }, [selection]);
+
+  const handleToggleKind = useCallback((kind: GraphExplorerEdge["kind"]) => {
     setHiddenKinds((current) => {
       const next = new Set(current);
-
       if (next.has(kind)) {
         next.delete(kind);
       } else {
         next.add(kind);
       }
-
       return next;
     });
-  }
+  }, []);
 
-  const flow = useMemo(
-    () => buildFlow({ chainId, nodes, edges, hiddenKinds, showEdgeLabels }),
-    [chainId, nodes, edges, hiddenKinds, showEdgeLabels],
-  );
+  const handleRelayout = useCallback(() => {
+    const cy = cyRef.current;
+    if (!cy) {
+      return;
+    }
+    runLayout(cy, resolvedNodes.length, { fitAfter: true });
+  }, [resolvedNodes.length]);
+
+  const handleResetView = useCallback(() => {
+    const cy = cyRef.current;
+    if (!cy) {
+      return;
+    }
+    cy.animate({ fit: { eles: cy.elements(), padding: 40 } }, { duration: 240 });
+    setSelection(null);
+  }, []);
 
   if (nodes.length === 0) {
     return (
-      <div className="emptyStateBlock">
-        <strong>暂无节点</strong>
-        <p>当前数据源没有可视化的节点。</p>
+      <div className="graphExplorerEmpty">
+        <strong>暂无可视化节点</strong>
+        <p>当前结果没有产生关系图。</p>
       </div>
     );
   }
 
+  const visibleEdgeCount = edges.filter((edge) => !hiddenKinds.has(edge.kind)).length;
+
   return (
     <div className="graphExplorer">
-      <div className="graphLegend" aria-label="Edge kind filter">
-        {allKinds.map((kind) => {
-          const hidden = hiddenKinds.has(kind);
-          return (
-            <button
-              key={kind}
-              type="button"
-              onClick={() => toggleKind(kind)}
-              className={`graphLegendItem ${hidden ? "graphLegendItemHidden" : ""}`}
-              style={{ "--legend-color": edgeColorByKind[kind] } as React.CSSProperties}
-              aria-pressed={!hidden}
-              title={hidden ? "点击重新显示" : "点击隐藏此类边"}
-            >
-              <span className="graphLegendSwatch" aria-hidden="true" />
-              {formatEdgeKindLabel(kind)}
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          className={`graphLegendToggle ${showEdgeLabels ? "graphLegendTogglePressed" : ""}`}
-          onClick={() => setShowEdgeLabels((value) => !value)}
-          aria-pressed={showEdgeLabels}
-          title={showEdgeLabels ? "隐藏边标签" : "显示边标签"}
-        >
-          {showEdgeLabels ? "边标签：开" : "边标签：关"}
-        </button>
-        <div className="graphLegendSummary">
-          {truncated ? "已截断预览" : null}
-          <span>
-            {nodes.length} 节点 · {flow.visibleEdgeCount}/{totalEdges} 边
+      <div className="graphToolbar">
+        <div className="graphLegend" aria-label="Edge kind filter">
+          {edgeKinds.map((kind) => {
+            const hidden = hiddenKinds.has(kind);
+            return (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => handleToggleKind(kind)}
+                className={`graphLegendItem ${hidden ? "graphLegendItemHidden" : ""}`}
+                style={{ "--legend-color": edgePalette[kind] } as React.CSSProperties}
+                aria-pressed={!hidden}
+                title={hidden ? "点击重新显示" : "点击隐藏此类边"}
+              >
+                <span className="graphLegendSwatch" aria-hidden="true" />
+                {formatEdgeKindLabel(kind)}
+              </button>
+            );
+          })}
+        </div>
+        <div className="graphToolbarActions">
+          <button
+            type="button"
+            className={`graphChipButton ${showEdgeLabels ? "graphChipButtonOn" : ""}`}
+            onClick={() => setShowEdgeLabels((value) => !value)}
+            aria-pressed={showEdgeLabels}
+            title="切换边标签"
+          >
+            {showEdgeLabels ? "边标签 ON" : "边标签 OFF"}
+          </button>
+          <button
+            type="button"
+            className="graphChipButton"
+            onClick={handleRelayout}
+            title="重新跑布局"
+          >
+            重新布局
+          </button>
+          <button
+            type="button"
+            className="graphChipButton"
+            onClick={handleResetView}
+            title="重置视图并清除选中"
+          >
+            重置视图
+          </button>
+          <span className="graphSummary">
+            {nodes.length} 节点 · {visibleEdgeCount}/{totalEdges} 边
+            {truncated ? " · 已截断" : ""}
           </span>
         </div>
       </div>
-      <div className="graphCanvas" role="region" aria-label="Relationship graph canvas">
-        <ReactFlow
-          nodes={flow.flowNodes}
-          edges={flow.flowEdges}
-          nodeTypes={nodeTypes}
-          fitView
-          minZoom={0.2}
-          maxZoom={2}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background gap={16} size={1} color="#dce2d8" />
-          <MiniMap pannable zoomable className="graphMiniMap" />
-          <Controls showInteractive={false} />
-        </ReactFlow>
+      <div className="graphCanvasWrap">
+        <div ref={containerRef} className="graphCanvas" role="region" aria-label="Relationship graph canvas" />
+        <SelectionDetail
+          selection={selection}
+          chainId={chainId}
+          edges={edges}
+          nodeIndex={nodeIndex}
+          onClose={() => setSelection(null)}
+        />
       </div>
-      {totalNodes > 0 ? (
-        <p className="graphFootnote">
-          {truncated
-            ? `当前画布展示前 ${nodes.length} / ${totalNodes} 节点。`
-            : `共 ${nodes.length} 节点，${totalEdges} 边。`}
-        </p>
-      ) : null}
+      <p className="graphFootnote">
+        {totalNodes > nodes.length
+          ? `当前画布展示前 ${nodes.length} / ${totalNodes} 节点。`
+          : `共 ${nodes.length} 节点，${totalEdges} 边。`}
+      </p>
     </div>
   );
 }
 
-interface BuildFlowInput {
+interface SelectionDetailProps {
+  selection: SelectionState | null;
   chainId: number;
-  nodes: GraphExplorerNode[];
   edges: GraphExplorerEdge[];
-  hiddenKinds: Set<string>;
-  showEdgeLabels: boolean;
+  nodeIndex: Map<string, ResolvedNode>;
+  onClose: () => void;
 }
 
-interface BuildFlowResult {
-  flowNodes: Node<GraphNodeData>[];
-  flowEdges: Edge[];
-  visibleEdgeCount: number;
-}
-
-function buildFlow(input: BuildFlowInput): BuildFlowResult {
-  const { chainId, nodes, edges, hiddenKinds, showEdgeLabels } = input;
-  const metricsByNodeId = new Map<string, NodeMetrics>();
-
-  for (const node of nodes) {
-    metricsByNodeId.set(node.id, { incoming: 0, outgoing: 0, edges: 0 });
+function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: SelectionDetailProps) {
+  if (!selection) {
+    return null;
   }
 
-  for (const edge of edges) {
-    const sourceMetrics = metricsByNodeId.get(edge.source);
-    const targetMetrics = metricsByNodeId.get(edge.target);
-
-    if (sourceMetrics) {
-      sourceMetrics.outgoing += 1;
-      sourceMetrics.edges += 1;
+  if (selection.kind === "node") {
+    const node = nodeIndex.get(selection.id);
+    if (!node) {
+      return null;
     }
-
-    if (targetMetrics) {
-      targetMetrics.incoming += 1;
-      targetMetrics.edges += 1;
-    }
+    return (
+      <div className="graphDetailCard" role="status">
+        <div className="graphDetailHeader">
+          <span className={`graphDetailRole graphDetailRole-${node.role}`}>{node.role.toUpperCase()}</span>
+          <button type="button" className="graphDetailClose" onClick={onClose} aria-label="关闭">
+            ×
+          </button>
+        </div>
+        <div className="graphDetailBody">
+          <code className="graphDetailAddress" title={node.address ?? node.id}>
+            {node.address ? shortenAddress(node.address) : node.id}
+          </code>
+          <dl className="graphDetailMetrics">
+            <div>
+              <dt>邻边</dt>
+              <dd>{node.degree}</dd>
+            </div>
+            {node.label ? (
+              <div>
+                <dt>标签</dt>
+                <dd>{node.label}</dd>
+              </div>
+            ) : null}
+          </dl>
+          {node.address ? (
+            <div className="graphDetailActions">
+              <a
+                className="graphDetailLink"
+                href={buildExplorerAddressUrl(node.chainId ?? chainId, node.address)}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <span aria-hidden="true">↗</span> 在 explorer 中查看
+              </a>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
   }
 
-  const watched = nodes.filter(
-    (node) => node.kind === "wallet" && (node.tags?.includes("watched") ?? false),
-  );
-  const observed = nodes.filter(
-    (node) => node.kind === "wallet" && !(node.tags?.includes("watched") ?? false),
-  );
-  const contracts = nodes.filter((node) => node.kind === "contract");
-  const others = nodes.filter(
-    (node) => node.kind !== "wallet" && node.kind !== "contract",
-  );
-
-  const positions = layoutColumns({ watched, observed, contracts, others });
-
-  const flowNodes: Node<GraphNodeData>[] = nodes.map((node) => {
-    const position = positions.get(node.id) ?? { x: 0, y: 0 };
-    const metrics = metricsByNodeId.get(node.id) ?? { incoming: 0, outgoing: 0, edges: 0 };
-
-    if (node.kind === "wallet") {
-      const role: WalletRole = node.tags?.includes("watched") ? "watched" : "observed";
-      const address = node.address ?? extractAddressFromId(node.id);
-      const data: WalletNodeData = {
-        kind: "wallet",
-        role,
-        address: address ?? node.id,
-        chainId: node.chainId ?? chainId,
-        shortLabel: address ? shortenAddress(address) : node.id,
-        href: address ? buildExplorerAddressUrl(node.chainId ?? chainId, address) : undefined,
-        metrics,
-      };
-
-      return {
-        id: node.id,
-        type: "wallet",
-        position,
-        data,
-      };
-    }
-
-    if (node.kind === "contract") {
-      const address = node.address ?? extractAddressFromId(node.id);
-      const data: ContractNodeData = {
-        kind: "contract",
-        address: address ?? node.id,
-        chainId: node.chainId ?? chainId,
-        shortLabel: address ? shortenAddress(address) : node.id,
-        href: address ? buildExplorerAddressUrl(node.chainId ?? chainId, address) : undefined,
-        metrics,
-      };
-
-      return {
-        id: node.id,
-        type: "contract",
-        position,
-        data,
-      };
-    }
-
-    const data: OtherNodeData = {
-      kind: node.kind,
-      shortLabel: node.label ?? node.id,
-      metrics,
-    };
-
-    return {
-      id: node.id,
-      type: "wallet",
-      position,
-      data,
-    };
-  });
-
-  const visibleEdges = edges.filter((edge) => !hiddenKinds.has(edge.kind));
-  const flowEdges: Edge[] = visibleEdges.map((edge) => {
-    const color = edgeColorByKind[edge.kind] ?? "#4c5b51";
-    const label = showEdgeLabels ? buildEdgeLabel(edge, chainId) : undefined;
-    const tooltip = buildEdgeTooltip(edge, chainId);
-
-    return {
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      type: "smoothstep",
-      label,
-      labelStyle: { fill: color, fontWeight: 700, fontSize: 11 },
-      labelBgStyle: { fill: "rgba(255,255,255,0.9)", strokeOpacity: 0 },
-      labelBgPadding: [3, 4],
-      labelBgBorderRadius: 4,
-      style: {
-        stroke: color,
-        strokeWidth: edge.kind === "shared_counterparty" ? 1.5 : 2,
-        strokeDasharray: edge.kind === "shared_counterparty" ? "4 3" : undefined,
-        opacity: 0.85,
-      },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color,
-      },
-      data: {
-        kind: edge.kind,
-        tooltip,
-        txHash: edge.metadata?.txHash,
-        chainId: edge.metadata?.chainId ?? chainId,
-      },
-    };
-  });
-
-  return {
-    flowNodes,
-    flowEdges,
-    visibleEdgeCount: visibleEdges.length,
-  };
-}
-
-interface LayoutInput {
-  watched: GraphExplorerNode[];
-  observed: GraphExplorerNode[];
-  contracts: GraphExplorerNode[];
-  others: GraphExplorerNode[];
-}
-
-function layoutColumns(input: LayoutInput): Map<string, { x: number; y: number }> {
-  const positions = new Map<string, { x: number; y: number }>();
-  const watchedColumnX = 0;
-  const watchedSpacing = 160;
-  const sideColumnWidth = 280;
-  const sideRowHeight = 100;
-  const sideMaxRows = 14;
-  const watchedGap = 360;
-
-  layoutCentralColumn(input.watched, watchedColumnX, watchedSpacing, positions);
-
-  const observedColumns = Math.max(1, Math.ceil(input.observed.length / sideMaxRows));
-  const observedStartX = -watchedGap - (observedColumns - 1) * sideColumnWidth;
-  layoutSideGrid({
-    nodes: input.observed,
-    startX: observedStartX,
-    columnWidth: sideColumnWidth,
-    rowHeight: sideRowHeight,
-    maxRows: sideMaxRows,
-    positions,
-  });
-
-  layoutSideGrid({
-    nodes: input.contracts,
-    startX: watchedGap,
-    columnWidth: sideColumnWidth,
-    rowHeight: sideRowHeight,
-    maxRows: sideMaxRows,
-    positions,
-  });
-
-  if (input.others.length > 0) {
-    const contractColumns = Math.max(1, Math.ceil(input.contracts.length / sideMaxRows));
-    const othersStartX = watchedGap + contractColumns * sideColumnWidth + 40;
-    layoutSideGrid({
-      nodes: input.others,
-      startX: othersStartX,
-      columnWidth: sideColumnWidth,
-      rowHeight: sideRowHeight,
-      maxRows: sideMaxRows,
-      positions,
-    });
+  const edge = edges.find((entry) => entry.id === selection.id);
+  if (!edge) {
+    return null;
   }
-
-  return positions;
-}
-
-function layoutCentralColumn(
-  nodes: GraphExplorerNode[],
-  x: number,
-  verticalSpacing: number,
-  positions: Map<string, { x: number; y: number }>,
-): void {
-  if (nodes.length === 0) {
-    return;
-  }
-
-  const totalHeight = (nodes.length - 1) * verticalSpacing;
-
-  nodes.forEach((node, index) => {
-    positions.set(node.id, {
-      x,
-      y: index * verticalSpacing - totalHeight / 2,
-    });
-  });
-}
-
-interface SideGridInput {
-  nodes: GraphExplorerNode[];
-  startX: number;
-  columnWidth: number;
-  rowHeight: number;
-  maxRows: number;
-  positions: Map<string, { x: number; y: number }>;
-}
-
-function layoutSideGrid(input: SideGridInput): void {
-  const { nodes, startX, columnWidth, rowHeight, maxRows, positions } = input;
-
-  if (nodes.length === 0) {
-    return;
-  }
-
-  const columns = Math.max(1, Math.ceil(nodes.length / maxRows));
-  const rowsPerColumn = Math.ceil(nodes.length / columns);
-  const totalHeight = (rowsPerColumn - 1) * rowHeight;
-
-  nodes.forEach((node, index) => {
-    const column = Math.floor(index / rowsPerColumn);
-    const row = index % rowsPerColumn;
-    positions.set(node.id, {
-      x: startX + column * columnWidth,
-      y: row * rowHeight - totalHeight / 2,
-    });
-  });
-}
-
-function buildEdgeLabel(edge: GraphExplorerEdge, fallbackChainId: number): string {
-  const kindLabel = formatEdgeKindLabel(edge.kind);
-  const eventChainId = edge.metadata?.chainId ?? fallbackChainId;
-  const chain = getSupportedAnalysisChain(eventChainId);
-  const asset = edge.metadata?.asset;
-  const isNative = asset?.kind === "native";
-  const decimals = isNative ? chain?.nativeDecimals ?? 18 : asset?.decimals;
+  const edgeChainId = edge.metadata?.chainId ?? chainId;
+  const txHash = edge.metadata?.txHash;
+  const txHref = txHash ? buildExplorerTxUrl(edgeChainId, txHash) : undefined;
+  const eventChain = getSupportedAnalysisChain(edgeChainId);
+  const isNativeAsset = edge.metadata?.asset?.kind === "native";
+  const amountDecimals = isNativeAsset
+    ? eventChain?.nativeDecimals ?? 18
+    : edge.metadata?.asset?.decimals;
   const canRenderAmount =
     edge.metadata?.amount !== undefined &&
     edge.metadata.amount !== "" &&
-    (isNative || asset?.decimals !== undefined);
-  const amount = canRenderAmount ? formatAmount(edge.metadata?.amount, decimals) : undefined;
-  const symbol = asset?.symbol ?? (isNative ? chain?.nativeSymbol : undefined);
-
-  if (amount && symbol) {
-    return `${kindLabel} · ${amount} ${symbol}`;
-  }
-
-  if (edge.kind === "contract_interaction" && edge.metadata?.methodId) {
-    return `${kindLabel} · ${edge.metadata.methodId}`;
-  }
-
-  return kindLabel;
-}
-
-function buildEdgeTooltip(edge: GraphExplorerEdge, fallbackChainId: number): string {
-  const eventChainId = edge.metadata?.chainId ?? fallbackChainId;
-  const txHash = edge.metadata?.txHash;
-  const explorerUrl = txHash ? buildExplorerTxUrl(eventChainId, txHash) : undefined;
-  const lines: string[] = [];
-
-  lines.push(formatEdgeKindLabel(edge.kind));
-
-  if (txHash) {
-    lines.push(`tx ${shortenTxHash(txHash)}`);
-  }
-
-  if (explorerUrl) {
-    lines.push(explorerUrl);
-  }
-
-  return lines.join("\n");
-}
-
-function extractAddressFromId(id: string): string | undefined {
-  const parts = id.split(":");
-  const candidate = parts[parts.length - 1];
-
-  return /^0x[a-fA-F0-9]{40}$/.test(candidate) ? candidate : undefined;
-}
-
-function WalletNode({ data }: NodeProps<Node<WalletNodeData>>) {
-  const isWatched = data.role === "watched";
+    (isNativeAsset || edge.metadata?.asset?.decimals !== undefined);
+  const amountFormatted = canRenderAmount
+    ? formatAmount(edge.metadata?.amount, amountDecimals)
+    : undefined;
+  const amountSymbol =
+    edge.metadata?.asset?.symbol ?? (isNativeAsset ? eventChain?.nativeSymbol : undefined);
+  const sourceNode = nodeIndex.get(edge.source);
+  const targetNode = nodeIndex.get(edge.target);
 
   return (
-    <div className={`graphNode graphNode-wallet graphNode-${data.role}`}>
-      <Handle type="target" position={Position.Left} />
-      <div className="graphNodeHeader">
-        <span className="graphNodeTag">{isWatched ? "WATCHED" : "OBSERVED"}</span>
-        {data.metrics ? (
-          <span className="graphNodeMetric" title={`${data.metrics.incoming} in / ${data.metrics.outgoing} out`}>
-            {data.metrics.edges}
-          </span>
-        ) : null}
-      </div>
-      <div className="graphNodeBody">
-        <span className="graphNodeIcon" aria-hidden="true">
-          {isWatched ? "★" : "○"}
-        </span>
-        {data.href ? (
-          <a
-            href={data.href}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="graphNodeLink"
-            title={data.address}
-            onClick={(event) => event.stopPropagation()}
-          >
-            {data.shortLabel}
-          </a>
-        ) : (
-          <span className="graphNodeLink" title={data.address}>
-            {data.shortLabel}
-          </span>
-        )}
-      </div>
-      <Handle type="source" position={Position.Right} />
-    </div>
-  );
-}
-
-function ContractNode({ data }: NodeProps<Node<ContractNodeData>>) {
-  const explorerToken = buildExplorerTokenUrl(data.chainId, data.address);
-
-  return (
-    <div className="graphNode graphNode-contract">
-      <Handle type="target" position={Position.Left} />
-      <div className="graphNodeHeader">
-        <span className="graphNodeTag">CONTRACT</span>
-        {data.metrics ? (
-          <span className="graphNodeMetric">{data.metrics.edges}</span>
-        ) : null}
-      </div>
-      <div className="graphNodeBody">
-        <span className="graphNodeIcon" aria-hidden="true">
-          ⬢
-        </span>
-        {data.href ? (
-          <a
-            href={data.href}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="graphNodeLink"
-            title={data.address}
-            onClick={(event) => event.stopPropagation()}
-          >
-            {data.shortLabel}
-          </a>
-        ) : (
-          <span className="graphNodeLink" title={data.address}>
-            {data.shortLabel}
-          </span>
-        )}
-      </div>
-      {explorerToken ? (
-        <a
-          href={explorerToken}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="graphNodeSubLink"
-          onClick={(event) => event.stopPropagation()}
+    <div className="graphDetailCard" role="status">
+      <div className="graphDetailHeader">
+        <span
+          className="graphDetailRole"
+          style={{ background: edgePalette[edge.kind] ?? "#525a52", color: "#fff" }}
         >
-          token ↗
-        </a>
-      ) : null}
-      <Handle type="source" position={Position.Right} />
+          {formatEdgeKindLabel(edge.kind)}
+        </span>
+        <button type="button" className="graphDetailClose" onClick={onClose} aria-label="关闭">
+          ×
+        </button>
+      </div>
+      <div className="graphDetailBody">
+        <div className="graphDetailEndpoints">
+          <span title={sourceNode?.address ?? edge.source}>
+            {sourceNode?.role.toUpperCase() ?? "NODE"} ·
+            <code>{shortenAddress(sourceNode?.address ?? edge.source)}</code>
+          </span>
+          <span aria-hidden="true">→</span>
+          <span title={targetNode?.address ?? edge.target}>
+            {targetNode?.role.toUpperCase() ?? "NODE"} ·
+            <code>{shortenAddress(targetNode?.address ?? edge.target)}</code>
+          </span>
+        </div>
+        {amountFormatted ? (
+          <div className="graphDetailAmount">
+            <strong>{amountFormatted}</strong>
+            <span>{amountSymbol ?? ""}</span>
+          </div>
+        ) : null}
+        {edge.metadata?.methodId ? (
+          <code className="graphDetailMethod" title="Method selector">
+            {edge.metadata.methodId}
+          </code>
+        ) : null}
+        <div className="graphDetailActions">
+          {txHash ? (
+            <a className="graphDetailLink" href={txHref} target="_blank" rel="noreferrer noopener">
+              <span aria-hidden="true">↗</span> tx {shortenTxHash(txHash)}
+            </a>
+          ) : null}
+          {edge.metadata?.asset?.contract && !isNativeAsset ? (
+            <a
+              className="graphDetailLink"
+              href={buildExplorerTokenUrl(edgeChainId, edge.metadata.asset.contract)}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              <span aria-hidden="true">↗</span> token {edge.metadata.asset.symbol ?? ""}
+            </a>
+          ) : null}
+        </div>
+        <p className="graphDetailHint">
+          双击节点或边可直接跳转 explorer · {formatEventTypeLabel(edge.kind)}
+        </p>
+      </div>
     </div>
   );
 }
 
-const nodeTypes = {
-  wallet: WalletNode,
-  contract: ContractNode,
-};
+interface BuildElementsInput {
+  chainId: number;
+  resolvedNodes: ResolvedNode[];
+  edges: GraphExplorerEdge[];
+  hiddenKinds: Set<GraphExplorerEdge["kind"]>;
+  showEdgeLabels: boolean;
+}
+
+function buildElements(input: BuildElementsInput): ElementDefinition[] {
+  const { chainId, resolvedNodes, edges, hiddenKinds, showEdgeLabels } = input;
+  const elements: ElementDefinition[] = [];
+
+  for (const node of resolvedNodes) {
+    const explorerHref = node.address
+      ? buildExplorerAddressUrl(node.chainId ?? chainId, node.address)
+      : undefined;
+
+    elements.push({
+      group: "nodes",
+      data: {
+        id: node.id,
+        role: node.role,
+        kind: node.kind,
+        label: node.shortLabel,
+        size: nodeSizeForDegree(node.degree, node.role),
+        href: explorerHref,
+        degree: node.degree,
+      },
+      classes: `node-${node.role}`,
+    });
+  }
+
+  for (const edge of edges) {
+    if (hiddenKinds.has(edge.kind)) {
+      continue;
+    }
+    const edgeChainId = edge.metadata?.chainId ?? chainId;
+    const eventChain = getSupportedAnalysisChain(edgeChainId);
+    const isNativeAsset = edge.metadata?.asset?.kind === "native";
+    const amountDecimals = isNativeAsset
+      ? eventChain?.nativeDecimals ?? 18
+      : edge.metadata?.asset?.decimals;
+    const canRenderAmount =
+      edge.metadata?.amount !== undefined &&
+      edge.metadata.amount !== "" &&
+      (isNativeAsset || edge.metadata?.asset?.decimals !== undefined);
+    const amountFormatted = canRenderAmount
+      ? formatAmount(edge.metadata?.amount, amountDecimals)
+      : undefined;
+    const amountSymbol =
+      edge.metadata?.asset?.symbol ?? (isNativeAsset ? eventChain?.nativeSymbol : undefined);
+
+    const labelPieces: string[] = [];
+    if (amountFormatted) {
+      labelPieces.push(amountSymbol ? `${amountFormatted} ${amountSymbol}` : amountFormatted);
+    } else if (edge.metadata?.methodId) {
+      labelPieces.push(edge.metadata.methodId);
+    }
+
+    elements.push({
+      group: "edges",
+      data: {
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        kind: edge.kind,
+        color: edgePalette[edge.kind] ?? "#525a52",
+        label: showEdgeLabels ? labelPieces.join(" · ") : "",
+        weight: Math.max(1, Math.log2((edge.evidenceEventIds?.length ?? 1) + 1) + 1),
+        txHref: edge.metadata?.txHash ? buildExplorerTxUrl(edgeChainId, edge.metadata.txHash) : undefined,
+        dashed: edge.kind === "shared_counterparty",
+      },
+      classes: edge.kind === "shared_counterparty" ? "edge-dashed" : undefined,
+    });
+  }
+
+  return elements;
+}
+
+function resolveNodes(
+  nodes: GraphExplorerNode[],
+  edges: GraphExplorerEdge[],
+): ResolvedNode[] {
+  const degreeMap = new Map<string, number>();
+  for (const edge of edges) {
+    degreeMap.set(edge.source, (degreeMap.get(edge.source) ?? 0) + 1);
+    degreeMap.set(edge.target, (degreeMap.get(edge.target) ?? 0) + 1);
+  }
+
+  return nodes.map((node) => {
+    const role = resolveNodeRole(node);
+    const fallbackLabel = node.address ? shortenAddress(node.address) : node.label ?? node.id;
+    return {
+      ...node,
+      role,
+      degree: degreeMap.get(node.id) ?? 0,
+      shortLabel: fallbackLabel,
+    };
+  });
+}
+
+function resolveNodeRole(node: GraphExplorerNode): ResolvedNode["role"] {
+  if (node.kind === "contract") {
+    return "contract";
+  }
+  if (node.kind === "wallet") {
+    return node.tags?.includes("watched") ? "watched" : "observed";
+  }
+  return "entity";
+}
+
+function nodeSizeForDegree(degree: number, role: ResolvedNode["role"]): number {
+  const base = role === "watched" ? 56 : role === "observed" ? 38 : role === "contract" ? 36 : 32;
+  const bonus = Math.min(Math.log2(degree + 1) * 6, 28);
+  return base + bonus;
+}
+
+function runLayout(cy: Core, nodeCount: number, options: { fitAfter?: boolean } = {}): void {
+  const layout = cy.layout({
+    name: "fcose",
+    quality: nodeCount > 200 ? "draft" : "default",
+    randomize: true,
+    animate: false,
+    nodeRepulsion: 8000,
+    idealEdgeLength: nodeCount > 80 ? 140 : 110,
+    edgeElasticity: 0.45,
+    gravity: 0.18,
+    nodeSeparation: 80,
+    padding: 40,
+    fit: true,
+    tile: true,
+    packComponents: true,
+  } as cytoscape.LayoutOptions);
+  layout.run();
+  if (options.fitAfter) {
+    cy.animate({ fit: { eles: cy.elements(), padding: 40 } }, { duration: 240 });
+  }
+}
+
+function buildStylesheet(): cytoscape.StylesheetJson {
+  return [
+    {
+      selector: "node",
+      style: {
+        "background-color": "#f1f5ee",
+        "border-color": "#1f3d2c",
+        "border-width": 2,
+        "color": "#162018",
+        "label": "data(label)",
+        "font-size": 10,
+        "font-weight": 600,
+        "text-valign": "bottom",
+        "text-margin-y": 6,
+        "text-background-color": "#ffffff",
+        "text-background-opacity": 0.85,
+        "text-background-padding": "2",
+        "text-background-shape": "roundrectangle",
+        "width": "data(size)",
+        "height": "data(size)",
+        "shape": "ellipse",
+        "overlay-padding": 6,
+        "transition-property": "background-color, border-color, opacity",
+        "transition-duration": 160,
+      },
+    },
+    {
+      selector: "node.node-watched",
+      style: {
+        "background-color": "#1f3d2c",
+        "border-color": "#0f1f15",
+        "color": "#ffffff",
+        "text-background-color": "#0f1f15",
+        "text-background-opacity": 0.9,
+      },
+    },
+    {
+      selector: "node.node-observed",
+      style: {
+        "background-color": "#d6e9d2",
+        "border-color": "#3e7050",
+      },
+    },
+    {
+      selector: "node.node-contract",
+      style: {
+        "background-color": "#fff1d2",
+        "border-color": "#b07410",
+        "shape": "round-diamond",
+      },
+    },
+    {
+      selector: "node.node-entity",
+      style: {
+        "background-color": "#e6e2f5",
+        "border-color": "#5a4ab0",
+        "shape": "round-hexagon",
+      },
+    },
+    {
+      selector: "edge",
+      style: {
+        "curve-style": "bezier",
+        "width": "data(weight)",
+        "line-color": "data(color)",
+        "target-arrow-color": "data(color)",
+        "target-arrow-shape": "triangle",
+        "arrow-scale": 0.9,
+        "opacity": 0.7,
+        "label": "data(label)",
+        "font-size": 9,
+        "color": "data(color)",
+        "text-background-color": "#ffffff",
+        "text-background-opacity": 0.9,
+        "text-background-padding": "2",
+        "text-background-shape": "roundrectangle",
+        "transition-property": "opacity, width",
+        "transition-duration": 160,
+      },
+    },
+    {
+      selector: "edge.edge-dashed",
+      style: {
+        "line-style": "dashed",
+      },
+    },
+    {
+      selector: ".hl-dim",
+      style: {
+        "opacity": 0.12,
+      },
+    },
+    {
+      selector: ".hl-focus",
+      style: {
+        "opacity": 1,
+        "z-index": 30,
+      },
+    },
+    {
+      selector: "node.hl-focus",
+      style: {
+        "border-width": 4,
+      },
+    },
+    {
+      selector: "edge.hl-focus",
+      style: {
+        "width": "mapData(weight, 1, 6, 3, 8)",
+      },
+    },
+  ] as cytoscape.StylesheetJson;
+}

@@ -1,7 +1,6 @@
 import { DirectTransferAnalyzer } from "@wallet-map/analyzers";
 import { AnalysisWorkbench } from "./analysis-workbench";
 import { supportedAnalysisChains } from "./chains";
-import { roadmapItems } from "./project-plan";
 
 const analyzer = new DirectTransferAnalyzer();
 
@@ -10,41 +9,34 @@ export default function HomePage() {
   const initialAddresses = readInitialAddresses();
 
   return (
-    <main className="shell">
-      <section className="hero">
-        <div>
-          <p className="eyebrow">Wallet Map</p>
-          <h1>钱包关联分析工作台</h1>
-          <p className="lede">
-            本地优先地分析多个钱包之间的转账、共同交互、路径关系和证据明细。
-          </p>
+    <div className="appShell">
+      <header className="appHeader" aria-label="Wallet Map header">
+        <div className="appBrand">
+          <span className="appBrandMark" aria-hidden="true">
+            WM
+          </span>
+          <div className="appBrandText">
+            <strong>Wallet Map</strong>
+            <span>钱包关联分析工作台</span>
+          </div>
         </div>
-        <div className="statusPanel" aria-label="Project status">
-          <span>First analyzer</span>
-          <strong>{analyzer.name}</strong>
-          <span>Live data</span>
-          <strong>{liveConfigured ? "Configured" : "Fixture fallback"}</strong>
+        <div className="appHeaderStatus">
+          <span className={`headerChip ${liveConfigured ? "headerChipOk" : "headerChipMuted"}`}>
+            <span className="headerChipDot" aria-hidden="true" />
+            {liveConfigured ? "Live data ready" : "Fixture fallback"}
+          </span>
+          <span className="headerChip headerChipMuted">
+            Analyzer · {analyzer.name}
+          </span>
         </div>
-      </section>
+      </header>
 
       <AnalysisWorkbench
         liveConfigured={liveConfigured}
         supportedChains={supportedAnalysisChains}
         initialAddresses={initialAddresses}
       />
-
-      <aside className="checklist">
-        <h2>第一阶段清单</h2>
-        <ul>
-          {roadmapItems.map((item) => (
-            <li key={item}>
-              <span aria-hidden="true" />
-              {item}
-            </li>
-          ))}
-        </ul>
-      </aside>
-    </main>
+    </div>
   );
 }
 
