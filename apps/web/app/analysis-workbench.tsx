@@ -271,8 +271,8 @@ export function AnalysisWorkbench({
               ) : null}
               {result.score.reasons.length > 0 ? (
                 <ul className="reasonList">
-                  {result.score.reasons.map((reason) => (
-                    <li key={reason}>{reason}</li>
+                  {result.score.reasons.map((reason, index) => (
+                    <li key={`${reason}-${index}`}>{reason}</li>
                   ))}
                 </ul>
               ) : null}
@@ -337,9 +337,9 @@ export function AnalysisWorkbench({
                 <ul className="findingList">
                   {result.findings.map((finding) => (
                     <li key={finding.id}>
-                      <div>
+                      <div className="findingHeader">
                         <strong>{finding.title}</strong>
-                        <span>
+                        <span className="findingMeta">
                           {finding.severity} / {finding.confidence}
                         </span>
                       </div>
@@ -350,7 +350,9 @@ export function AnalysisWorkbench({
                       <div className="evidenceList">
                         {finding.evidence.map((evidence) => (
                           <div key={evidence.eventId} className="evidenceItem">
-                            <code>{evidence.txHash ?? evidence.eventId}</code>
+                            <code title={evidence.txHash ?? evidence.eventId}>
+                              {formatIdentifier(evidence.txHash ?? evidence.eventId)}
+                            </code>
                             <span>{evidence.summary}</span>
                           </div>
                         ))}
@@ -383,8 +385,8 @@ export function AnalysisWorkbench({
                   {result.graph.edges.map((edge) => (
                     <li key={edge.id}>
                       <span>{edge.kind}</span>
-                      <code>{edge.source}</code>
-                      <code>{edge.target}</code>
+                      <code title={edge.source}>{formatIdentifier(edge.source)}</code>
+                      <code title={edge.target}>{formatIdentifier(edge.target)}</code>
                     </li>
                   ))}
                 </ul>
@@ -416,6 +418,14 @@ function formatFetchTime(timestamp: string): string {
     month: "2-digit",
     day: "2-digit",
   }).format(date);
+}
+
+function formatIdentifier(value: string): string {
+  if (value.length <= 22) {
+    return value;
+  }
+
+  return `${value.slice(0, 10)}...${value.slice(-8)}`;
 }
 
 function LoadingResult() {

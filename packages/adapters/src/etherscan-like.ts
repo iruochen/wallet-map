@@ -133,7 +133,14 @@ export class EtherscanLikeAdapter implements ChainAdapter {
 
     while (true) {
       const url = this.buildAccountUrl(request, action);
-      const response = await this.fetchImpl(url);
+      const response = await this.fetchImpl(url).catch((error: unknown) => {
+        throw wrapTransportError({
+          error,
+          action,
+          chainName: this.name,
+          host: url.host,
+        });
+      });
 
       if (!response.ok) {
         if (response.status === 429 && attempt < this.maxRateLimitRetries) {
@@ -337,6 +344,30 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function wrapTransportError(input: {
+  error: unknown;
+  action: EtherscanAction;
+  chainName: string;
+  host: string;
+}): Error {
+  const { error, action, chainName, host } = input;
+
+  if (error instanceof Error) {
+    const cause = "cause" in error ? (error.cause as { code?: string; message?: string } | undefined) : undefined;
+    const code = cause?.code;
+
+    if (code === "ECONNRESET") {
+      return new Error(
+        `${chainName} ${action} request could not reach ${host}. The current environment reset the TLS connection before it was established.`,
+      );
+    }
+
+    return new Error(`${chainName} ${action} request failed before a response was received: ${error.message}`);
+  }
+
+  return new Error(`${chainName} ${action} request failed before a response was received.`);
 }
 
 function slugify(value: string): string {

@@ -343,6 +343,32 @@ describe("EtherscanLikeAdapter", () => {
     );
   });
 
+  it("throws a clear transport error for TLS connection resets", async () => {
+    const fetchMock = vi.fn(async () => {
+      const error = new TypeError("fetch failed") as TypeError & {
+        cause?: { code?: string; message?: string };
+      };
+      error.cause = {
+        code: "ECONNRESET",
+        message: "Client network socket disconnected before secure TLS connection was established",
+      };
+      throw error;
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new EtherscanLikeAdapter({
+      baseUrl: "https://api.etherscan.io/v2/api",
+      chainId: 56,
+      name: "BSC",
+      useChainIdParam: true,
+    });
+
+    await expect(adapter.getEvents({ address: watchedAddress })).rejects.toThrow(
+      "BSC txlist request could not reach api.etherscan.io. The current environment reset the TLS connection before it was established.",
+    );
+  });
+
   it("retries rate-limited responses and eventually succeeds", async () => {
     let calls = 0;
     const fetchMock = vi.fn(async () => {

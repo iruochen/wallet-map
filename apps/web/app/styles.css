@@ -452,18 +452,19 @@ button:disabled {
   background: #fbfcfa;
 }
 
-.findingList li div {
+.findingHeader {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   min-width: 0;
 }
 
-.findingList li span,
+.findingMeta,
 .edgeList li span {
   color: #64736a;
   font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .findingList p {
@@ -489,12 +490,23 @@ button:disabled {
   display: grid;
   gap: 4px;
   min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #e1e7df;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
 .evidenceItem span {
   color: #405047;
   font-size: 0.82rem;
   line-height: 1.45;
+}
+
+.evidenceItem code,
+.edgeList code,
+.sourceLine code {
+  display: inline-block;
+  max-width: 100%;
 }
 
 .edgeList li {
@@ -609,10 +621,14 @@ code {
   }
 
   .panelHeader,
-  .findingList li div,
+  .findingHeader,
   .resultHeader {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .findingMeta {
+    white-space: normal;
   }
 }
 
