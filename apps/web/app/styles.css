@@ -818,6 +818,192 @@ code {
   font-size: 0.78rem;
 }
 
+.graphPanel {
+  margin-bottom: 24px;
+}
+
+.graphExplorer {
+  display: grid;
+  gap: 10px;
+}
+
+.graphLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.graphLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid #d6e3da;
+  border-radius: 999px;
+  background: #fbfcfa;
+  color: #2b4a3a;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.graphLegendItem .graphLegendSwatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--legend-color, #4c5b51);
+}
+
+.graphLegendItemHidden {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.graphLegendSummary {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  color: #64736a;
+  font-size: 0.78rem;
+}
+
+.graphCanvas {
+  height: 560px;
+  border: 1px solid #dce2d8;
+  border-radius: 12px;
+  background: #f7faf6;
+  overflow: hidden;
+}
+
+.graphFootnote {
+  margin: 0;
+  color: #64736a;
+  font-size: 0.78rem;
+}
+
+.graphMiniMap {
+  width: 132px !important;
+  height: 88px !important;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgb(40 53 44 / 8%);
+}
+
+.graphNode {
+  display: grid;
+  gap: 6px;
+  min-width: 210px;
+  padding: 12px 14px;
+  border: 1px solid #d6e3da;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgb(40 53 44 / 8%);
+  color: #183d30;
+  font-size: 0.9rem;
+}
+
+.graphNode-watched {
+  border-color: #1c6b3d;
+  background: linear-gradient(180deg, #f1faf3 0%, #ffffff 100%);
+}
+
+.graphNode-observed {
+  border-color: #cfd8d1;
+  background: #ffffff;
+}
+
+.graphNode-contract {
+  border-color: #e0d4ab;
+  background: linear-gradient(180deg, #fffaeb 0%, #ffffff 100%);
+}
+
+.graphNodeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.graphNodeTag {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #eef2eb;
+  color: #2b4a3a;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.graphNode-watched .graphNodeTag {
+  background: #1c6b3d;
+  color: #ffffff;
+}
+
+.graphNode-contract .graphNodeTag {
+  background: #7a5202;
+  color: #ffffff;
+}
+
+.graphNodeMetric {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fbfcfa;
+  border: 1px solid #d6e3da;
+  color: #4c5b51;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.graphNodeBody {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.graphNodeIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: #f1f5ee;
+  color: #2b4a3a;
+  font-size: 0.78rem;
+}
+
+.graphNodeLink {
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px dashed transparent;
+}
+
+.graphNodeLink:hover {
+  border-bottom-color: currentColor;
+}
+
+.graphNodeSubLink {
+  color: #2b3da7;
+  font-size: 0.7rem;
+  text-decoration: none;
+}
+
+.graphNodeSubLink:hover {
+  text-decoration: underline;
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
 .loadingStack {
   display: grid;
   gap: 12px;

@@ -17,6 +17,7 @@ import {
   shortenAddress,
   shortenTxHash,
 } from "./format";
+import { GraphExplorer } from "./graph-explorer";
 
 const sampleAddresses = [
   "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -237,6 +238,7 @@ export function AnalysisWorkbench({
   }
 
   return (
+    <>
     <section className="workspace">
       <form
         className="inputPanel"
@@ -521,6 +523,28 @@ export function AnalysisWorkbench({
         ) : null}
       </div>
     </section>
+
+    {result ? (
+      <section className="resultPanel graphPanel">
+        <div className="resultHeader">
+          <div>
+            <h2>关系图谱</h2>
+            <p>
+              {result.meta.graphWalletCount} wallets · {result.meta.graphContractCount} contracts · {result.graph.totalEdges} edges
+            </p>
+          </div>
+        </div>
+        <GraphExplorer
+          chainId={result.meta.chainId}
+          nodes={result.graph.nodes}
+          edges={result.graph.edges}
+          totalNodes={result.graph.totalNodes}
+          totalEdges={result.graph.totalEdges}
+          truncated={result.graph.nodesTruncated || result.graph.edgesTruncated}
+        />
+      </section>
+    ) : null}
+    </>
   );
 }
 

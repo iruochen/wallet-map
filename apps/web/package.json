@@ -15,6 +15,7 @@
     "@wallet-map/analyzers": "workspace:*",
     "@wallet-map/core": "workspace:*",
     "@wallet-map/exporters": "workspace:*",
+    "@xyflow/react": "^12.10.2",
     "next": "^16.0.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
