@@ -59,6 +59,7 @@ export interface GraphExplorerEdge {
     txHash?: string;
     amount?: string;
     methodId?: string;
+    txCount?: number;
     asset?: {
       kind?: string;
       symbol?: string;
@@ -409,7 +410,7 @@ export function GraphExplorer({
             适应画布
           </button>
           <span className="graphSummary">
-            {nodes.length} 节点 · {visibleEdgeCount}/{totalEdges} 边
+            {nodes.length} 节点 · {visibleEdgeCount}/{totalEdges} 条已命中的关联边
             {truncated ? " · 已截断" : ""}
           </span>
         </div>
@@ -448,8 +449,8 @@ export function GraphExplorer({
       </div>
       <p className="graphFootnote">
         {denseGraph
-          ? "大图模式：节点标签仅在选中时显示，点击节点/边可聚焦并查看详情。"
-          : "滚轮缩放 · 拖拽平移 · 单击聚焦 · 双击跳转 explorer。"}
+          ? "大图模式：默认只展示关联子图，单击节点查看解释，双击可跳转区块浏览器。"
+          : "默认只展示命中分析器的关联子图 · 单击聚焦并查看解释 · 双击跳转 explorer。"}
         {totalNodes > nodes.length ? ` 当前展示前 ${nodes.length} / ${totalNodes} 节点。` : ""}
       </p>
     </div>
@@ -477,12 +478,15 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
     return (
       <div className="graphDetailCard" role="status">
         <div className="graphDetailHeader">
-          <span className={`graphDetailRole graphDetailRole-${node.role}`}>{node.role.toUpperCase()}</span>
+          <span className={`graphDetailRole graphDetailRole-${node.role}`}>{formatNodeRoleLabel(node.role)}</span>
           <button type="button" className="graphDetailClose" onClick={onClose} aria-label="关闭">
             ×
           </button>
         </div>
         <div className="graphDetailBody">
+          <p className="graphDetailHint">
+            {describeNodeRole(node.role)}
+          </p>
           <code className="graphDetailAddress" title={node.address ?? node.id}>
             {node.address ? shortenAddress(node.address) : node.id}
           </code>
@@ -570,6 +574,9 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
             <span>{amountSymbol ?? ""}</span>
           </div>
         ) : null}
+        {(edge.metadata?.txCount ?? 1) > 1 ? (
+          <div className="graphDetailTxCount">{edge.metadata?.txCount} 笔同类交易已聚合展示</div>
+        ) : null}
         {edge.metadata?.methodId ? (
           <code className="graphDetailMethod" title="Method selector">
             {edge.metadata.methodId}
@@ -593,7 +600,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
           ) : null}
         </div>
         <p className="graphDetailHint">
-          双击节点或边可直接跳转 explorer · {formatEventTypeLabel(edge.kind)}
+          {describeEdgeKind(edge.kind)} · 双击节点或边可直接跳转 explorer
         </p>
       </div>
     </div>
@@ -643,6 +650,8 @@ function buildElements(input: BuildElementsInput): ElementDefinition[] {
         color: edgePalette[edge.kind] ?? "#525a52",
         label: buildEdgeLabel(edge, chainId, showEdgeLabels),
         weight: Math.max(1.2, Math.log2((edge.evidenceEventIds?.length ?? 1) + 1) + 0.8),
+        curveDistance: getParallelEdgeCurveDistance(edge, edges),
+        labelOffset: getParallelEdgeLabelOffset(edge, edges),
         txHref: edge.metadata?.txHash
           ? buildExplorerTxUrl(edge.metadata?.chainId ?? chainId, edge.metadata.txHash)
           : undefined,
@@ -687,7 +696,41 @@ function buildEdgeLabel(
     labelPieces.push(edge.metadata.methodId);
   }
 
+  if ((edge.metadata?.txCount ?? 1) > 1) {
+    labelPieces.push(`${edge.metadata?.txCount} tx`);
+  }
+
   return labelPieces.join(" · ");
+}
+
+function getParallelEdgeCurveDistance(
+  edge: GraphExplorerEdge,
+  edges: GraphExplorerEdge[],
+): number {
+  const siblings = edges
+    .filter((candidate) => candidate.source === edge.source && candidate.target === edge.target)
+    .sort((left, right) => left.id.localeCompare(right.id));
+  const index = siblings.findIndex((candidate) => candidate.id === edge.id);
+
+  if (index === -1 || siblings.length <= 1) {
+    return 0;
+  }
+
+  const offset = index - (siblings.length - 1) / 2;
+  return offset * 34;
+}
+
+function getParallelEdgeLabelOffset(
+  edge: GraphExplorerEdge,
+  edges: GraphExplorerEdge[],
+): number {
+  const curveDistance = getParallelEdgeCurveDistance(edge, edges);
+
+  if (curveDistance === 0) {
+    return 10;
+  }
+
+  return Math.max(12, Math.abs(curveDistance) * 0.45);
 }
 
 function resolveNodes(
@@ -726,6 +769,57 @@ function nodeSizeForDegree(degree: number, role: ResolvedNode["role"]): number {
   const base = role === "watched" ? 62 : role === "observed" ? 34 : role === "contract" ? 30 : 28;
   const bonus = Math.min(Math.log2(degree + 1) * 5, 22);
   return base + bonus;
+}
+
+function describeNodeRole(role: ResolvedNode["role"]): string {
+  if (role === "watched") {
+    return "这是本次输入的钱包节点，系统会围绕它来判断是否存在关联。";
+  }
+
+  if (role === "observed") {
+    return "这是在链上行为中被命中的外部地址，用来解释 watched 钱包之间的关联路径。";
+  }
+
+  if (role === "contract") {
+    return "这是被多个钱包共同触达的合约节点，可用于辅助判断协同行为。";
+  }
+
+  return "这是图中的辅助实体节点。";
+}
+
+function formatNodeRoleLabel(role: ResolvedNode["role"]): string {
+  if (role === "watched") {
+    return "WATCHED";
+  }
+
+  if (role === "observed") {
+    return "OBSERVED";
+  }
+
+  if (role === "contract") {
+    return "CONTRACT";
+  }
+
+  return "ENTITY";
+}
+
+function describeEdgeKind(kind: GraphExplorerEdge["kind"]): string {
+  switch (kind) {
+    case "native_transfer":
+      return "这条边代表原生币直接转账";
+    case "token_transfer":
+      return "这条边代表代币转账";
+    case "nft_transfer":
+      return "这条边代表 NFT 转移";
+    case "contract_interaction":
+      return "这条边代表钱包对同一合约的调用";
+    case "shared_counterparty":
+      return "这条边代表两个钱包共享同一个外部对手地址";
+    case "bridge_route":
+      return "这条边代表跨链桥接路径";
+    default:
+      return "这条边代表时间或行为上的弱关联";
+  }
 }
 
 function focusElements(cy: Core, elements: cytoscape.CollectionReturnValue, _zoomFactor: number): void {
@@ -819,7 +913,7 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
         "background-color": "#fff3d6",
         "border-color": "#c58a1a",
         "border-width": 2,
-        "shape": "ellipse",
+        "shape": "round-rectangle",
       },
     },
     {
@@ -848,7 +942,7 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
       selector: "edge",
       style: {
         "curve-style": "unbundled-bezier",
-        "control-point-distances": 24,
+        "control-point-distances": "data(curveDistance)",
         "control-point-weights": 0.5,
         "width": "data(weight)",
         "line-color": "data(color)",
@@ -859,6 +953,7 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
         "label": "data(label)",
         "font-size": 9,
         "color": "data(color)",
+        "text-margin-y": "data(labelOffset)",
         "text-background-color": "#ffffff",
         "text-background-opacity": 0.92,
         "text-background-padding": "2",

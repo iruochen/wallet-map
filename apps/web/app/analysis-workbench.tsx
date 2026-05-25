@@ -81,6 +81,7 @@ interface GraphEdge {
     txHash?: string;
     amount?: string;
     methodId?: string;
+    txCount?: number;
     asset?: {
       kind?: string;
       symbol?: string;
@@ -112,6 +113,26 @@ interface AnalysisResponse {
     confidence: "low" | "medium" | "high";
     reasons: string[];
     counterEvidence: string[];
+  };
+  summary: {
+    verdict: "none" | "weak" | "medium" | "strong";
+    headline: string;
+    narrative: string;
+    pairInsights: Array<{
+      id: string;
+      wallets: string[];
+      labels: string[];
+      strength: "weak" | "medium" | "strong";
+      score: number;
+      confidence: "low" | "medium" | "high";
+      signalCount: number;
+      reasons: string[];
+    }>;
+    signalHighlights: Array<{
+      analyzerId: string;
+      title: string;
+      count: number;
+    }>;
   };
   graph: {
     totalNodes: number;
@@ -369,12 +390,45 @@ export function AnalysisWorkbench({
                   <span>{result.meta.fallbackReason}</span>
                 </div>
               ) : null}
-              {result.score.reasons.length > 0 ? (
-                <ul className="reasonList">
-                  {result.score.reasons.map((reason, index) => (
-                    <li key={`${reason}-${index}`}>{reason}</li>
-                  ))}
-                </ul>
+              {result.summary.verdict !== "none" ? (
+                <>
+                  <div className={`verdictCard verdict-${result.summary.verdict}`}>
+                    <div className="verdictHeader">
+                      <span className={`verdictPill verdictPill-${result.summary.verdict}`}>
+                        {formatVerdictLabel(result.summary.verdict)}
+                      </span>
+                      <span className="verdictSubtle">{result.summary.pairInsights.length} 个钱包对命中关联规则</span>
+                    </div>
+                    <strong>{result.summary.headline}</strong>
+                    <p>{result.summary.narrative}</p>
+                  </div>
+                  <div className="pairInsightList">
+                    {result.summary.pairInsights.slice(0, 3).map((pair) => (
+                      <div key={pair.id} className="pairInsightCard">
+                        <div className="pairInsightHeader">
+                          <strong>{pair.labels.join(" ↔ ")}</strong>
+                          <span className={`verdictPill verdictPill-${pair.strength}`}>
+                            {formatVerdictLabel(pair.strength)}
+                          </span>
+                        </div>
+                        <p>{pair.reasons.join(" · ")}</p>
+                        <div className="pairInsightMeta">
+                          <span>{pair.signalCount} 个信号</span>
+                          <span>{pair.score} 分</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {result.summary.signalHighlights.length > 0 ? (
+                    <ul className="reasonList">
+                      {result.summary.signalHighlights.map((signal) => (
+                        <li key={`${signal.analyzerId}:${signal.title}`}>
+                          {signal.title} · {signal.count}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
               ) : (
                 <div className="emptyStateBlock emptyStatePositive">
                   <strong>没有命中任何关联规则</strong>
@@ -415,8 +469,8 @@ export function AnalysisWorkbench({
             <h2>关系图谱</h2>
             <p>
               {result
-                ? `${result.meta.graphWalletCount} wallets · ${result.meta.graphContractCount} contracts · ${result.graph.totalEdges} edges`
-                : "拖拽 / 滚轮缩放 · 点击节点查看详情 · 双击跳 explorer"}
+                ? `${result.meta.graphWalletCount} wallets · ${result.meta.graphContractCount} contracts · ${result.graph.totalEdges} 条关联边`
+                : "仅展示命中分析器的关联子图 · 点击节点查看解释"}
             </p>
           </div>
         </header>
@@ -426,7 +480,7 @@ export function AnalysisWorkbench({
               <div className="skeletonBlock skeletonTall" />
               <p>正在拉取事件、构建关系图…</p>
             </div>
-          ) : result ? (
+          ) : result && result.graph.totalEdges > 0 ? (
             <GraphExplorer
               chainId={result.meta.chainId}
               nodes={result.graph.nodes}
@@ -438,8 +492,12 @@ export function AnalysisWorkbench({
           ) : (
             <div className="graphPlaceholder">
               <div className="graphPlaceholderOrb" aria-hidden="true" />
-              <strong>提交一次分析就能看到图谱</strong>
-              <p>左侧填入钱包地址、选择链和数据源，然后点击 “生成分析任务”。</p>
+              <strong>{result ? "当前没有形成关联子图" : "提交一次分析就能看到图谱"}</strong>
+              <p>
+                {result
+                  ? "现有分析器没有命中可以归因为钱包关联的边，所以图谱区域保持为空。"
+                  : "左侧填入钱包地址、选择链和数据源，然后点击 “生成分析任务”。"}
+              </p>
             </div>
           )}
         </div>
@@ -466,7 +524,7 @@ export function AnalysisWorkbench({
                 className={`panelTab ${evidenceTab === "edges" ? "panelTabActive" : ""}`}
                 onClick={() => setEvidenceTab("edges")}
               >
-                Edges
+                Related Edges
                 {result ? <span className="panelTabCount">{result.graph.totalEdges}</span> : null}
               </button>
             </div>
@@ -474,7 +532,7 @@ export function AnalysisWorkbench({
               {result
                 ? evidenceTab === "findings"
                   ? `${result.meta.chainName} · 分析器信号`
-                  : `${result.graph.totalEdges} 条关系边 · 独立滚动`
+                  : `${result.graph.totalEdges} 条已命中的关联边`
                 : "分析器证据流"}
             </p>
           </div>
@@ -538,8 +596,8 @@ export function AnalysisWorkbench({
               </ul>
             ) : (
               <div className="emptyStateBlock">
-                <strong>暂无关系边</strong>
-                <p>当前分析没有产出可视化的 graph edges。</p>
+                <strong>暂无关联边</strong>
+                <p>当前分析没有产出命中分析器规则的关系边。</p>
               </div>
             )
           ) : (
@@ -759,6 +817,9 @@ function EdgeRow({ edge, chainId, watchedAddressSet, nodeIndex }: EdgeRowProps) 
     <li className="edgeRow">
       <div className="edgeRowHeader">
         <span className={`eventTypePill event-${edge.kind}`}>{formatEdgeKindLabel(edge.kind)}</span>
+        {(edge.metadata?.txCount ?? 1) > 1 ? (
+          <span className="countChip">{edge.metadata?.txCount} tx</span>
+        ) : null}
         {amountFormatted ? (
           <span className="amountChip">
             <strong>{amountFormatted}</strong>
@@ -853,6 +914,19 @@ function GraphNodeLink({ node, fallbackId, chainId, watchedAddressSet }: GraphNo
 function extractAddressFromNodeId(nodeId: string): string {
   const match = /(0x[a-fA-F0-9]{40})/.exec(nodeId);
   return match?.[1] ?? nodeId;
+}
+
+function formatVerdictLabel(verdict: "none" | "weak" | "medium" | "strong"): string {
+  switch (verdict) {
+    case "strong":
+      return "强关联";
+    case "medium":
+      return "中关联";
+    case "weak":
+      return "弱关联";
+    default:
+      return "无结论";
+  }
 }
 
 function LoadingResult() {

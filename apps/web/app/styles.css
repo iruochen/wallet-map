@@ -401,6 +401,8 @@ select {
   background: #f7f8f5;
   color: #183d30;
   font-size: 0.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .buttonDot,
@@ -560,6 +562,105 @@ select {
   font-size: 0.82rem;
   line-height: 1.4;
   list-style-position: inside;
+}
+
+.verdictCard {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid #dce2d8;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.verdictHeader {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.verdictPill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.verdictPill-strong {
+  background: #ffe1dc;
+  color: #8d211b;
+}
+
+.verdictPill-medium {
+  background: #fff4dd;
+  color: #7a5202;
+}
+
+.verdictPill-weak {
+  background: #eef2eb;
+  color: #4c5b51;
+}
+
+.verdictSubtle {
+  color: #64736a;
+  font-size: 0.76rem;
+}
+
+.verdictCard strong {
+  font-size: 0.92rem;
+}
+
+.verdictCard p {
+  margin: 0;
+  color: #405047;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.pairInsightList {
+  display: grid;
+  gap: 8px;
+}
+
+.pairInsightCard {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #e1e7df;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.pairInsightHeader {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.pairInsightHeader strong {
+  font-size: 0.86rem;
+}
+
+.pairInsightCard p {
+  margin: 0;
+  color: #4c5b51;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.pairInsightMeta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: #64736a;
+  font-size: 0.74rem;
 }
 
 .emptyStateBlock {
@@ -794,6 +895,17 @@ select {
   font-weight: 600;
 }
 
+.countChip {
+  padding: 2px 8px;
+  border: 1px solid #d7dde9;
+  border-radius: 999px;
+  background: #f5f7fb;
+  color: #38506f;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .amountChip {
   display: inline-flex;
   gap: 4px;
@@ -996,6 +1108,7 @@ code {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(4px);
+  box-shadow: 0 8px 24px rgba(31, 61, 44, 0.05);
 }
 
 .graphLegend {
@@ -1019,6 +1132,13 @@ code {
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.graphLegendItem:hover {
+  transform: translateY(-1px);
+  border-color: #9db7a4;
+  background: #ffffff;
 }
 
 .graphLegendItem .graphLegendSwatch {
@@ -1069,6 +1189,7 @@ code {
 .graphSummary {
   color: #64736a;
   font-size: 0.74rem;
+  white-space: nowrap;
 }
 
 .graphCanvasWrap {
@@ -1187,13 +1308,13 @@ code {
 }
 
 .graphPlaceholderOrb {
-  width: 84px;
-  height: 84px;
+  width: 92px;
+  height: 92px;
   border-radius: 999px;
   background:
     radial-gradient(circle at 30% 30%, #ffffff 0%, transparent 50%),
-    radial-gradient(circle at 70% 70%, #2f7d4f 0%, #1f3d2c 60%, #14241b 100%);
-  box-shadow: 0 12px 24px rgba(31, 61, 44, 0.18);
+    radial-gradient(circle at 70% 70%, #2f7d4f 0%, #1f3d2c 55%, #14241b 100%);
+  box-shadow: 0 16px 28px rgba(31, 61, 44, 0.16);
   animation: orbFloat 5s ease-in-out infinite;
 }
 
@@ -1394,6 +1515,12 @@ code {
   font-weight: 700;
 }
 
+.graphDetailTxCount {
+  color: #4c5b51;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .graphDetailMethod {
   padding: 2px 6px;
   border: 1px solid #e5d8b6;
@@ -1492,6 +1619,23 @@ code {
 
   .workbenchGraphBody {
     min-height: 420px;
+  }
+
+  .pairInsightHeader,
+  .verdictHeader,
+  .resultHeader,
+  .panelHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .graphToolbarActions {
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+
+  .graphSummary {
+    white-space: normal;
   }
 }
 

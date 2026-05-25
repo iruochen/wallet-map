@@ -203,14 +203,24 @@ function getObservedWalletCounterpartyNodeId(input: {
   const targetIsWatched = watchedWalletNodeIds.has(edge.target);
 
   if (sourceIsWatched && target?.kind === "wallet" && target.tags?.includes("observed")) {
+    if (isZeroAddressNodeId(edge.target)) {
+      return undefined;
+    }
     return edge.target;
   }
 
   if (targetIsWatched && source?.kind === "wallet" && source.tags?.includes("observed")) {
+    if (isZeroAddressNodeId(edge.source)) {
+      return undefined;
+    }
     return edge.source;
   }
 
   return undefined;
+}
+
+function isZeroAddressNodeId(nodeId: string): boolean {
+  return nodeId.endsWith(":0x0000000000000000000000000000000000000000");
 }
 
 function getWatchedWalletNodeIdsForEdges(

@@ -1,6 +1,10 @@
 import { createDefaultAnalyzers } from "@wallet-map/analyzers";
 import type { NormalizedEvent } from "@wallet-map/core";
 import { runAnalysis } from "@wallet-map/core";
+import {
+  buildPresentationGraph,
+  buildPresentationSummary,
+} from "./presentation";
 import { resolveAnalyzeEvents } from "./data-source";
 import { parseAnalyzeRequest } from "./schema";
 
@@ -21,6 +25,8 @@ export async function POST(request: Request): Promise<Response> {
       analyzers: createDefaultAnalyzers(),
     });
     const eventsById = new Map(resolved.events.map((event) => [event.id, event]));
+    const presentationGraph = buildPresentationGraph(result.graph, result.findings);
+    const presentationSummary = buildPresentationSummary(result.findings, result.graph);
 
     return Response.json({
       mode: resolved.mode,
@@ -34,20 +40,21 @@ export async function POST(request: Request): Promise<Response> {
         resolvedMode: resolved.mode,
         watchedAddressCount: parsed.addresses.length,
         eventCount: resolved.events.length,
-        graphNodeCount: result.graph.nodes.length,
-        graphEdgeCount: result.graph.edges.length,
-        graphWalletCount: result.graph.nodes.filter((node) => node.kind === "wallet").length,
-        graphContractCount: result.graph.nodes.filter((node) => node.kind === "contract").length,
+        graphNodeCount: presentationGraph.graph.nodes.length,
+        graphEdgeCount: presentationGraph.graph.edges.length,
+        graphWalletCount: presentationGraph.graph.nodes.filter((node) => node.kind === "wallet").length,
+        graphContractCount: presentationGraph.graph.nodes.filter((node) => node.kind === "contract").length,
         fallbackReason: resolved.fallbackReason,
         fetchedAt: new Date().toISOString(),
       },
+      summary: presentationSummary,
       graph: {
-        totalNodes: result.graph.nodes.length,
-        totalEdges: result.graph.edges.length,
-        nodesTruncated: result.graph.nodes.length > graphNodePreviewLimit,
-        edgesTruncated: result.graph.edges.length > graphEdgePreviewLimit,
-        nodes: result.graph.nodes.slice(0, graphNodePreviewLimit),
-        edges: result.graph.edges.slice(0, graphEdgePreviewLimit).map((edge) => ({
+        totalNodes: presentationGraph.graph.nodes.length,
+        totalEdges: presentationGraph.graph.edges.length,
+        nodesTruncated: presentationGraph.graph.nodes.length > graphNodePreviewLimit,
+        edgesTruncated: presentationGraph.graph.edges.length > graphEdgePreviewLimit,
+        nodes: presentationGraph.graph.nodes.slice(0, graphNodePreviewLimit),
+        edges: presentationGraph.graph.edges.slice(0, graphEdgePreviewLimit).map((edge) => ({
           ...edge,
           metadata: enrichEdgeMetadata(edge.metadata, edge.evidenceEventIds, eventsById),
         })),

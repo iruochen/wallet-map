@@ -109,6 +109,37 @@ describe("SharedCounterpartyAnalyzer", () => {
 
     await expect(new SharedCounterpartyAnalyzer().run(context)).resolves.toEqual([]);
   });
+
+  it("ignores zero-address mint activity as a shared counterparty", async () => {
+    const events: NormalizedEvent[] = [
+      {
+        id: "event:1",
+        type: "token_transfer",
+        chainId: 1,
+        txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        blockNumber: 1,
+        timestamp: "2024-01-01T00:00:00.000Z",
+        from: "0x0000000000000000000000000000000000000000",
+        to: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      {
+        id: "event:2",
+        type: "token_transfer",
+        chainId: 1,
+        txHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        blockNumber: 2,
+        timestamp: "2024-01-01T00:01:00.000Z",
+        from: "0x0000000000000000000000000000000000000000",
+        to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      },
+    ];
+    const context = buildContext(events, [
+      "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    ]);
+
+    await expect(new SharedCounterpartyAnalyzer().run(context)).resolves.toEqual([]);
+  });
 });
 
 function buildContext(
