@@ -9,6 +9,7 @@ import cytoscape, {
 } from "cytoscape";
 import fcose from "cytoscape-fcose";
 import {
+  ArrowRight,
   ArrowUpRight,
   ChevronDown,
   Minus,
@@ -584,7 +585,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
             {sourceNode?.role.toUpperCase() ?? "NODE"} ·
             <code>{shortenAddress(sourceNode?.address ?? edge.source)}</code>
           </span>
-          <span aria-hidden="true">→</span>
+          <ArrowRight size={14} strokeWidth={2.2} aria-hidden="true" />
           <span title={targetNode?.address ?? edge.target}>
             {targetNode?.role.toUpperCase() ?? "NODE"} ·
             <code>{shortenAddress(targetNode?.address ?? edge.target)}</code>

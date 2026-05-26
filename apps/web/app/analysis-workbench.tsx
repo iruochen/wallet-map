@@ -1,6 +1,17 @@
 "use client";
 
-import { ChevronDown, Sparkles } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  ChevronDown,
+  ClipboardList,
+  Database,
+  ExternalLink,
+  Play,
+  ShieldCheck,
+  Sparkles,
+  WalletCards,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   buildExplorerAddressUrl,
@@ -26,6 +37,12 @@ const sampleAddresses = [
   "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "0xdddddddddddddddddddddddddddddddddddddddd",
 ].join("\n");
+
+const dataModeOptions = [
+  { value: "auto", label: "Auto", description: "自动选择" },
+  { value: "fixture", label: "Fixture", description: "本地样本" },
+  { value: "live", label: "Live", description: "实时数据" },
+] as const;
 
 interface EvidenceEvent {
   type: string;
@@ -335,6 +352,7 @@ export function AnalysisWorkbench({
         >
           <div className="panelHeader">
             <div>
+              <span className="panelEyebrow">Analysis job</span>
               <h2>分析输入</h2>
               <p>
                 {selectedChain?.name ?? "Chain"} · {addressCount} addresses
@@ -346,6 +364,7 @@ export function AnalysisWorkbench({
               disabled={isRunning}
               onClick={() => setAddresses(defaultAddresses)}
             >
+              <ClipboardList size={15} strokeWidth={2.1} />
               填入示例
             </button>
           </div>
@@ -369,38 +388,53 @@ export function AnalysisWorkbench({
             <strong>{liveConfigured ? "实时数据已就绪" : "当前默认走本地 fixture"}</strong>
             <span>{modeDescription}</span>
           </div>
-          <div className="formRow">
-            <label>
-              链
-              <select
-                disabled={isRunning}
-                name="chainId"
-                onChange={(event) => setChainId(event.target.value)}
-                value={chainId}
-              >
+          <div className="controlStack">
+            <div className="controlGroup">
+              <div className="controlLabelRow">
+                <span>链</span>
+                <small>{selectedChain?.explorerName ?? "Explorer"}</small>
+              </div>
+              <div className="segmentedControl segmentedControlChains" role="radiogroup" aria-label="选择链">
                 {supportedChains.map((chain) => (
-                  <option key={chain.chainId} value={chain.chainId}>
-                    {chain.name}
-                  </option>
+                  <button
+                    key={chain.chainId}
+                    type="button"
+                    className={`segmentedButton ${String(chain.chainId) === chainId ? "segmentedButtonActive" : ""}`}
+                    disabled={isRunning}
+                    onClick={() => setChainId(String(chain.chainId))}
+                    role="radio"
+                    aria-checked={String(chain.chainId) === chainId}
+                  >
+                    <span>{chain.shortName}</span>
+                  </button>
                 ))}
-              </select>
-            </label>
-            <label>
-              数据源
-              <select
-                disabled={isRunning}
-                name="dataMode"
-                onChange={(event) => setDataMode(event.target.value)}
-                value={dataMode}
-              >
-                <option value="auto">Auto</option>
-                <option value="fixture">Fixture</option>
-                <option value="live">Live</option>
-              </select>
-            </label>
+              </div>
+            </div>
+            <div className="controlGroup">
+              <div className="controlLabelRow">
+                <span>数据源</span>
+                <small>{dataMode === "live" ? "强制实时" : dataMode === "fixture" ? "固定样本" : "智能选择"}</small>
+              </div>
+              <div className="segmentedControl segmentedControlModes" role="radiogroup" aria-label="选择数据源">
+                {dataModeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`segmentedButton ${dataMode === option.value ? "segmentedButtonActive" : ""}`}
+                    disabled={isRunning}
+                    onClick={() => setDataMode(option.value)}
+                    role="radio"
+                    aria-checked={dataMode === option.value}
+                    title={option.description}
+                  >
+                    <span>{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <button type="submit" className="primaryButton" disabled={isRunning}>
-            <span className={isRunning ? "buttonSpinner" : "buttonDot"} aria-hidden="true" />
+            {isRunning ? <span className="buttonSpinner" aria-hidden="true" /> : <Play size={15} strokeWidth={2.4} />}
             {isRunning ? "分析中..." : "生成分析任务"}
           </button>
           <div aria-live="polite" className="runStatus">
@@ -417,6 +451,7 @@ export function AnalysisWorkbench({
         <section className="resultPanel summaryPanel">
           <div className="resultHeader">
             <div>
+              <span className="panelEyebrow">Relationship verdict</span>
               <h2>分析摘要</h2>
               <p>
                 {result
@@ -436,11 +471,11 @@ export function AnalysisWorkbench({
             <>
               <div className="scoreRow">
                 <div>
-                  <span>Score</span>
+                  <span><ShieldCheck size={14} strokeWidth={2.1} /> Score</span>
                   <strong>{result.score.score}/100</strong>
                 </div>
                 <div>
-                  <span>Confidence</span>
+                  <span><Activity size={14} strokeWidth={2.1} /> Confidence</span>
                   <strong>{result.score.confidence}</strong>
                 </div>
               </div>
@@ -461,7 +496,7 @@ export function AnalysisWorkbench({
                       <span className="verdictSubtle">{result.summary.pairInsights.length} 个钱包对命中关联规则</span>
                     </div>
                     <strong>{result.summary.headline}</strong>
-                    <p>{result.summary.narrative}</p>
+                    <p className="verdictNarrative">{result.summary.narrative}</p>
                   </div>
                   <div className="pairInsightList">
                     {result.summary.pairInsights.slice(0, 3).map((pair) => (
@@ -503,11 +538,11 @@ export function AnalysisWorkbench({
               )}
               <div className="metricGrid">
                 <div>
-                  <span>Watched</span>
+                  <span><WalletCards size={14} strokeWidth={2.1} /> Watched</span>
                   <strong>{result.meta.watchedAddressCount}</strong>
                 </div>
                 <div>
-                  <span>Events</span>
+                  <span><Database size={14} strokeWidth={2.1} /> Events</span>
                   <strong>{result.meta.eventCount}</strong>
                 </div>
                 <div>
@@ -557,7 +592,9 @@ export function AnalysisWorkbench({
             />
           ) : (
             <div className="graphPlaceholder">
-              <div className="graphPlaceholderOrb" aria-hidden="true" />
+              <div className="graphPlaceholderIcon" aria-hidden="true">
+                <Activity size={26} strokeWidth={2.1} />
+              </div>
               <strong>{result ? "当前没有形成关联子图" : "提交一次分析就能看到图谱"}</strong>
               <p>
                 {result
@@ -621,10 +658,10 @@ export function AnalysisWorkbench({
                           <span className="groupedPanelTitle">{group.title}</span>
                           <span className="groupedPanelHint">{group.summary}</span>
                         </span>
-                          <span className="groupedPanelMeta">
-                            <span className="groupedPanelCount">{group.findings.length}</span>
-                            <ChevronDown size={16} strokeWidth={2.2} className="groupedPanelChevron" aria-hidden="true" />
-                          </span>
+                        <span className="groupedPanelMeta">
+                          <span className="groupedPanelCount">{group.findings.length}</span>
+                          <ChevronDown size={16} strokeWidth={2.2} className="groupedPanelChevron" aria-hidden="true" />
+                        </span>
                       </summary>
                       <div className="groupedPanelBody">
                         <div className="groupedPanelBodyInner">
@@ -790,9 +827,7 @@ function EvidenceItemView({ evidence, chainId, watchedAddressSet }: EvidenceItem
             watchedAddressSet={watchedAddressSet}
           />
         ) : null}
-        <span className="evidenceArrow" aria-hidden="true">
-          →
-        </span>
+        <ArrowRight size={14} strokeWidth={2.2} className="evidenceArrowIcon" aria-hidden="true" />
         {event?.to ? (
           <AddressLink
             address={event.to}
@@ -821,7 +856,7 @@ function EvidenceItemView({ evidence, chainId, watchedAddressSet }: EvidenceItem
             rel="noreferrer noopener"
             title={txHash}
           >
-            <span aria-hidden="true">↗</span>
+            <ExternalLink size={13} strokeWidth={2.1} aria-hidden="true" />
             <code>{shortenTxHash(txHash)}</code>
           </a>
         ) : (
@@ -896,7 +931,7 @@ function TokenLink({ chainId, contract, symbol }: TokenLinkProps) {
       className="tokenChip"
       title={contract}
     >
-      {symbol ?? "token"} <span aria-hidden="true">↗</span>
+      {symbol ?? "token"} <ExternalLink size={12} strokeWidth={2.1} aria-hidden="true" />
     </a>
   );
 }
@@ -955,9 +990,7 @@ function EdgeRow({ edge, chainId, watchedAddressSet, nodeIndex }: EdgeRowProps) 
           chainId={edgeChainId}
           watchedAddressSet={watchedAddressSet}
         />
-        <span className="evidenceArrow" aria-hidden="true">
-          →
-        </span>
+        <ArrowRight size={14} strokeWidth={2.2} className="evidenceArrowIcon" aria-hidden="true" />
         <GraphNodeLink
           node={targetNode}
           fallbackId={edge.target}
@@ -974,7 +1007,7 @@ function EdgeRow({ edge, chainId, watchedAddressSet, nodeIndex }: EdgeRowProps) 
             rel="noreferrer noopener"
             title={txHash}
           >
-            <span aria-hidden="true">↗</span>
+            <ExternalLink size={13} strokeWidth={2.1} aria-hidden="true" />
             <code>{shortenTxHash(txHash)}</code>
           </a>
         ) : (

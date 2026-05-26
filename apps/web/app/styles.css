@@ -1,10 +1,22 @@
 :root {
   color-scheme: light;
-  background: #f4f6f2;
+  background: #f3f5f1;
   color: #17211b;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --header-height: 60px;
+  --surface: #ffffff;
+  --surface-soft: #f8faf7;
+  --surface-raised: #fbfcfa;
+  --border: #dce2d8;
+  --border-strong: #c8d2c8;
+  --text: #17211b;
+  --muted: #64736a;
+  --brand: #183d30;
+  --brand-soft: #edf6ef;
+  --accent: #b07410;
+  --danger: #8d211b;
+  --shadow-soft: 0 10px 30px rgba(31, 61, 44, 0.06);
 }
 
 * {
@@ -15,8 +27,7 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 0% 0%, rgba(31, 61, 44, 0.05) 0%, transparent 42%),
-    radial-gradient(circle at 100% 100%, rgba(176, 116, 16, 0.04) 0%, transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.52) 0%, transparent 26%),
     #eef2ec;
 }
 
@@ -39,6 +50,11 @@ button {
   color: #ffffff;
   font-weight: 700;
   cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 button:disabled {
@@ -159,7 +175,7 @@ button:disabled {
 
 .workbench {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr) 380px;
+  grid-template-columns: 324px minmax(0, 1fr) 400px;
   gap: 0;
   height: calc(100vh - var(--header-height));
   min-height: 600px;
@@ -176,8 +192,9 @@ button:disabled {
 .workbenchInput {
   border-right: 1px solid #dce2d8;
   overflow-y: auto;
-  padding: 18px 18px 24px;
+  padding: 18px 16px;
   gap: 16px;
+  background: #f7faf6;
 }
 
 .workbenchInput .inputPanel,
@@ -186,9 +203,9 @@ button:disabled {
   gap: 14px;
   padding: 16px;
   border: 1px solid #e1e7df;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 92%) 0%, #f8fbf7 100%);
-  box-shadow: 0 8px 24px rgba(31, 61, 44, 0.04);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
 }
 
 .workbenchInput .summaryPanel {
@@ -213,7 +230,7 @@ button:disabled {
   gap: 12px;
   padding: 14px 18px 12px;
   border-bottom: 1px solid #dce2d8;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(4px);
 }
 
@@ -306,7 +323,7 @@ button:disabled {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 18px 24px;
+  padding: 18px 18px 24px;
   scrollbar-gutter: stable both-edges;
 }
 
@@ -319,6 +336,16 @@ button:disabled {
   gap: 12px;
   align-items: center;
   justify-content: space-between;
+}
+
+.panelEyebrow {
+  display: inline-flex;
+  margin-bottom: 4px;
+  color: #708078;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .panelHeader h2 {
@@ -361,6 +388,12 @@ select {
   color: #17211b;
 }
 
+textarea:focus,
+select:focus {
+  outline: 2px solid rgba(31, 61, 44, 0.18);
+  border-color: #8fac99;
+}
+
 textarea:disabled,
 select:disabled {
   color: #66746b;
@@ -370,7 +403,7 @@ select:disabled {
 
 textarea {
   resize: vertical;
-  min-height: 132px;
+  min-height: 124px;
   padding: 12px;
   line-height: 1.5;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -389,10 +422,76 @@ select {
   gap: 12px;
 }
 
+.controlStack {
+  display: grid;
+  gap: 10px;
+}
+
+.controlGroup {
+  display: grid;
+  gap: 7px;
+}
+
+.controlLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #243129;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.controlLabelRow small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.segmentedControl {
+  display: grid;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f2f5f1;
+}
+
+.segmentedControlChains {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.segmentedControlModes {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.segmentedButton {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #4c5b51;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.segmentedButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.segmentedButtonActive {
+  border-color: #cbd8ce;
+  background: #ffffff;
+  color: var(--brand);
+  box-shadow: 0 1px 5px rgba(31, 61, 44, 0.08);
+}
+
 .primaryButton {
   width: 100%;
-  min-height: 42px;
+  min-height: 40px;
   font-size: 0.92rem;
+  box-shadow: 0 10px 18px rgba(24, 61, 48, 0.12);
 }
 
 .secondaryButton {
@@ -402,8 +501,14 @@ select {
   background: #f7f8f5;
   color: #183d30;
   font-size: 0.8rem;
+  line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  border-color: #b9c7ba;
+  background: #ffffff;
 }
 
 .buttonDot,
@@ -531,18 +636,21 @@ select {
   gap: 4px;
   padding: 10px 12px;
   border: 1px solid #e1e7df;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #ffffff;
 }
 
 .scoreRow span,
 .metricGrid span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: #64736a;
   font-size: 0.72rem;
 }
 
 .scoreRow strong {
-  font-size: 1.34rem;
+  font-size: 1.28rem;
   font-weight: 700;
 }
 
@@ -552,26 +660,31 @@ select {
 }
 
 .reasonList {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin: 0;
-  padding: 10px 12px;
-  border: 1px solid #e1e7df;
-  border-radius: 8px;
-  background: #ffffff;
+  padding: 0;
   color: #405047;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   line-height: 1.4;
-  list-style-position: inside;
+  list-style: none;
+}
+
+.reasonList li {
+  padding: 4px 8px;
+  border: 1px solid #e1e7df;
+  border-radius: 999px;
+  background: #fbfcfa;
 }
 
 .verdictCard {
   display: grid;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: 9px;
+  padding: 12px;
   border: 1px solid #dce2d8;
-  border-radius: 10px;
-  background: #ffffff;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff 0%, #fbfcfa 100%);
 }
 
 .verdictHeader {
@@ -620,11 +733,12 @@ select {
   font-size: 0.92rem;
 }
 
-.verdictCard p {
+.verdictCard p,
+.verdictNarrative {
   margin: 0;
   color: #405047;
-  font-size: 0.82rem;
-  line-height: 1.5;
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .pairInsightList {
@@ -637,7 +751,7 @@ select {
   gap: 6px;
   padding: 10px 12px;
   border: 1px solid #e1e7df;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 6px 18px rgba(31, 61, 44, 0.04);
 }
@@ -673,9 +787,9 @@ select {
 .signalSummaryCard {
   display: grid;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 10px;
   border: 1px solid #e1e7df;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
 }
 
@@ -729,12 +843,14 @@ select {
 
 .groupedPanel {
   border: 1px solid #dce2d8;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #ffffff;
   overflow: hidden;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .groupedPanel[open] {
+  border-color: #cbd8ce;
   box-shadow: 0 10px 24px rgba(31, 61, 44, 0.05);
 }
 
@@ -810,12 +926,14 @@ select {
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0.02;
-  transition: grid-template-rows 220ms ease, opacity 180ms ease;
+  transform: translateY(-4px);
+  transition: grid-template-rows 240ms ease, opacity 180ms ease, transform 220ms ease;
 }
 
 .groupedPanel[open] .groupedPanelBody {
   grid-template-rows: 1fr;
   opacity: 1;
+  transform: translateY(0);
 }
 
 .groupedPanelBodyInner {
@@ -951,6 +1069,11 @@ select {
 .evidenceArrow {
   color: #889389;
   font-weight: 700;
+}
+
+.evidenceArrowIcon {
+  flex: 0 0 auto;
+  color: #728076;
 }
 
 .evidenceUnknown {
@@ -1176,6 +1299,11 @@ select {
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 
+.txLink svg,
+.tokenChip svg {
+  flex: 0 0 auto;
+}
+
 .txLink:hover {
   border-color: #183d30;
   background: #f4fbf6;
@@ -1332,8 +1460,10 @@ code {
   border: 1px solid #dce2d8;
   border-radius: 14px;
   background:
-    radial-gradient(circle at 50% 50%, rgba(31, 61, 44, 0.03) 0%, transparent 70%),
+    linear-gradient(rgba(31, 61, 44, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 61, 44, 0.035) 1px, transparent 1px),
     #f7faf6;
+  background-size: 24px 24px;
   overflow: hidden;
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.65),
@@ -1439,15 +1569,17 @@ code {
   line-height: 1.55;
 }
 
-.graphPlaceholderOrb {
-  width: 92px;
-  height: 92px;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 30% 30%, #ffffff 0%, transparent 50%),
-    radial-gradient(circle at 70% 70%, #2f7d4f 0%, #1f3d2c 55%, #14241b 100%);
-  box-shadow: 0 16px 28px rgba(31, 61, 44, 0.16);
-  animation: orbFloat 5s ease-in-out infinite;
+.graphPlaceholderIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border: 1px solid #dce2d8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--brand);
+  box-shadow: 0 10px 22px rgba(31, 61, 44, 0.08);
 }
 
 .graphLoadingState {
@@ -1481,6 +1613,7 @@ code {
   box-shadow: 0 12px 30px rgba(31, 61, 44, 0.16);
   overflow: hidden;
   z-index: 4;
+  animation: detailCardIn 160ms ease both;
 }
 
 .graphDetailHeader {
@@ -1620,7 +1753,7 @@ code {
 .graphDetailEndpoints {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
   font-size: 0.78rem;
   color: #2b4a3a;
@@ -1895,11 +2028,13 @@ code {
   }
 }
 
-@keyframes orbFloat {
-  0%, 100% {
-    transform: translateY(0);
+@keyframes detailCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
   }
-  50% {
-    transform: translateY(-6px);
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
