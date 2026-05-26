@@ -152,6 +152,31 @@ export function formatEdgeKindLabel(kind: string | undefined): string {
   return edgeKindLabels[kind] ?? toTitleCase(kind);
 }
 
+const methodSelectorLabels: Record<string, string> = {
+  "0xa9059cbb": "ERC20 Transfer",
+  "0x095ea7b3": "ERC20 Approve",
+  "0x23b872dd": "ERC20 Transfer From",
+  "0x2e1a7d4d": "Withdraw",
+  "0xd0e30db0": "Deposit",
+};
+
+export function formatMethodSelectorLabel(methodId: string | undefined): string | undefined {
+  if (!methodId) {
+    return undefined;
+  }
+
+  return methodSelectorLabels[methodId.toLowerCase()] ?? undefined;
+}
+
+export function formatMethodSelectorDisplay(methodId: string | undefined): string | undefined {
+  if (!methodId) {
+    return undefined;
+  }
+
+  const label = formatMethodSelectorLabel(methodId);
+  return label ? `${label} (${methodId})` : methodId;
+}
+
 function toTitleCase(value: string): string {
   return value
     .split(/[_-]+/)

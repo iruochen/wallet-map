@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   buildExplorerAddressUrl,
@@ -13,6 +14,7 @@ import {
   formatAmount,
   formatEdgeKindLabel,
   formatEventTypeLabel,
+  formatMethodSelectorLabel,
   formatRelativeTime,
   shortenAddress,
   shortenTxHash,
@@ -453,6 +455,7 @@ export function AnalysisWorkbench({
                   <div className={`verdictCard verdict-${result.summary.verdict}`}>
                     <div className="verdictHeader">
                       <span className={`verdictPill verdictPill-${result.summary.verdict}`}>
+                        <Sparkles size={14} strokeWidth={2.1} />
                         {formatVerdictLabel(result.summary.verdict)}
                       </span>
                       <span className="verdictSubtle">{result.summary.pairInsights.length} 个钱包对命中关联规则</span>
@@ -466,6 +469,7 @@ export function AnalysisWorkbench({
                         <div className="pairInsightHeader">
                           <strong>{pair.labels.join(" ↔ ")}</strong>
                           <span className={`verdictPill verdictPill-${pair.strength}`}>
+                            <Sparkles size={13} strokeWidth={2.1} />
                             {formatVerdictLabel(pair.strength)}
                           </span>
                         </div>
@@ -617,10 +621,10 @@ export function AnalysisWorkbench({
                           <span className="groupedPanelTitle">{group.title}</span>
                           <span className="groupedPanelHint">{group.summary}</span>
                         </span>
-                        <span className="groupedPanelMeta">
-                          <span className="groupedPanelCount">{group.findings.length}</span>
-                          <span className="groupedPanelChevron" aria-hidden="true">⌄</span>
-                        </span>
+                          <span className="groupedPanelMeta">
+                            <span className="groupedPanelCount">{group.findings.length}</span>
+                            <ChevronDown size={16} strokeWidth={2.2} className="groupedPanelChevron" aria-hidden="true" />
+                          </span>
                       </summary>
                       <div className="groupedPanelBody">
                         <div className="groupedPanelBodyInner">
@@ -685,7 +689,7 @@ export function AnalysisWorkbench({
                       </span>
                       <span className="groupedPanelMeta">
                         <span className="groupedPanelCount">{group.edges.length}</span>
-                        <span className="groupedPanelChevron" aria-hidden="true">⌄</span>
+                        <ChevronDown size={16} strokeWidth={2.2} className="groupedPanelChevron" aria-hidden="true" />
                       </span>
                     </summary>
                     <div className="groupedPanelBody">
@@ -940,7 +944,7 @@ function EdgeRow({ edge, chainId, watchedAddressSet, nodeIndex }: EdgeRowProps) 
         ) : null}
         {edge.metadata?.methodId ? (
           <span className="methodChip" title="Method selector">
-            {edge.metadata.methodId}
+            {formatMethodSelectorLabel(edge.metadata.methodId) ?? edge.metadata.methodId}
           </span>
         ) : null}
       </div>

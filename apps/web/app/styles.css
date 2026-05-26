@@ -187,8 +187,8 @@ button:disabled {
   padding: 16px;
   border: 1px solid #e1e7df;
   border-radius: 12px;
-  background: #fbfcfa;
-  box-shadow: none;
+  background: linear-gradient(180deg, rgb(255 255 255 / 92%) 0%, #f8fbf7 100%);
+  box-shadow: 0 8px 24px rgba(31, 61, 44, 0.04);
 }
 
 .workbenchInput .summaryPanel {
@@ -585,6 +585,7 @@ select {
 .verdictPill {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-height: 24px;
   padding: 0 10px;
   border-radius: 999px;
@@ -638,6 +639,7 @@ select {
   border: 1px solid #e1e7df;
   border-radius: 10px;
   background: #ffffff;
+  box-shadow: 0 6px 18px rgba(31, 61, 44, 0.04);
 }
 
 .pairInsightHeader {
@@ -797,7 +799,6 @@ select {
 
 .groupedPanelChevron {
   color: #64736a;
-  font-size: 0.9rem;
   transition: transform 180ms ease;
 }
 
@@ -1371,6 +1372,11 @@ code {
   box-shadow: 0 4px 12px rgba(31, 61, 44, 0.08);
 }
 
+.graphZoomButton svg {
+  width: 16px;
+  height: 16px;
+}
+
 .graphZoomButton:hover {
   background: #ffffff;
   border-color: #1f3d2c;
@@ -1531,6 +1537,11 @@ code {
   font-weight: 700;
 }
 
+.graphDetailClose svg {
+  width: 16px;
+  height: 16px;
+}
+
 .graphDetailClose:hover {
   background: #eef2eb;
 }
@@ -1641,6 +1652,11 @@ code {
   font-weight: 700;
 }
 
+.graphDetailMethodBlock {
+  display: grid;
+  gap: 4px;
+}
+
 .graphDetailTxCount {
   color: #4c5b51;
   font-size: 0.78rem;
@@ -1648,12 +1664,22 @@ code {
 }
 
 .graphDetailMethod {
-  padding: 2px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  padding: 4px 8px;
   border: 1px solid #e5d8b6;
   border-radius: 4px;
   background: #fff8e5;
   color: #6a4c00;
   font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.graphDetailMethodMeta {
+  color: #7b856f;
+  font-size: 0.72rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .graphDetailHint {
@@ -1725,6 +1751,9 @@ code {
 }
 
 .graphTxListToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   justify-self: start;
   min-height: 0;
   padding: 0;
@@ -1737,6 +1766,19 @@ code {
 
 .graphTxListToggle:hover {
   text-decoration: underline;
+}
+
+.graphTxListToggleIcon {
+  transition: transform 180ms ease;
+}
+
+.graphTxListToggleIconOpen {
+  transform: rotate(180deg);
+}
+
+.graphDetailLink svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ============================================================

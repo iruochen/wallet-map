@@ -8,6 +8,14 @@ import cytoscape, {
   type EdgeSingular,
 } from "cytoscape";
 import fcose from "cytoscape-fcose";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  Minus,
+  Plus,
+  ScanSearch,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildExplorerAddressUrl,
@@ -19,6 +27,7 @@ import {
   formatAmount,
   formatEdgeKindLabel,
   formatEventTypeLabel,
+  formatMethodSelectorLabel,
   shortenAddress,
   shortenTxHash,
 } from "./format";
@@ -429,13 +438,13 @@ export function GraphExplorer({
         />
         <div className="graphZoomControls" aria-label="Graph zoom controls">
           <button type="button" className="graphZoomButton" onClick={handleZoomIn} title="放大">
-            +
+            <Plus size={16} strokeWidth={2.2} />
           </button>
           <button type="button" className="graphZoomButton" onClick={handleZoomOut} title="缩小">
-            −
+            <Minus size={16} strokeWidth={2.2} />
           </button>
           <button type="button" className="graphZoomButton" onClick={handleResetView} title="适应画布">
-            ◻
+            <ScanSearch size={16} strokeWidth={2} />
           </button>
         </div>
         {!layoutReady ? (
@@ -491,7 +500,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
         <div className="graphDetailHeader">
           <span className={`graphDetailRole graphDetailRole-${node.role}`}>{formatNodeRoleLabel(node.role)}</span>
           <button type="button" className="graphDetailClose" onClick={onClose} aria-label="关闭">
-            ×
+            <X size={16} strokeWidth={2.4} />
           </button>
         </div>
         <div className="graphDetailBody">
@@ -521,7 +530,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
                 target="_blank"
                 rel="noreferrer noopener"
               >
-                <span aria-hidden="true">↗</span> 在 explorer 中查看
+                <ArrowUpRight size={14} strokeWidth={2.1} /> 在 explorer 中查看
               </a>
             </div>
           ) : null}
@@ -566,7 +575,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
           {formatEdgeKindLabel(edge.kind)}
         </span>
         <button type="button" className="graphDetailClose" onClick={onClose} aria-label="关闭">
-          ×
+          <X size={16} strokeWidth={2.4} />
         </button>
       </div>
       <div className="graphDetailBody">
@@ -591,9 +600,12 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
           <div className="graphDetailTxCount">{edge.metadata?.txCount} 笔同类交易已聚合展示</div>
         ) : null}
         {edge.metadata?.methodId ? (
-          <code className="graphDetailMethod" title="Method selector">
-            {edge.metadata.methodId}
-          </code>
+          <div className="graphDetailMethodBlock">
+            <code className="graphDetailMethod" title="Method selector">
+              {formatMethodSelectorLabel(edge.metadata.methodId) ?? edge.metadata.methodId}
+            </code>
+            <span className="graphDetailMethodMeta">{edge.metadata.methodId}</span>
+          </div>
         ) : null}
         {transactions.length > 0 ? (
           <div className="graphTxListCard">
@@ -622,6 +634,11 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
                 className="graphTxListToggle"
                 onClick={() => setShowAllTransactions((value) => !value)}
               >
+                <ChevronDown
+                  size={14}
+                  strokeWidth={2.2}
+                  className={`graphTxListToggleIcon ${showAllTransactions ? "graphTxListToggleIconOpen" : ""}`}
+                />
                 {showAllTransactions ? "收起交易列表" : `展开剩余 ${transactions.length - 4} 笔`}
               </button>
             ) : null}
@@ -630,7 +647,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
         <div className="graphDetailActions">
           {txHash ? (
             <a className="graphDetailLink" href={txHref} target="_blank" rel="noreferrer noopener">
-              <span aria-hidden="true">↗</span> tx {shortenTxHash(txHash)}
+              <ArrowUpRight size={14} strokeWidth={2.1} /> tx {shortenTxHash(txHash)}
             </a>
           ) : null}
           {edge.metadata?.asset?.contract && !isNativeAsset ? (
@@ -640,7 +657,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
               target="_blank"
               rel="noreferrer noopener"
             >
-              <span aria-hidden="true">↗</span> token {edge.metadata.asset.symbol ?? ""}
+              <ArrowUpRight size={14} strokeWidth={2.1} /> token {edge.metadata.asset.symbol ?? ""}
             </a>
           ) : null}
         </div>
@@ -738,7 +755,7 @@ function buildEdgeLabel(
   if (amountFormatted) {
     labelPieces.push(amountSymbol ? `${amountFormatted} ${amountSymbol}` : amountFormatted);
   } else if (edge.metadata?.methodId) {
-    labelPieces.push(edge.metadata.methodId);
+    labelPieces.push(formatMethodSelectorLabel(edge.metadata.methodId) ?? edge.metadata.methodId);
   }
 
   if ((edge.metadata?.txCount ?? 1) > 1) {
