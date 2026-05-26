@@ -120,6 +120,7 @@ The adapter currently ingests:
 - [Documentation Style](docs/documentation-style.md)
 - [Database Schema](docs/database-schema.md)
 - [Graph Visualization](docs/graph-visualization.md)
+- [Product Design Roadmap](docs/product-design-roadmap.zh.md)
 - [Analysis Guidelines](docs/analysis-guidelines.md)
 - [Open Source Guidelines](docs/open-source.md)
 - [Release Process](docs/release-process.md)
