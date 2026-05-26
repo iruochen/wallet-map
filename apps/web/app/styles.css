@@ -307,6 +307,7 @@ button:disabled {
   min-height: 0;
   overflow-y: auto;
   padding: 16px 18px 24px;
+  scrollbar-gutter: stable both-edges;
 }
 
 /* ============================================================
@@ -649,6 +650,7 @@ select {
 .pairInsightHeader strong {
   font-size: 0.86rem;
   min-width: 0;
+  line-height: 1.35;
 }
 
 .pairInsightCard p {
@@ -743,16 +745,40 @@ select {
   cursor: pointer;
   list-style: none;
   background: #fbfcfa;
+  transition: background 160ms ease;
 }
 
 .groupedPanelSummary::-webkit-details-marker {
   display: none;
 }
 
+.groupedPanelSummary:hover {
+  background: #f4f8f4;
+}
+
+.groupedPanelSummaryText {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
 .groupedPanelTitle {
   color: #243129;
   font-size: 0.84rem;
   font-weight: 700;
+}
+
+.groupedPanelHint {
+  color: #64736a;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.groupedPanelMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .groupedPanelCount {
@@ -767,6 +793,33 @@ select {
   color: #2b4a3a;
   font-size: 0.72rem;
   font-weight: 800;
+}
+
+.groupedPanelChevron {
+  color: #64736a;
+  font-size: 0.9rem;
+  transition: transform 180ms ease;
+}
+
+.groupedPanel[open] .groupedPanelChevron {
+  transform: rotate(180deg);
+}
+
+.groupedPanelBody {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0.02;
+  transition: grid-template-rows 220ms ease, opacity 180ms ease;
+}
+
+.groupedPanel[open] .groupedPanelBody {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.groupedPanelBodyInner {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .groupedPanel .findingList,
@@ -1652,11 +1705,13 @@ code {
   border: 1px solid #e6ebe2;
   color: #183d30;
   text-decoration: none;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
 
 .graphTxListItem:hover {
   border-color: #1f3d2c;
   background: #f4fbf6;
+  transform: translateY(-1px);
 }
 
 .graphTxListItem code {

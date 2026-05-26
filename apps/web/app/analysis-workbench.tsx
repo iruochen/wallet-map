@@ -245,6 +245,7 @@ export function AnalysisWorkbench({
       string,
       {
         title: string;
+        summary: string;
         findings: AnalysisResponse["findings"];
       }
     >();
@@ -252,9 +253,11 @@ export function AnalysisWorkbench({
     for (const finding of result.findings) {
       const current = groups.get(finding.title) ?? {
         title: finding.title,
+        summary: "",
         findings: [],
       };
       current.findings.push(finding);
+      current.summary = describeFindingGroup(finding.title, current.findings.length);
       groups.set(finding.title, current);
     }
 
@@ -469,7 +472,8 @@ export function AnalysisWorkbench({
                         <p>{pair.reasons.join(" · ")}</p>
                         <div className="pairInsightMeta">
                           <span>{pair.signalCount} 个信号</span>
-                          <span>{pair.score} 分</span>
+                          <span>{formatVerdictLabel(pair.strength)}结论</span>
+                          <span>{formatConfidenceLabel(pair.confidence)}</span>
                         </div>
                       </div>
                     ))}
@@ -609,42 +613,52 @@ export function AnalysisWorkbench({
                       open={index === 0}
                     >
                       <summary className="groupedPanelSummary">
-                        <span className="groupedPanelTitle">{group.title}</span>
-                        <span className="groupedPanelCount">{group.findings.length}</span>
+                        <span className="groupedPanelSummaryText">
+                          <span className="groupedPanelTitle">{group.title}</span>
+                          <span className="groupedPanelHint">{group.summary}</span>
+                        </span>
+                        <span className="groupedPanelMeta">
+                          <span className="groupedPanelCount">{group.findings.length}</span>
+                          <span className="groupedPanelChevron" aria-hidden="true">⌄</span>
+                        </span>
                       </summary>
-                      <ul className="findingList">
-                        {group.findings.map((finding) => (
-                          <li key={finding.id}>
-                            <div className="findingHeader">
-                              <strong>{finding.title}</strong>
-                              <span className="findingMeta">
-                                <span className={`severityPill severity-${finding.severity}`}>
-                                  {finding.severity}
-                                </span>
-                                <span className={`confidencePill confidence-${finding.confidence}`}>
-                                  {finding.confidence}
-                                </span>
-                              </span>
-                            </div>
-                            <p>{finding.description}</p>
-                            {finding.evidenceTruncated ? (
-                              <p className="previewHint">
-                                仅展示前 {finding.evidence.length} 条证据，共 {finding.evidenceTotal} 条。
-                              </p>
-                            ) : null}
-                            <div className="evidenceList">
-                              {finding.evidence.map((evidence) => (
-                                <EvidenceItemView
-                                  key={evidence.eventId}
-                                  evidence={evidence}
-                                  chainId={result.meta.chainId}
-                                  watchedAddressSet={watchedAddressSet}
-                                />
-                              ))}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="groupedPanelBody">
+                        <div className="groupedPanelBodyInner">
+                          <ul className="findingList">
+                            {group.findings.map((finding) => (
+                              <li key={finding.id}>
+                                <div className="findingHeader">
+                                  <strong>{finding.title}</strong>
+                                  <span className="findingMeta">
+                                    <span className={`severityPill severity-${finding.severity}`}>
+                                      {finding.severity}
+                                    </span>
+                                    <span className={`confidencePill confidence-${finding.confidence}`}>
+                                      {finding.confidence}
+                                    </span>
+                                  </span>
+                                </div>
+                                <p>{finding.description}</p>
+                                {finding.evidenceTruncated ? (
+                                  <p className="previewHint">
+                                    仅展示前 {finding.evidence.length} 条证据，共 {finding.evidenceTotal} 条。
+                                  </p>
+                                ) : null}
+                                <div className="evidenceList">
+                                  {finding.evidence.map((evidence) => (
+                                    <EvidenceItemView
+                                      key={evidence.eventId}
+                                      evidence={evidence}
+                                      chainId={result.meta.chainId}
+                                      watchedAddressSet={watchedAddressSet}
+                                    />
+                                  ))}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
                     </details>
                   ))}
                 </div>
@@ -663,20 +677,32 @@ export function AnalysisWorkbench({
                     open={index === 0}
                   >
                     <summary className="groupedPanelSummary">
-                      <span className="groupedPanelTitle">{formatEdgeKindLabel(group.kind)}</span>
-                      <span className="groupedPanelCount">{group.edges.length}</span>
+                      <span className="groupedPanelSummaryText">
+                        <span className="groupedPanelTitle">{formatEdgeKindLabel(group.kind)}</span>
+                        <span className="groupedPanelHint">
+                          {describeEdgeGroup(group.kind, group.edges.length)}
+                        </span>
+                      </span>
+                      <span className="groupedPanelMeta">
+                        <span className="groupedPanelCount">{group.edges.length}</span>
+                        <span className="groupedPanelChevron" aria-hidden="true">⌄</span>
+                      </span>
                     </summary>
-                    <ul className="edgeList">
-                      {group.edges.map((edge) => (
-                        <EdgeRow
-                          key={edge.id}
-                          edge={edge}
-                          chainId={result.meta.chainId}
-                          watchedAddressSet={watchedAddressSet}
-                          nodeIndex={graphNodeIndex}
-                        />
-                      ))}
-                    </ul>
+                    <div className="groupedPanelBody">
+                      <div className="groupedPanelBodyInner">
+                        <ul className="edgeList">
+                          {group.edges.map((edge) => (
+                            <EdgeRow
+                              key={edge.id}
+                              edge={edge}
+                              chainId={result.meta.chainId}
+                              watchedAddressSet={watchedAddressSet}
+                              nodeIndex={graphNodeIndex}
+                            />
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
                   </details>
                 ))}
               </div>
@@ -1013,6 +1039,50 @@ function formatVerdictLabel(verdict: "none" | "weak" | "medium" | "strong"): str
     default:
       return "无结论";
   }
+}
+
+function formatConfidenceLabel(confidence: "low" | "medium" | "high"): string {
+  if (confidence === "high") {
+    return "高置信度";
+  }
+
+  if (confidence === "medium") {
+    return "中置信度";
+  }
+
+  return "低置信度";
+}
+
+function describeFindingGroup(title: string, count: number): string {
+  if (title === "Direct transfer found") {
+    return `命中了 ${count} 笔直接转账证据`;
+  }
+
+  if (title === "Shared counterparty found") {
+    return `命中了 ${count} 组共享对手方线索`;
+  }
+
+  if (title === "Same contract interaction found") {
+    return `命中了 ${count} 组共同合约交互`;
+  }
+
+  return `命中了 ${count} 条关联信号`;
+}
+
+function describeEdgeGroup(kind: GraphEdge["kind"], count: number): string {
+  if (kind === "native_transfer") {
+    return `${count} 条原生币关联边`;
+  }
+
+  if (kind === "token_transfer") {
+    return `${count} 条代币关联边`;
+  }
+
+  if (kind === "contract_interaction") {
+    return `${count} 条合约交互关联边`;
+  }
+
+  return `${count} 条关联边`;
 }
 
 function LoadingResult() {
