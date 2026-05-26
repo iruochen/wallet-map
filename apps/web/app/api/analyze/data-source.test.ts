@@ -50,6 +50,37 @@ describe("resolveAnalyzeEvents", () => {
     expect(fetchMock).toHaveBeenCalledTimes(8);
     expect(calledUrl(fetchMock, "txlist").searchParams.get("chainid")).toBe("56");
   });
+
+  it("prefers NodeReal for BSC when a dedicated key is configured", async () => {
+    const fetchMock = mockNodeRealFetch();
+    const result = await resolveAnalyzeEvents({
+      addresses: [...addresses],
+      chainId: 56,
+      dataMode: "auto",
+      env: {
+        ETHERSCAN_API_KEY: "etherscan-key",
+        NODEREAL_BSC_API_KEY: "nodereal-key",
+      },
+      fetchImpl: fetchMock,
+    });
+
+    expect(result.mode).toBe("live");
+    expect(result.source).toBe("nodereal:56:bsc");
+    expect(result.chainName).toBe("BSC");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://bsc-mainnet.nodereal.io/v1/nodereal-key");
+  });
+
+  it("mentions both supported keys when BSC live mode is requested without config", async () => {
+    await expect(
+      resolveAnalyzeEvents({
+        addresses: [...addresses],
+        chainId: 56,
+        dataMode: "live",
+        env: {},
+      }),
+    ).rejects.toThrow("NODEREAL_BSC_API_KEY or ETHERSCAN_API_KEY is required for live BSC analysis.");
+  });
 });
 
 function mockEtherscanFetch() {
@@ -87,4 +118,30 @@ function calledUrl(fetchMock: ReturnType<typeof mockEtherscanFetch>, action: str
   }
 
   return new URL(String(call[0]));
+}
+
+function mockNodeRealFetch() {
+  let callCount = 0;
+
+  return vi.fn(async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Promise<Response> => {
+    callCount += 1;
+    const body = JSON.parse(String(init?.body ?? "{}")) as {
+      method?: string;
+      params?: Array<{ pageKey?: string }>;
+    };
+
+    expect(body.method).toBe("nr_getTransactionByAddress");
+
+    return new Response(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        result: {
+          pageKey: callCount === 1 ? "next-page" : "",
+          transfers: [],
+        },
+      }),
+      { status: 200 },
+    );
+  });
 }

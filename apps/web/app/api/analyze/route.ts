@@ -31,7 +31,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({
       mode: resolved.mode,
       source: resolved.source,
-      sourceLabel: buildSourceLabel(resolved.mode, resolved.chainName),
+      sourceLabel: buildSourceLabel(resolved.mode, resolved.chainName, resolved.source),
       input: parsed,
       meta: {
         chainId: parsed.chainId,
@@ -81,8 +81,12 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
-function buildSourceLabel(mode: "fixture" | "live", chainName: string): string {
+function buildSourceLabel(mode: "fixture" | "live", chainName: string, source: string): string {
   if (mode === "live") {
+    if (source.startsWith("nodereal:")) {
+      return `NodeReal live · ${chainName}`;
+    }
+
     return `Etherscan V2 live · ${chainName}`;
   }
 

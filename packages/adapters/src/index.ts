@@ -54,3 +54,5 @@ export class CsvImportAdapter implements ChainAdapter {
 
 export { EtherscanLikeAdapter } from "./etherscan-like";
 export type { EtherscanLikeAdapterConfig } from "./etherscan-like";
+export { NodeRealBscAdapter } from "./nodereal-bsc";
+export type { NodeRealBscAdapterConfig } from "./nodereal-bsc";
