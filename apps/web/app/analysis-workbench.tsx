@@ -79,6 +79,11 @@ interface GraphEdge {
   metadata?: {
     chainId?: number;
     txHash?: string;
+    transactions?: Array<{
+      txHash: string;
+      timestamp: string;
+      type: string;
+    }>;
     amount?: string;
     methodId?: string;
     txCount?: number;
@@ -229,6 +234,56 @@ export function AnalysisWorkbench({
     }
 
     return new Map(result.graph.nodes.map((node) => [node.id, node]));
+  }, [result]);
+
+  const groupedFindings = useMemo(() => {
+    if (!result) {
+      return [];
+    }
+
+    const groups = new Map<
+      string,
+      {
+        title: string;
+        findings: AnalysisResponse["findings"];
+      }
+    >();
+
+    for (const finding of result.findings) {
+      const current = groups.get(finding.title) ?? {
+        title: finding.title,
+        findings: [],
+      };
+      current.findings.push(finding);
+      groups.set(finding.title, current);
+    }
+
+    return Array.from(groups.values()).sort((left, right) => right.findings.length - left.findings.length);
+  }, [result]);
+
+  const groupedEdges = useMemo(() => {
+    if (!result) {
+      return [];
+    }
+
+    const groups = new Map<
+      GraphEdge["kind"],
+      {
+        kind: GraphEdge["kind"];
+        edges: GraphEdge[];
+      }
+    >();
+
+    for (const edge of result.graph.edges) {
+      const current = groups.get(edge.kind) ?? {
+        kind: edge.kind,
+        edges: [],
+      };
+      current.edges.push(edge);
+      groups.set(edge.kind, current);
+    }
+
+    return Array.from(groups.values()).sort((left, right) => right.edges.length - left.edges.length);
   }, [result]);
 
   async function runAnalysis() {
@@ -420,13 +475,16 @@ export function AnalysisWorkbench({
                     ))}
                   </div>
                   {result.summary.signalHighlights.length > 0 ? (
-                    <ul className="reasonList">
-                      {result.summary.signalHighlights.map((signal) => (
-                        <li key={`${signal.analyzerId}:${signal.title}`}>
-                          {signal.title} · {signal.count}
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="signalSummaryCard">
+                      <strong>命中信号分组</strong>
+                      <ul className="reasonList">
+                        {result.summary.signalHighlights.map((signal) => (
+                          <li key={`${signal.analyzerId}:${signal.title}`}>
+                            {signal.title} · {signal.count}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ) : null}
                 </>
               ) : (
@@ -543,39 +601,53 @@ export function AnalysisWorkbench({
           ) : result ? (
             evidenceTab === "findings" ? (
               result.findings.length > 0 ? (
-                <ul className="findingList">
-                  {result.findings.map((finding) => (
-                    <li key={finding.id}>
-                      <div className="findingHeader">
-                        <strong>{finding.title}</strong>
-                        <span className="findingMeta">
-                          <span className={`severityPill severity-${finding.severity}`}>
-                            {finding.severity}
-                          </span>
-                          <span className={`confidencePill confidence-${finding.confidence}`}>
-                            {finding.confidence}
-                          </span>
-                        </span>
-                      </div>
-                      <p>{finding.description}</p>
-                      {finding.evidenceTruncated ? (
-                        <p className="previewHint">
-                          仅展示前 {finding.evidence.length} 条证据，共 {finding.evidenceTotal} 条。
-                        </p>
-                      ) : null}
-                      <div className="evidenceList">
-                        {finding.evidence.map((evidence) => (
-                          <EvidenceItemView
-                            key={evidence.eventId}
-                            evidence={evidence}
-                            chainId={result.meta.chainId}
-                            watchedAddressSet={watchedAddressSet}
-                          />
+                <div className="groupedPanelList">
+                  {groupedFindings.map((group, index) => (
+                    <details
+                      key={group.title}
+                      className="groupedPanel"
+                      open={index === 0}
+                    >
+                      <summary className="groupedPanelSummary">
+                        <span className="groupedPanelTitle">{group.title}</span>
+                        <span className="groupedPanelCount">{group.findings.length}</span>
+                      </summary>
+                      <ul className="findingList">
+                        {group.findings.map((finding) => (
+                          <li key={finding.id}>
+                            <div className="findingHeader">
+                              <strong>{finding.title}</strong>
+                              <span className="findingMeta">
+                                <span className={`severityPill severity-${finding.severity}`}>
+                                  {finding.severity}
+                                </span>
+                                <span className={`confidencePill confidence-${finding.confidence}`}>
+                                  {finding.confidence}
+                                </span>
+                              </span>
+                            </div>
+                            <p>{finding.description}</p>
+                            {finding.evidenceTruncated ? (
+                              <p className="previewHint">
+                                仅展示前 {finding.evidence.length} 条证据，共 {finding.evidenceTotal} 条。
+                              </p>
+                            ) : null}
+                            <div className="evidenceList">
+                              {finding.evidence.map((evidence) => (
+                                <EvidenceItemView
+                                  key={evidence.eventId}
+                                  evidence={evidence}
+                                  chainId={result.meta.chainId}
+                                  watchedAddressSet={watchedAddressSet}
+                                />
+                              ))}
+                            </div>
+                          </li>
                         ))}
-                      </div>
-                    </li>
+                      </ul>
+                    </details>
                   ))}
-                </ul>
+                </div>
               ) : (
                 <div className="emptyStateBlock emptyStatePositive">
                   <strong>没有明显关联信号</strong>
@@ -583,17 +655,31 @@ export function AnalysisWorkbench({
                 </div>
               )
             ) : result.graph.edges.length > 0 ? (
-              <ul className="edgeList">
-                {result.graph.edges.map((edge) => (
-                  <EdgeRow
-                    key={edge.id}
-                    edge={edge}
-                    chainId={result.meta.chainId}
-                    watchedAddressSet={watchedAddressSet}
-                    nodeIndex={graphNodeIndex}
-                  />
+              <div className="groupedPanelList">
+                {groupedEdges.map((group, index) => (
+                  <details
+                    key={group.kind}
+                    className="groupedPanel"
+                    open={index === 0}
+                  >
+                    <summary className="groupedPanelSummary">
+                      <span className="groupedPanelTitle">{formatEdgeKindLabel(group.kind)}</span>
+                      <span className="groupedPanelCount">{group.edges.length}</span>
+                    </summary>
+                    <ul className="edgeList">
+                      {group.edges.map((edge) => (
+                        <EdgeRow
+                          key={edge.id}
+                          edge={edge}
+                          chainId={result.meta.chainId}
+                          watchedAddressSet={watchedAddressSet}
+                          nodeIndex={graphNodeIndex}
+                        />
+                      ))}
+                    </ul>
+                  </details>
                 ))}
-              </ul>
+              </div>
             ) : (
               <div className="emptyStateBlock">
                 <strong>暂无关联边</strong>

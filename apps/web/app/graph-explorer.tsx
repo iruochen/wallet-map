@@ -57,6 +57,11 @@ export interface GraphExplorerEdge {
   metadata?: {
     chainId?: number;
     txHash?: string;
+    transactions?: Array<{
+      txHash: string;
+      timestamp: string;
+      type: string;
+    }>;
     amount?: string;
     methodId?: string;
     txCount?: number;
@@ -466,6 +471,12 @@ interface SelectionDetailProps {
 }
 
 function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: SelectionDetailProps) {
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
+
+  useEffect(() => {
+    setShowAllTransactions(false);
+  }, [selection?.id, selection?.kind]);
+
   if (!selection) {
     return null;
   }
@@ -542,6 +553,8 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
     edge.metadata?.asset?.symbol ?? (isNativeAsset ? eventChain?.nativeSymbol : undefined);
   const sourceNode = nodeIndex.get(edge.source);
   const targetNode = nodeIndex.get(edge.target);
+  const transactions = edge.metadata?.transactions ?? [];
+  const visibleTransactions = showAllTransactions ? transactions : transactions.slice(0, 4);
 
   return (
     <div className="graphDetailCard" role="status">
@@ -581,6 +594,38 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
           <code className="graphDetailMethod" title="Method selector">
             {edge.metadata.methodId}
           </code>
+        ) : null}
+        {transactions.length > 0 ? (
+          <div className="graphTxListCard">
+            <div className="graphTxListHeader">
+              <strong>关联交易</strong>
+              <span>{transactions.length} 笔</span>
+            </div>
+            <div className="graphTxList">
+              {visibleTransactions.map((transaction) => (
+                <a
+                  key={transaction.txHash}
+                  className="graphTxListItem"
+                  href={buildExplorerTxUrl(edgeChainId, transaction.txHash)}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  title={transaction.txHash}
+                >
+                  <span className="graphTxListType">{formatEventTypeLabel(transaction.type)}</span>
+                  <code>{shortenTxHash(transaction.txHash)}</code>
+                </a>
+              ))}
+            </div>
+            {transactions.length > 4 ? (
+              <button
+                type="button"
+                className="graphTxListToggle"
+                onClick={() => setShowAllTransactions((value) => !value)}
+              >
+                {showAllTransactions ? "收起交易列表" : `展开剩余 ${transactions.length - 4} 笔`}
+              </button>
+            ) : null}
+          </div>
         ) : null}
         <div className="graphDetailActions">
           {txHash ? (

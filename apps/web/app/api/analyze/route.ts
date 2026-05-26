@@ -110,6 +110,12 @@ interface EvidenceEvent {
   transferScope?: string;
 }
 
+interface GraphTransactionPreview {
+  txHash: string;
+  timestamp: string;
+  type: NormalizedEvent["type"];
+}
+
 function enrichEdgeMetadata(
   metadata: Record<string, unknown> | undefined,
   evidenceEventIds: string[],
@@ -127,9 +133,13 @@ function enrichEdgeMetadata(
   const existingAsset = metadata.asset as
     | { kind?: string; symbol?: string; contract?: string; decimals?: number; tokenId?: string }
     | undefined;
+  const transactions = buildGraphTransactionPreviews(evidenceEventIds, eventsById);
 
   if (!existingAsset) {
-    return metadata;
+    return {
+      ...metadata,
+      transactions,
+    };
   }
 
   const decimals =
@@ -138,14 +148,38 @@ function enrichEdgeMetadata(
       : Number.isFinite(tokenDecimals)
         ? tokenDecimals
         : undefined;
-
   return {
     ...metadata,
+    transactions,
     asset: {
       ...existingAsset,
       decimals,
     },
   };
+}
+
+function buildGraphTransactionPreviews(
+  evidenceEventIds: string[],
+  eventsById: Map<string, NormalizedEvent>,
+): GraphTransactionPreview[] {
+  const seen = new Set<string>();
+  const transactions: GraphTransactionPreview[] = [];
+
+  for (const eventId of evidenceEventIds) {
+    const event = eventsById.get(eventId);
+    if (!event || seen.has(event.txHash)) {
+      continue;
+    }
+
+    seen.add(event.txHash);
+    transactions.push({
+      txHash: event.txHash,
+      timestamp: event.timestamp,
+      type: event.type,
+    });
+  }
+
+  return transactions;
 }
 
 function toEvidenceEvent(event: NormalizedEvent): EvidenceEvent {

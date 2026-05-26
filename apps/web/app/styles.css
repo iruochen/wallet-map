@@ -590,6 +590,8 @@ select {
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .verdictPill-strong {
@@ -646,6 +648,7 @@ select {
 
 .pairInsightHeader strong {
   font-size: 0.86rem;
+  min-width: 0;
 }
 
 .pairInsightCard p {
@@ -661,6 +664,20 @@ select {
   flex-wrap: wrap;
   color: #64736a;
   font-size: 0.74rem;
+}
+
+.signalSummaryCard {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e1e7df;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.signalSummaryCard strong {
+  font-size: 0.82rem;
+  color: #243129;
 }
 
 .emptyStateBlock {
@@ -699,6 +716,62 @@ select {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.groupedPanelList {
+  display: grid;
+  gap: 10px;
+}
+
+.groupedPanel {
+  border: 1px solid #dce2d8;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.groupedPanel[open] {
+  box-shadow: 0 10px 24px rgba(31, 61, 44, 0.05);
+}
+
+.groupedPanelSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  background: #fbfcfa;
+}
+
+.groupedPanelSummary::-webkit-details-marker {
+  display: none;
+}
+
+.groupedPanelTitle {
+  color: #243129;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.groupedPanelCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #eef2eb;
+  color: #2b4a3a;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.groupedPanel .findingList,
+.groupedPanel .edgeList {
+  padding: 12px;
 }
 
 .findingList li {
@@ -1535,6 +1608,80 @@ code {
   color: #64736a;
   font-size: 0.72rem;
   line-height: 1.4;
+}
+
+.graphTxListCard {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e1e7df;
+  border-radius: 10px;
+  background: #fbfcfa;
+}
+
+.graphTxListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.graphTxListHeader strong {
+  font-size: 0.8rem;
+  color: #243129;
+}
+
+.graphTxListHeader span {
+  color: #64736a;
+  font-size: 0.74rem;
+}
+
+.graphTxList {
+  display: grid;
+  gap: 6px;
+}
+
+.graphTxListItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e6ebe2;
+  color: #183d30;
+  text-decoration: none;
+}
+
+.graphTxListItem:hover {
+  border-color: #1f3d2c;
+  background: #f4fbf6;
+}
+
+.graphTxListItem code {
+  font-size: 0.72rem;
+}
+
+.graphTxListType {
+  color: #4c5b51;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.graphTxListToggle {
+  justify-self: start;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1f3d2c;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.graphTxListToggle:hover {
+  text-decoration: underline;
 }
 
 /* ============================================================

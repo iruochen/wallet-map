@@ -1,8 +1,5 @@
-import { DirectTransferAnalyzer } from "@wallet-map/analyzers";
 import { AnalysisWorkbench } from "./analysis-workbench";
 import { supportedAnalysisChains } from "./chains";
-
-const analyzer = new DirectTransferAnalyzer();
 
 export default function HomePage() {
   const liveConfigured = Boolean(process.env.ETHERSCAN_API_KEY?.trim());
@@ -24,9 +21,6 @@ export default function HomePage() {
           <span className={`headerChip ${liveConfigured ? "headerChipOk" : "headerChipMuted"}`}>
             <span className="headerChipDot" aria-hidden="true" />
             {liveConfigured ? "Live data ready" : "Fixture fallback"}
-          </span>
-          <span className="headerChip headerChipMuted">
-            Analyzer · {analyzer.name}
           </span>
         </div>
       </header>
