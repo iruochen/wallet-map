@@ -829,8 +829,8 @@ function resolveNodeRole(node: GraphExplorerNode): ResolvedNode["role"] {
 }
 
 function nodeSizeForDegree(degree: number, role: ResolvedNode["role"]): number {
-  const base = role === "watched" ? 62 : role === "observed" ? 34 : role === "contract" ? 30 : 28;
-  const bonus = Math.min(Math.log2(degree + 1) * 5, 22);
+  const base = role === "watched" ? 48 : role === "observed" ? 28 : role === "contract" ? 26 : 24;
+  const bonus = Math.min(Math.log2(degree + 1) * 4, 16);
   return base + bonus;
 }
 
@@ -925,66 +925,61 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
     {
       selector: "node",
       style: {
-        "background-color": "#eef4ea",
-        "border-color": "#5a8a6a",
-        "border-width": 2,
-        "color": "#162018",
+        "background-color": "#f6faf5",
+        "border-color": "#7f9a87",
+        "border-width": 1.6,
+        "color": "#203027",
         "label": "data(label)",
-        "font-size": 10,
+        "font-size": 9,
         "font-weight": 700,
         "text-valign": "bottom",
-        "text-margin-y": 8,
+        "text-margin-y": 7,
         "text-background-color": "#ffffff",
-        "text-background-opacity": 0.92,
-        "text-background-padding": "3",
+        "text-background-opacity": 0.84,
+        "text-background-padding": "2",
         "text-background-shape": "roundrectangle",
         "width": "data(size)",
         "height": "data(size)",
         "shape": "ellipse",
         "overlay-padding": 8,
-        "underlay-color": "#1f3d2c",
-        "underlay-opacity": 0.06,
-        "underlay-padding": 4,
-        "transition-property": "background-color, border-color, opacity, underlay-opacity",
+        "transition-property": "background-color, border-color, opacity",
         "transition-duration": 180,
       },
     },
     {
       selector: "node.node-watched",
       style: {
-        "background-color": "#1f3d2c",
-        "border-color": "#0f2418",
-        "border-width": 3,
+        "background-color": "#244534",
+        "border-color": "#173022",
+        "border-width": 2.4,
         "color": "#ffffff",
-        "text-background-color": "#0f2418",
-        "text-background-opacity": 0.94,
-        "underlay-opacity": 0.18,
-        "underlay-padding": 8,
+        "text-background-color": "#173022",
+        "text-background-opacity": 0.88,
       },
     },
     {
       selector: "node.node-observed",
       style: {
-        "background-color": "#d8ead4",
-        "border-color": "#4f8a62",
-        "border-width": 2,
+        "background-color": "#e7f1e3",
+        "border-color": "#6f9b79",
+        "border-width": 1.6,
       },
     },
     {
       selector: "node.node-contract",
       style: {
-        "background-color": "#fff3d6",
-        "border-color": "#c58a1a",
-        "border-width": 2,
+        "background-color": "#fff7e7",
+        "border-color": "#c79b43",
+        "border-width": 1.6,
         "shape": "round-rectangle",
       },
     },
     {
       selector: "node.node-entity",
       style: {
-        "background-color": "#ebe6fb",
-        "border-color": "#6b57c4",
-        "border-width": 2,
+        "background-color": "#f1ecfb",
+        "border-color": "#8571cb",
+        "border-width": 1.6,
       },
     },
     {
@@ -1014,11 +1009,11 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
         "arrow-scale": 0.75,
         "opacity": denseGraph ? 0.45 : 0.62,
         "label": "data(label)",
-        "font-size": 9,
+        "font-size": 8,
         "color": "data(color)",
         "text-margin-y": "data(labelOffset)",
         "text-background-color": "#ffffff",
-        "text-background-opacity": 0.92,
+        "text-background-opacity": 0.8,
         "text-background-padding": "2",
         "text-background-shape": "roundrectangle",
         "transition-property": "opacity, width",
@@ -1053,8 +1048,7 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
     {
       selector: "node.hl-focus",
       style: {
-        "border-width": 4,
-        "underlay-opacity": 0.24,
+        "border-width": 3.2,
       },
     },
     {
