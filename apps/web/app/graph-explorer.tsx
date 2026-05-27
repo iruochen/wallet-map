@@ -140,9 +140,7 @@ export function GraphExplorer({
   const overviewViewportRef = useRef<ViewportSnapshot | null>(null);
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [hiddenKinds, setHiddenKinds] = useState<Set<GraphExplorerEdge["kind"]>>(new Set());
-  const [showEdgeLabels, setShowEdgeLabels] = useState(
-    nodes.length <= DENSE_GRAPH_NODE_THRESHOLD && edges.length <= DENSE_GRAPH_EDGE_THRESHOLD,
-  );
+  const [showEdgeLabels, setShowEdgeLabels] = useState(true);
   const [layoutReady, setLayoutReady] = useState(false);
 
   const denseGraph =
@@ -267,9 +265,7 @@ export function GraphExplorer({
       }
     });
 
-    const layout = cy.layout(
-      buildLayoutOptions(cy, resolvedNodes, edges.length, denseGraph, watchedNodeIds),
-    );
+    const layout = cy.layout(buildLayoutOptions(cy, resolvedNodes, edges, denseGraph, watchedNodeIds));
 
     layout.one("layoutstop", () => {
       fitOverviewViewport(cy, resolvedNodes.length, edges.length);
@@ -358,7 +354,7 @@ export function GraphExplorer({
     }
     layoutRunningRef.current = true;
     setLayoutReady(false);
-    runLayout(cy, resolvedNodes, edges.length, denseGraph, watchedNodeIds, {
+    runLayout(cy, resolvedNodes, edges, denseGraph, watchedNodeIds, {
       fitAfter: true,
       onComplete: () => {
         overviewViewportRef.current = captureViewport(cy);
@@ -488,7 +484,7 @@ export function GraphExplorer({
       </div>
       <p className="graphFootnote">
         {denseGraph
-          ? "大图模式：默认会收起边标签并按层级铺开，单击节点或边可局部聚焦，点空白处回到全图。"
+          ? "大图模式：默认保留标签并按 watched 关联分区铺开，单击节点或边可局部聚焦，点空白处回到全图。"
           : "默认只展示命中分析器的关联子图 · 单击聚焦并查看解释 · 双击跳转 explorer。"}
         {totalNodes > nodes.length ? ` 当前展示前 ${nodes.length} / ${totalNodes} 节点。` : ""}
       </p>
@@ -925,15 +921,15 @@ function focusElements(cy: Core, elements: cytoscape.CollectionReturnValue, padd
 function runLayout(
   cy: Core,
   nodes: ResolvedNode[],
-  edgeCount: number,
+  edges: GraphExplorerEdge[],
   denseGraph: boolean,
   watchedNodeIds: string[],
   options: { fitAfter?: boolean; onComplete?: () => void } = {},
 ): void {
-  const layout = cy.layout(buildLayoutOptions(cy, nodes, edgeCount, denseGraph, watchedNodeIds));
+  const layout = cy.layout(buildLayoutOptions(cy, nodes, edges, denseGraph, watchedNodeIds));
   layout.one("layoutstop", () => {
     if (options.fitAfter) {
-      fitOverviewViewport(cy, nodes.length, edgeCount);
+      fitOverviewViewport(cy, nodes.length, edges.length);
     }
     options.onComplete?.();
   });
@@ -943,17 +939,17 @@ function runLayout(
 function buildLayoutOptions(
   _cy: Core,
   nodes: ResolvedNode[],
-  edgeCount: number,
+  edges: GraphExplorerEdge[],
   denseGraph: boolean,
   watchedNodeIds: string[],
 ): cytoscape.LayoutOptions {
   if (denseGraph) {
-    const positions = buildDensePresetPositions(nodes, watchedNodeIds);
+    const positions = buildDensePresetPositions(nodes, edges, watchedNodeIds);
     return {
       name: "preset",
       animate: false,
       fit: true,
-      padding: 104,
+      padding: 92,
       positions: Object.fromEntries(positions),
     } as cytoscape.LayoutOptions;
   }
@@ -977,104 +973,215 @@ function buildLayoutOptions(
 
 function buildDensePresetPositions(
   nodes: ResolvedNode[],
+  edges: GraphExplorerEdge[],
   watchedNodeIds: string[],
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
-  const watchedNodes = nodes.filter((node) => watchedNodeIds.includes(node.id));
-  const contractNodes = nodes
-    .filter((node) => node.role === "contract")
-    .sort((left, right) => right.degree - left.degree);
-  const observedNodes = nodes
-    .filter((node) => node.role === "observed")
-    .sort((left, right) => right.degree - left.degree);
-  const entityNodes = nodes
-    .filter((node) => node.role === "entity")
-    .sort((left, right) => right.degree - left.degree);
+  const watchedNodes = nodes
+    .filter((node) => watchedNodeIds.includes(node.id))
+    .sort((left, right) => watchedNodeIds.indexOf(left.id) - watchedNodeIds.indexOf(right.id));
+  const nonWatchedNodes = nodes.filter((node) => !watchedNodeIds.includes(node.id));
+  const watchedSpacing = watchedNodes.length > 2 ? 220 : 260;
+  const watchedXs = watchedNodes.map(
+    (_, index) => (index - (watchedNodes.length - 1) / 2) * watchedSpacing,
+  );
 
   watchedNodes.forEach((node, index) => {
-    const spread = watchedNodes.length === 1 ? 0 : (index - (watchedNodes.length - 1) / 2) * 150;
-    positions.set(node.id, { x: spread, y: 0 });
+    positions.set(node.id, { x: watchedXs[index] ?? 0, y: 0 });
   });
 
-  placeArc(contractNodes, positions, {
-    radiusX: nodes.length > 24 ? 430 : 360,
-    radiusY: nodes.length > 24 ? 250 : 220,
-    startAngle: -Math.PI * 0.92,
-    endAngle: -Math.PI * 0.08,
-    centerX: 0,
-    centerY: -120,
-  });
+  const connectedWatchedMap = buildConnectedWatchedMap(edges, watchedNodeIds);
+  const sideAnchors = buildDenseAnchors(watchedNodeIds, watchedXs);
 
-  placeArc(observedNodes, positions, {
-    radiusX: nodes.length > 24 ? 470 : 390,
-    radiusY: nodes.length > 24 ? 300 : 250,
-    startAngle: Math.PI * 0.08,
-    endAngle: Math.PI * 0.92,
-    centerX: 0,
-    centerY: 120,
-  });
+  const contractBuckets = new Map<string, ResolvedNode[]>();
+  const observedBuckets = new Map<string, ResolvedNode[]>();
+  const entityBuckets = new Map<string, ResolvedNode[]>();
 
-  placeArc(entityNodes, positions, {
-    radiusX: nodes.length > 24 ? 600 : 500,
-    radiusY: nodes.length > 24 ? 360 : 300,
-    startAngle: -Math.PI * 0.12,
-    endAngle: Math.PI * 1.12,
-    centerX: 0,
-    centerY: 0,
-  });
+  for (const node of nonWatchedNodes.sort((left, right) => right.degree - left.degree)) {
+    const connected = connectedWatchedMap.get(node.id) ?? [];
+    const bucketKey = resolveDenseBucketKey(connected, watchedNodeIds);
+
+    if (node.role === "contract") {
+      pushDenseBucket(contractBuckets, bucketKey, node);
+      continue;
+    }
+
+    if (node.role === "observed") {
+      pushDenseBucket(observedBuckets, bucketKey, node);
+      continue;
+    }
+
+    pushDenseBucket(entityBuckets, bucketKey, node);
+  }
+
+  for (const [bucketKey, bucketNodes] of contractBuckets) {
+    const anchor = sideAnchors.contract.get(bucketKey) ?? sideAnchors.contract.get("shared");
+    if (anchor) {
+      placeBucketArc(bucketNodes, positions, anchor, "top");
+    }
+  }
+
+  for (const [bucketKey, bucketNodes] of observedBuckets) {
+    const anchor = sideAnchors.observed.get(bucketKey) ?? sideAnchors.observed.get("shared");
+    if (anchor) {
+      placeBucketArc(bucketNodes, positions, anchor, "bottom");
+    }
+  }
+
+  for (const [bucketKey, bucketNodes] of entityBuckets) {
+    const anchor = sideAnchors.entity.get(bucketKey) ?? sideAnchors.entity.get("shared");
+    if (anchor) {
+      placeBucketArc(bucketNodes, positions, anchor, "outer");
+    }
+  }
 
   return positions;
 }
 
-function placeArc(
+function buildConnectedWatchedMap(
+  edges: GraphExplorerEdge[],
+  watchedNodeIds: string[],
+): Map<string, string[]> {
+  const watchedSet = new Set(watchedNodeIds);
+  const connectedMap = new Map<string, Set<string>>();
+
+  for (const edge of edges) {
+    if (watchedSet.has(edge.source) && !watchedSet.has(edge.target)) {
+      const current = connectedMap.get(edge.target) ?? new Set<string>();
+      current.add(edge.source);
+      connectedMap.set(edge.target, current);
+    }
+
+    if (watchedSet.has(edge.target) && !watchedSet.has(edge.source)) {
+      const current = connectedMap.get(edge.source) ?? new Set<string>();
+      current.add(edge.target);
+      connectedMap.set(edge.source, current);
+    }
+  }
+
+  return new Map(
+    Array.from(connectedMap.entries()).map(([nodeId, watchedIds]) => [
+      nodeId,
+      Array.from(watchedIds).sort((left, right) => watchedNodeIds.indexOf(left) - watchedNodeIds.indexOf(right)),
+    ]),
+  );
+}
+
+function resolveDenseBucketKey(connectedWatchedIds: string[], watchedNodeIds: string[]): string {
+  if (connectedWatchedIds.length === 0) {
+    return "shared";
+  }
+
+  if (connectedWatchedIds.length === 1) {
+    return connectedWatchedIds[0];
+  }
+
+  if (connectedWatchedIds.length === watchedNodeIds.length) {
+    return "shared";
+  }
+
+  return connectedWatchedIds.join("|");
+}
+
+function pushDenseBucket(
+  buckets: Map<string, ResolvedNode[]>,
+  bucketKey: string,
+  node: ResolvedNode,
+): void {
+  const current = buckets.get(bucketKey) ?? [];
+  current.push(node);
+  buckets.set(bucketKey, current);
+}
+
+function buildDenseAnchors(
+  watchedNodeIds: string[],
+  watchedXs: number[],
+): {
+  contract: Map<string, BucketAnchor>;
+  observed: Map<string, BucketAnchor>;
+  entity: Map<string, BucketAnchor>;
+} {
+  const contract = new Map<string, BucketAnchor>();
+  const observed = new Map<string, BucketAnchor>();
+  const entity = new Map<string, BucketAnchor>();
+
+  watchedNodeIds.forEach((watchedId, index) => {
+    const baseX = watchedXs[index] ?? 0;
+    contract.set(watchedId, { centerX: baseX, centerY: -230, radiusX: 170, radiusY: 90 });
+    observed.set(watchedId, { centerX: baseX, centerY: 230, radiusX: 190, radiusY: 100 });
+    entity.set(watchedId, { centerX: baseX * 1.15, centerY: 0, radiusX: 250, radiusY: 150 });
+  });
+
+  contract.set("shared", { centerX: 0, centerY: -320, radiusX: 240, radiusY: 105 });
+  observed.set("shared", { centerX: 0, centerY: 320, radiusX: 260, radiusY: 115 });
+  entity.set("shared", { centerX: 0, centerY: 0, radiusX: 360, radiusY: 180 });
+
+  return { contract, observed, entity };
+}
+
+interface BucketAnchor {
+  centerX: number;
+  centerY: number;
+  radiusX: number;
+  radiusY: number;
+}
+
+function placeBucketArc(
   nodes: ResolvedNode[],
   positions: Map<string, { x: number; y: number }>,
-  config: {
-    radiusX: number;
-    radiusY: number;
-    startAngle: number;
-    endAngle: number;
-    centerX: number;
-    centerY: number;
-  },
+  anchor: BucketAnchor,
+  mode: "top" | "bottom" | "outer",
 ): void {
   if (nodes.length === 0) {
     return;
   }
 
+  let startAngle = -Math.PI * 0.92;
+  let endAngle = -Math.PI * 0.08;
+
+  if (mode === "bottom") {
+    startAngle = Math.PI * 0.08;
+    endAngle = Math.PI * 0.92;
+  }
+
+  if (mode === "outer") {
+    startAngle = -Math.PI * 0.2;
+    endAngle = Math.PI * 1.2;
+  }
+
   if (nodes.length === 1) {
-    const angle = (config.startAngle + config.endAngle) / 2;
+    const angle = (startAngle + endAngle) / 2;
     positions.set(nodes[0].id, {
-      x: config.centerX + Math.cos(angle) * config.radiusX,
-      y: config.centerY + Math.sin(angle) * config.radiusY,
+      x: anchor.centerX + Math.cos(angle) * anchor.radiusX,
+      y: anchor.centerY + Math.sin(angle) * anchor.radiusY,
     });
     return;
   }
 
   nodes.forEach((node, index) => {
     const ratio = index / (nodes.length - 1);
-    const angle = config.startAngle + (config.endAngle - config.startAngle) * ratio;
+    const angle = startAngle + (endAngle - startAngle) * ratio;
     positions.set(node.id, {
-      x: config.centerX + Math.cos(angle) * config.radiusX,
-      y: config.centerY + Math.sin(angle) * config.radiusY,
+      x: anchor.centerX + Math.cos(angle) * anchor.radiusX,
+      y: anchor.centerY + Math.sin(angle) * anchor.radiusY,
     });
   });
 }
 
 function computeOverviewPadding(nodeCount: number, edgeCount: number): number {
   if (nodeCount > 42 || edgeCount > 72) {
-    return 168;
-  }
-
-  if (nodeCount > 26 || edgeCount > 40) {
     return 132;
   }
 
-  if (nodeCount > 14 || edgeCount > 20) {
-    return 100;
+  if (nodeCount > 26 || edgeCount > 40) {
+    return 108;
   }
 
-  return 72;
+  if (nodeCount > 14 || edgeCount > 20) {
+    return 84;
+  }
+
+  return 64;
 }
 
 function fitOverviewViewport(cy: Core, nodeCount: number, edgeCount: number): void {
@@ -1172,15 +1279,8 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
     {
       selector: "node.dense",
       style: {
-        "label": "",
-        "font-size": 0,
-      },
-    },
-    {
-      selector: "node.dense.hl-focus, node.dense:selected",
-      style: {
-        "label": "data(label)",
-        "font-size": 10,
+        "font-size": 8,
+        "text-margin-y": 6,
       },
     },
     {
@@ -1196,11 +1296,11 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
         "arrow-scale": 0.75,
         "opacity": denseGraph ? 0.45 : 0.62,
         "label": "data(label)",
-        "font-size": 8,
+        "font-size": denseGraph ? 7 : 8,
         "color": "data(color)",
         "text-margin-y": "data(labelOffset)",
         "text-background-color": "#ffffff",
-        "text-background-opacity": 0.8,
+        "text-background-opacity": denseGraph ? 0.7 : 0.8,
         "text-background-padding": "2",
         "text-background-shape": "roundrectangle",
         "transition-property": "opacity, width",
