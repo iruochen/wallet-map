@@ -941,48 +941,20 @@ function runLayout(
 }
 
 function buildLayoutOptions(
-  cy: Core,
+  _cy: Core,
   nodes: ResolvedNode[],
   edgeCount: number,
   denseGraph: boolean,
   watchedNodeIds: string[],
 ): cytoscape.LayoutOptions {
   if (denseGraph) {
+    const positions = buildDensePresetPositions(nodes, watchedNodeIds);
     return {
-      name: "concentric",
+      name: "preset",
       animate: false,
       fit: true,
-      avoidOverlap: true,
-      padding: 84,
-      spacingFactor: nodes.length > 24 ? 1.8 : 1.55,
-      minNodeSpacing: nodes.length > 24 ? 52 : 42,
-      startAngle: (-Math.PI * 3) / 4,
-      sweep: Math.PI * 2,
-      concentric: (element) => {
-        const role = element.data("role") as ResolvedNode["role"] | undefined;
-        const degree = Number(element.data("degree") ?? 0);
-        if (role === "watched") {
-          return 3000 + degree * 10;
-        }
-        if (role === "contract") {
-          return 2000 + degree * 8;
-        }
-        if (role === "observed") {
-          return 1000 + degree * 6;
-        }
-        return 500 + degree * 4;
-      },
-      levelWidth: () => 750,
-      sort: (left, right) => {
-        const leftIsWatched = watchedNodeIds.includes(left.id());
-        const rightIsWatched = watchedNodeIds.includes(right.id());
-        if (leftIsWatched !== rightIsWatched) {
-          return leftIsWatched ? -1 : 1;
-        }
-        const leftDegree = Number(left.data("degree") ?? 0);
-        const rightDegree = Number(right.data("degree") ?? 0);
-        return rightDegree - leftDegree;
-      },
+      padding: 104,
+      positions: Object.fromEntries(positions),
     } as cytoscape.LayoutOptions;
   }
 
@@ -1001,6 +973,92 @@ function buildLayoutOptions(
     tile: true,
     packComponents: true,
   } as cytoscape.LayoutOptions;
+}
+
+function buildDensePresetPositions(
+  nodes: ResolvedNode[],
+  watchedNodeIds: string[],
+): Map<string, { x: number; y: number }> {
+  const positions = new Map<string, { x: number; y: number }>();
+  const watchedNodes = nodes.filter((node) => watchedNodeIds.includes(node.id));
+  const contractNodes = nodes
+    .filter((node) => node.role === "contract")
+    .sort((left, right) => right.degree - left.degree);
+  const observedNodes = nodes
+    .filter((node) => node.role === "observed")
+    .sort((left, right) => right.degree - left.degree);
+  const entityNodes = nodes
+    .filter((node) => node.role === "entity")
+    .sort((left, right) => right.degree - left.degree);
+
+  watchedNodes.forEach((node, index) => {
+    const spread = watchedNodes.length === 1 ? 0 : (index - (watchedNodes.length - 1) / 2) * 150;
+    positions.set(node.id, { x: spread, y: 0 });
+  });
+
+  placeArc(contractNodes, positions, {
+    radiusX: nodes.length > 24 ? 430 : 360,
+    radiusY: nodes.length > 24 ? 250 : 220,
+    startAngle: -Math.PI * 0.92,
+    endAngle: -Math.PI * 0.08,
+    centerX: 0,
+    centerY: -120,
+  });
+
+  placeArc(observedNodes, positions, {
+    radiusX: nodes.length > 24 ? 470 : 390,
+    radiusY: nodes.length > 24 ? 300 : 250,
+    startAngle: Math.PI * 0.08,
+    endAngle: Math.PI * 0.92,
+    centerX: 0,
+    centerY: 120,
+  });
+
+  placeArc(entityNodes, positions, {
+    radiusX: nodes.length > 24 ? 600 : 500,
+    radiusY: nodes.length > 24 ? 360 : 300,
+    startAngle: -Math.PI * 0.12,
+    endAngle: Math.PI * 1.12,
+    centerX: 0,
+    centerY: 0,
+  });
+
+  return positions;
+}
+
+function placeArc(
+  nodes: ResolvedNode[],
+  positions: Map<string, { x: number; y: number }>,
+  config: {
+    radiusX: number;
+    radiusY: number;
+    startAngle: number;
+    endAngle: number;
+    centerX: number;
+    centerY: number;
+  },
+): void {
+  if (nodes.length === 0) {
+    return;
+  }
+
+  if (nodes.length === 1) {
+    const angle = (config.startAngle + config.endAngle) / 2;
+    positions.set(nodes[0].id, {
+      x: config.centerX + Math.cos(angle) * config.radiusX,
+      y: config.centerY + Math.sin(angle) * config.radiusY,
+    });
+    return;
+  }
+
+  nodes.forEach((node, index) => {
+    const ratio = index / (nodes.length - 1);
+    const angle = config.startAngle + (config.endAngle - config.startAngle) * ratio;
+    positions.set(node.id, {
+      x: config.centerX + Math.cos(angle) * config.radiusX,
+      y: config.centerY + Math.sin(angle) * config.radiusY,
+    });
+  });
 }
 
 function computeOverviewPadding(nodeCount: number, edgeCount: number): number {
