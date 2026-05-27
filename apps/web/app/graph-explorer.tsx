@@ -937,19 +937,24 @@ function runLayout(
 }
 
 function buildLayoutOptions(
-  _cy: Core,
+  cy: Core,
   nodes: ResolvedNode[],
   edges: GraphExplorerEdge[],
   denseGraph: boolean,
   watchedNodeIds: string[],
 ): cytoscape.LayoutOptions {
   if (denseGraph) {
-    const positions = buildDensePresetPositions(nodes, edges, watchedNodeIds);
+    const containerWidth = cy.container()?.clientWidth ?? 0;
+    const containerHeight = cy.container()?.clientHeight ?? 0;
+    const positions = buildDensePresetPositions(nodes, edges, watchedNodeIds, {
+      width: containerWidth,
+      height: containerHeight,
+    });
     return {
       name: "preset",
       animate: false,
       fit: true,
-      padding: 92,
+      padding: 48,
       positions: Object.fromEntries(positions),
     } as cytoscape.LayoutOptions;
   }
@@ -975,13 +980,20 @@ function buildDensePresetPositions(
   nodes: ResolvedNode[],
   edges: GraphExplorerEdge[],
   watchedNodeIds: string[],
+  viewport: { width: number; height: number },
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
   const watchedNodes = nodes
     .filter((node) => watchedNodeIds.includes(node.id))
     .sort((left, right) => watchedNodeIds.indexOf(left.id) - watchedNodeIds.indexOf(right.id));
   const nonWatchedNodes = nodes.filter((node) => !watchedNodeIds.includes(node.id));
-  const watchedSpacing = watchedNodes.length > 2 ? 220 : 260;
+  const width = Math.max(viewport.width, 1200);
+  const height = Math.max(viewport.height, 760);
+  const aspectRatio = width / Math.max(height, 1);
+  const watchedSpacing = Math.max(
+    watchedNodes.length > 2 ? 260 : 340,
+    Math.min(width * 0.22, watchedNodes.length > 2 ? 340 : 460),
+  );
   const watchedXs = watchedNodes.map(
     (_, index) => (index - (watchedNodes.length - 1) / 2) * watchedSpacing,
   );
@@ -991,7 +1003,7 @@ function buildDensePresetPositions(
   });
 
   const connectedWatchedMap = buildConnectedWatchedMap(edges, watchedNodeIds);
-  const sideAnchors = buildDenseAnchors(watchedNodeIds, watchedXs);
+  const sideAnchors = buildDenseAnchors(watchedNodeIds, watchedXs, aspectRatio);
 
   const contractBuckets = new Map<string, ResolvedNode[]>();
   const observedBuckets = new Map<string, ResolvedNode[]>();
@@ -1096,6 +1108,7 @@ function pushDenseBucket(
 function buildDenseAnchors(
   watchedNodeIds: string[],
   watchedXs: number[],
+  aspectRatio: number,
 ): {
   contract: Map<string, BucketAnchor>;
   observed: Map<string, BucketAnchor>;
@@ -1104,17 +1117,48 @@ function buildDenseAnchors(
   const contract = new Map<string, BucketAnchor>();
   const observed = new Map<string, BucketAnchor>();
   const entity = new Map<string, BucketAnchor>();
+  const wideScale = Math.min(Math.max(aspectRatio, 1.1), 2);
+  const contractRadiusX = 210 * wideScale;
+  const observedRadiusX = 230 * wideScale;
+  const sharedContractRadiusX = 320 * wideScale;
+  const sharedObservedRadiusX = 350 * wideScale;
 
   watchedNodeIds.forEach((watchedId, index) => {
     const baseX = watchedXs[index] ?? 0;
-    contract.set(watchedId, { centerX: baseX, centerY: -230, radiusX: 170, radiusY: 90 });
-    observed.set(watchedId, { centerX: baseX, centerY: 230, radiusX: 190, radiusY: 100 });
-    entity.set(watchedId, { centerX: baseX * 1.15, centerY: 0, radiusX: 250, radiusY: 150 });
+    const direction = watchedNodeIds.length <= 1 ? 0 : Math.sign(baseX || index - (watchedNodeIds.length - 1) / 2);
+    contract.set(watchedId, {
+      centerX: baseX + direction * 72,
+      centerY: -178,
+      radiusX: contractRadiusX,
+      radiusY: 74,
+    });
+    observed.set(watchedId, {
+      centerX: baseX + direction * 90,
+      centerY: 188,
+      radiusX: observedRadiusX,
+      radiusY: 82,
+    });
+    entity.set(watchedId, {
+      centerX: baseX + direction * 120,
+      centerY: 0,
+      radiusX: 140,
+      radiusY: 150,
+    });
   });
 
-  contract.set("shared", { centerX: 0, centerY: -320, radiusX: 240, radiusY: 105 });
-  observed.set("shared", { centerX: 0, centerY: 320, radiusX: 260, radiusY: 115 });
-  entity.set("shared", { centerX: 0, centerY: 0, radiusX: 360, radiusY: 180 });
+  contract.set("shared", {
+    centerX: 0,
+    centerY: -256,
+    radiusX: sharedContractRadiusX,
+    radiusY: 92,
+  });
+  observed.set("shared", {
+    centerX: 0,
+    centerY: 270,
+    radiusX: sharedObservedRadiusX,
+    radiusY: 96,
+  });
+  entity.set("shared", { centerX: 0, centerY: 0, radiusX: 460 * wideScale, radiusY: 156 });
 
   return { contract, observed, entity };
 }
@@ -1170,18 +1214,18 @@ function placeBucketArc(
 
 function computeOverviewPadding(nodeCount: number, edgeCount: number): number {
   if (nodeCount > 42 || edgeCount > 72) {
-    return 132;
+    return 72;
   }
 
   if (nodeCount > 26 || edgeCount > 40) {
-    return 108;
+    return 56;
   }
 
   if (nodeCount > 14 || edgeCount > 20) {
-    return 84;
+    return 42;
   }
 
-  return 64;
+  return 32;
 }
 
 function fitOverviewViewport(cy: Core, nodeCount: number, edgeCount: number): void {
@@ -1279,8 +1323,9 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
     {
       selector: "node.dense",
       style: {
-        "font-size": 8,
+        "font-size": 9,
         "text-margin-y": 6,
+        "text-background-opacity": 0.92,
       },
     },
     {
@@ -1294,15 +1339,18 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
         "target-arrow-color": "data(color)",
         "target-arrow-shape": "triangle",
         "arrow-scale": 0.75,
-        "opacity": denseGraph ? 0.45 : 0.62,
+        "opacity": denseGraph ? 0.56 : 0.62,
         "label": "data(label)",
-        "font-size": denseGraph ? 7 : 8,
+        "font-size": denseGraph ? 8 : 8,
         "color": "data(color)",
         "text-margin-y": "data(labelOffset)",
         "text-background-color": "#ffffff",
-        "text-background-opacity": denseGraph ? 0.7 : 0.8,
-        "text-background-padding": "2",
+        "text-background-opacity": denseGraph ? 0.92 : 0.8,
+        "text-background-padding": denseGraph ? "3" : "2",
         "text-background-shape": "roundrectangle",
+        "text-outline-color": "#ffffff",
+        "text-outline-opacity": denseGraph ? 0.96 : 0.84,
+        "text-outline-width": denseGraph ? 1.6 : 0.8,
         "transition-property": "opacity, width",
         "transition-duration": 180,
       },
