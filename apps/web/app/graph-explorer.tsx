@@ -105,6 +105,14 @@ interface SelectionState {
   id: string;
 }
 
+interface ViewportSnapshot {
+  zoom: number;
+  pan: {
+    x: number;
+    y: number;
+  };
+}
+
 const edgePalette: Record<GraphExplorerEdge["kind"], string> = {
   native_transfer: "#2f7d4f",
   token_transfer: "#2e44b8",
@@ -128,6 +136,7 @@ export function GraphExplorer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<Core | null>(null);
   const layoutRunningRef = useRef(false);
+  const overviewViewportRef = useRef<ViewportSnapshot | null>(null);
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [hiddenKinds, setHiddenKinds] = useState<Set<GraphExplorerEdge["kind"]>>(new Set());
   const [showEdgeLabels, setShowEdgeLabels] = useState(nodes.length <= DENSE_GRAPH_NODE_THRESHOLD);
@@ -184,6 +193,7 @@ export function GraphExplorer({
 
     cy.on("tap", (event: EventObject) => {
       if (event.target === cy) {
+        restoreOverviewViewport(cy, overviewViewportRef.current);
         setSelection(null);
       }
     });
@@ -191,13 +201,13 @@ export function GraphExplorer({
     cy.on("tap", "node", (event: EventObject) => {
       const node = event.target as NodeSingular;
       setSelection({ kind: "node", id: node.id() });
-      focusElements(cy, node.closedNeighborhood(), 1.35);
+      focusElements(cy, node.closedNeighborhood(), denseGraph ? 112 : 92);
     });
 
     cy.on("tap", "edge", (event: EventObject) => {
       const edge = event.target as EdgeSingular;
       setSelection({ kind: "edge", id: edge.id() });
-      focusElements(cy, edge.connectedNodes().union(edge), 1.5);
+      focusElements(cy, edge.connectedNodes().union(edge), denseGraph ? 128 : 104);
     });
 
     cy.on("dblclick", "node", (event: EventObject) => {
@@ -231,6 +241,7 @@ export function GraphExplorer({
 
     setLayoutReady(false);
     layoutRunningRef.current = true;
+    overviewViewportRef.current = null;
 
     const elements = buildElements({
       chainId,
@@ -265,6 +276,8 @@ export function GraphExplorer({
     } as cytoscape.LayoutOptions);
 
     layout.one("layoutstop", () => {
+      fitOverviewViewport(cy, resolvedNodes.length, edges.length);
+      overviewViewportRef.current = captureViewport(cy);
       layoutRunningRef.current = false;
       setLayoutReady(true);
     });
@@ -347,15 +360,24 @@ export function GraphExplorer({
     if (!cy) {
       return;
     }
-    runLayout(cy, resolvedNodes.length, { fitAfter: true });
-  }, [resolvedNodes.length]);
+    layoutRunningRef.current = true;
+    setLayoutReady(false);
+    runLayout(cy, resolvedNodes.length, edges.length, {
+      fitAfter: true,
+      onComplete: () => {
+        overviewViewportRef.current = captureViewport(cy);
+        layoutRunningRef.current = false;
+        setLayoutReady(true);
+      },
+    });
+  }, [resolvedNodes.length, edges.length]);
 
   const handleResetView = useCallback(() => {
     const cy = cyRef.current;
     if (!cy) {
       return;
     }
-    cy.animate({ fit: { eles: cy.elements(), padding: 48 } }, { duration: 260 });
+    restoreOverviewViewport(cy, overviewViewportRef.current);
     setSelection(null);
   }, []);
 
@@ -459,12 +481,18 @@ export function GraphExplorer({
           chainId={chainId}
           edges={edges}
           nodeIndex={nodeIndex}
-          onClose={() => setSelection(null)}
+          onClose={() => {
+            const cy = cyRef.current;
+            if (cy) {
+              restoreOverviewViewport(cy, overviewViewportRef.current);
+            }
+            setSelection(null);
+          }}
         />
       </div>
       <p className="graphFootnote">
         {denseGraph
-          ? "大图模式：默认只展示关联子图，单击节点查看解释，双击可跳转区块浏览器。"
+          ? "大图模式：默认先给你全局总览，单击节点或边会局部聚焦，点空白处可回到全图。"
           : "默认只展示命中分析器的关联子图 · 单击聚焦并查看解释 · 双击跳转 explorer。"}
         {totalNodes > nodes.length ? ` 当前展示前 ${nodes.length} / ${totalNodes} 节点。` : ""}
       </p>
@@ -885,20 +913,25 @@ function describeEdgeKind(kind: GraphExplorerEdge["kind"]): string {
   }
 }
 
-function focusElements(cy: Core, elements: cytoscape.CollectionReturnValue, _zoomFactor: number): void {
+function focusElements(cy: Core, elements: cytoscape.CollectionReturnValue, padding: number): void {
   if (elements.length === 0) {
     return;
   }
 
   cy.animate(
     {
-      fit: { eles: elements, padding: 72 },
+      fit: { eles: elements, padding },
     },
     { duration: 260, easing: "ease-out-cubic" },
   );
 }
 
-function runLayout(cy: Core, nodeCount: number, options: { fitAfter?: boolean } = {}): void {
+function runLayout(
+  cy: Core,
+  nodeCount: number,
+  edgeCount: number,
+  options: { fitAfter?: boolean; onComplete?: () => void } = {},
+): void {
   const layout = cy.layout({
     name: "fcose",
     quality: nodeCount > 180 ? "draft" : "default",
@@ -914,10 +947,59 @@ function runLayout(cy: Core, nodeCount: number, options: { fitAfter?: boolean } 
     tile: true,
     packComponents: true,
   } as cytoscape.LayoutOptions);
+  layout.one("layoutstop", () => {
+    if (options.fitAfter) {
+      fitOverviewViewport(cy, nodeCount, edgeCount);
+    }
+    options.onComplete?.();
+  });
   layout.run();
-  if (options.fitAfter) {
-    cy.animate({ fit: { eles: cy.elements(), padding: 48 } }, { duration: 260 });
+}
+
+function computeOverviewPadding(nodeCount: number, edgeCount: number): number {
+  if (nodeCount > 42 || edgeCount > 72) {
+    return 168;
   }
+
+  if (nodeCount > 26 || edgeCount > 40) {
+    return 132;
+  }
+
+  if (nodeCount > 14 || edgeCount > 20) {
+    return 100;
+  }
+
+  return 72;
+}
+
+function fitOverviewViewport(cy: Core, nodeCount: number, edgeCount: number): void {
+  const padding = computeOverviewPadding(nodeCount, edgeCount);
+  cy.fit(cy.elements(), padding);
+}
+
+function captureViewport(cy: Core): ViewportSnapshot {
+  const pan = cy.pan();
+  return {
+    zoom: cy.zoom(),
+    pan: {
+      x: pan.x,
+      y: pan.y,
+    },
+  };
+}
+
+function restoreOverviewViewport(cy: Core, snapshot: ViewportSnapshot | null): void {
+  if (!snapshot) {
+    return;
+  }
+
+  cy.animate(
+    {
+      zoom: snapshot.zoom,
+      pan: snapshot.pan,
+    },
+    { duration: 260, easing: "ease-out-cubic" },
+  );
 }
 
 function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
