@@ -124,6 +124,7 @@ const edgePalette: Record<GraphExplorerEdge["kind"], string> = {
 };
 
 const DENSE_GRAPH_NODE_THRESHOLD = 28;
+const DENSE_GRAPH_EDGE_THRESHOLD = 32;
 
 export function GraphExplorer({
   chainId,
@@ -139,11 +140,18 @@ export function GraphExplorer({
   const overviewViewportRef = useRef<ViewportSnapshot | null>(null);
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [hiddenKinds, setHiddenKinds] = useState<Set<GraphExplorerEdge["kind"]>>(new Set());
-  const [showEdgeLabels, setShowEdgeLabels] = useState(nodes.length <= DENSE_GRAPH_NODE_THRESHOLD);
+  const [showEdgeLabels, setShowEdgeLabels] = useState(
+    nodes.length <= DENSE_GRAPH_NODE_THRESHOLD && edges.length <= DENSE_GRAPH_EDGE_THRESHOLD,
+  );
   const [layoutReady, setLayoutReady] = useState(false);
 
-  const denseGraph = nodes.length > DENSE_GRAPH_NODE_THRESHOLD;
+  const denseGraph =
+    nodes.length > DENSE_GRAPH_NODE_THRESHOLD || edges.length > DENSE_GRAPH_EDGE_THRESHOLD;
   const resolvedNodes = useMemo(() => resolveNodes(nodes, edges), [nodes, edges]);
+  const watchedNodeIds = useMemo(
+    () => resolvedNodes.filter((node) => node.role === "watched").map((node) => node.id),
+    [resolvedNodes],
+  );
   const nodeIndex = useMemo(() => {
     const map = new Map<string, ResolvedNode>();
     for (const node of resolvedNodes) {
@@ -259,21 +267,9 @@ export function GraphExplorer({
       }
     });
 
-    const layout = cy.layout({
-      name: "fcose",
-      quality: resolvedNodes.length > 180 ? "draft" : "default",
-      randomize: true,
-      animate: false,
-      nodeRepulsion: resolvedNodes.length > 80 ? 12000 : 9000,
-      idealEdgeLength: resolvedNodes.length > 80 ? 150 : 120,
-      edgeElasticity: 0.42,
-      gravity: 0.12,
-      nodeSeparation: 90,
-      padding: 48,
-      fit: true,
-      tile: true,
-      packComponents: true,
-    } as cytoscape.LayoutOptions);
+    const layout = cy.layout(
+      buildLayoutOptions(cy, resolvedNodes, edges.length, denseGraph, watchedNodeIds),
+    );
 
     layout.one("layoutstop", () => {
       fitOverviewViewport(cy, resolvedNodes.length, edges.length);
@@ -282,7 +278,7 @@ export function GraphExplorer({
       setLayoutReady(true);
     });
     layout.run();
-  }, [graphSignature, chainId, resolvedNodes, edges, denseGraph]);
+  }, [graphSignature, chainId, resolvedNodes, edges, denseGraph, watchedNodeIds]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -362,7 +358,7 @@ export function GraphExplorer({
     }
     layoutRunningRef.current = true;
     setLayoutReady(false);
-    runLayout(cy, resolvedNodes.length, edges.length, {
+    runLayout(cy, resolvedNodes, edges.length, denseGraph, watchedNodeIds, {
       fitAfter: true,
       onComplete: () => {
         overviewViewportRef.current = captureViewport(cy);
@@ -370,7 +366,7 @@ export function GraphExplorer({
         setLayoutReady(true);
       },
     });
-  }, [resolvedNodes.length, edges.length]);
+  }, [resolvedNodes, edges.length, denseGraph, watchedNodeIds]);
 
   const handleResetView = useCallback(() => {
     const cy = cyRef.current;
@@ -492,7 +488,7 @@ export function GraphExplorer({
       </div>
       <p className="graphFootnote">
         {denseGraph
-          ? "大图模式：默认先给你全局总览，单击节点或边会局部聚焦，点空白处可回到全图。"
+          ? "大图模式：默认会收起边标签并按层级铺开，单击节点或边可局部聚焦，点空白处回到全图。"
           : "默认只展示命中分析器的关联子图 · 单击聚焦并查看解释 · 双击跳转 explorer。"}
         {totalNodes > nodes.length ? ` 当前展示前 ${nodes.length} / ${totalNodes} 节点。` : ""}
       </p>
@@ -928,32 +924,83 @@ function focusElements(cy: Core, elements: cytoscape.CollectionReturnValue, padd
 
 function runLayout(
   cy: Core,
-  nodeCount: number,
+  nodes: ResolvedNode[],
   edgeCount: number,
+  denseGraph: boolean,
+  watchedNodeIds: string[],
   options: { fitAfter?: boolean; onComplete?: () => void } = {},
 ): void {
-  const layout = cy.layout({
-    name: "fcose",
-    quality: nodeCount > 180 ? "draft" : "default",
-    randomize: true,
-    animate: false,
-    nodeRepulsion: nodeCount > 80 ? 12000 : 9000,
-    idealEdgeLength: nodeCount > 80 ? 150 : 120,
-    edgeElasticity: 0.42,
-    gravity: 0.12,
-    nodeSeparation: 90,
-    padding: 48,
-    fit: true,
-    tile: true,
-    packComponents: true,
-  } as cytoscape.LayoutOptions);
+  const layout = cy.layout(buildLayoutOptions(cy, nodes, edgeCount, denseGraph, watchedNodeIds));
   layout.one("layoutstop", () => {
     if (options.fitAfter) {
-      fitOverviewViewport(cy, nodeCount, edgeCount);
+      fitOverviewViewport(cy, nodes.length, edgeCount);
     }
     options.onComplete?.();
   });
   layout.run();
+}
+
+function buildLayoutOptions(
+  cy: Core,
+  nodes: ResolvedNode[],
+  edgeCount: number,
+  denseGraph: boolean,
+  watchedNodeIds: string[],
+): cytoscape.LayoutOptions {
+  if (denseGraph) {
+    return {
+      name: "concentric",
+      animate: false,
+      fit: true,
+      avoidOverlap: true,
+      padding: 84,
+      spacingFactor: nodes.length > 24 ? 1.8 : 1.55,
+      minNodeSpacing: nodes.length > 24 ? 52 : 42,
+      startAngle: (-Math.PI * 3) / 4,
+      sweep: Math.PI * 2,
+      concentric: (element) => {
+        const role = element.data("role") as ResolvedNode["role"] | undefined;
+        const degree = Number(element.data("degree") ?? 0);
+        if (role === "watched") {
+          return 3000 + degree * 10;
+        }
+        if (role === "contract") {
+          return 2000 + degree * 8;
+        }
+        if (role === "observed") {
+          return 1000 + degree * 6;
+        }
+        return 500 + degree * 4;
+      },
+      levelWidth: () => 750,
+      sort: (left, right) => {
+        const leftIsWatched = watchedNodeIds.includes(left.id());
+        const rightIsWatched = watchedNodeIds.includes(right.id());
+        if (leftIsWatched !== rightIsWatched) {
+          return leftIsWatched ? -1 : 1;
+        }
+        const leftDegree = Number(left.data("degree") ?? 0);
+        const rightDegree = Number(right.data("degree") ?? 0);
+        return rightDegree - leftDegree;
+      },
+    } as cytoscape.LayoutOptions;
+  }
+
+  return {
+    name: "fcose",
+    quality: nodes.length > 180 ? "draft" : "default",
+    randomize: true,
+    animate: false,
+    nodeRepulsion: nodes.length > 80 ? 14000 : 10000,
+    idealEdgeLength: nodes.length > 80 ? 170 : 132,
+    edgeElasticity: 0.42,
+    gravity: 0.1,
+    nodeSeparation: 96,
+    padding: 56,
+    fit: true,
+    tile: true,
+    packComponents: true,
+  } as cytoscape.LayoutOptions;
 }
 
 function computeOverviewPadding(nodeCount: number, edgeCount: number): number {

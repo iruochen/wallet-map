@@ -1606,7 +1606,9 @@ code {
   top: 12px;
   right: 12px;
   width: min(320px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 0;
   border-radius: 12px;
   border: 1px solid #cfd8d1;
@@ -1682,8 +1684,12 @@ code {
 
 .graphDetailBody {
   display: grid;
+  align-content: start;
   gap: 10px;
   padding: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .graphDetailAddress {
@@ -1852,6 +1858,10 @@ code {
 .graphTxList {
   display: grid;
   gap: 6px;
+  max-height: min(46vh, 420px);
+  overflow-y: auto;
+  padding-right: 2px;
+  overscroll-behavior: contain;
 }
 
 .graphTxListItem {
@@ -1890,6 +1900,7 @@ code {
   gap: 6px;
   justify-self: start;
   min-height: 0;
+  min-width: 0;
   padding: 0;
   border: 0;
   background: transparent;
