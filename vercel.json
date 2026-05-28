@@ -3,10 +3,5 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --filter @wallet-map/web build",
   "outputDirectory": "apps/web/.next",
-  "framework": "nextjs",
-  "functions": {
-    "apps/web/app/api/**/*": {
-      "maxDuration": 30
-    }
-  }
+  "framework": "nextjs"
 }
