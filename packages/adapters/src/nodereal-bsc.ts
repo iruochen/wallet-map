@@ -3,6 +3,9 @@ import type { AdapterRequest, ChainAdapter } from "./index";
 
 export interface NodeRealBscAdapterConfig {
   apiKey: string;
+  chainId?: ChainId;
+  name?: string;
+  baseUrl?: string;
   fetchImpl?: typeof fetch;
   maxPages?: number;
   maxCountPerPage?: number;
@@ -54,14 +57,13 @@ interface NodeRealTransfer {
   txType?: string;
 }
 
-const chainId = 56 as ChainId;
 const baseUrlPrefix = "https://bsc-mainnet.nodereal.io/v1/";
 const categoryList = ["external", "internal", "20", "721", "1155"] as const;
 
-export class NodeRealBscAdapter implements ChainAdapter {
-  readonly id = "nodereal:56:bsc";
-  readonly name = "NodeReal BSC";
-  readonly chainId = chainId;
+export class NodeRealEvmAdapter implements ChainAdapter {
+  readonly id: string;
+  readonly name: string;
+  readonly chainId: ChainId;
 
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
@@ -74,10 +76,13 @@ export class NodeRealBscAdapter implements ChainAdapter {
     const apiKey = config.apiKey.trim();
 
     if (!apiKey) {
-      throw new Error("NodeReal BSC adapter requires an API key.");
+      throw new Error("NodeReal EVM adapter requires an API key.");
     }
 
-    this.baseUrl = `${baseUrlPrefix}${apiKey}`;
+    this.chainId = config.chainId ?? (56 as ChainId);
+    this.name = config.name ?? "NodeReal BSC";
+    this.id = `nodereal:${this.chainId}:${slugify(this.name.replace(/^NodeReal\s+/i, ""))}`;
+    this.baseUrl = config.baseUrl ?? `${baseUrlPrefix}${apiKey}`;
     this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
     this.maxPages = Math.max(1, config.maxPages ?? 8);
     this.maxCountPerPage = Math.max(1, config.maxCountPerPage ?? 100);
@@ -168,7 +173,7 @@ export class NodeRealBscAdapter implements ChainAdapter {
         }
 
         throw new Error(
-          `NodeReal BSC ${input.method} request failed with HTTP ${response.status} ${response.statusText}`.trim(),
+          `${this.name} ${input.method} request failed with HTTP ${response.status} ${response.statusText}`.trim(),
         );
       }
 
@@ -181,11 +186,11 @@ export class NodeRealBscAdapter implements ChainAdapter {
           continue;
         }
 
-        throw new Error(`NodeReal BSC ${input.method} request failed: ${payload.error.message}`);
+        throw new Error(`${this.name} ${input.method} request failed: ${payload.error.message}`);
       }
 
       if (payload.result === undefined) {
-        throw new Error(`NodeReal BSC ${input.method} request returned no result`);
+        throw new Error(`${this.name} ${input.method} request returned no result`);
       }
 
       return payload.result;
@@ -219,9 +224,9 @@ export class NodeRealBscAdapter implements ChainAdapter {
 
   private mapNativeTransfer(transfer: NodeRealTransfer): NormalizedEvent {
     return {
-      id: `nodereal:${chainId}:external:${transfer.hash.toLowerCase()}`,
+      id: `nodereal:${this.chainId}:external:${transfer.hash.toLowerCase()}`,
       type: "native_transfer",
-      chainId,
+      chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
       blockNumber: hexToNumber(transfer.blockNum),
       timestamp: toIsoTimestamp(transfer.blockTimeStamp),
@@ -229,7 +234,7 @@ export class NodeRealBscAdapter implements ChainAdapter {
       to: normalizeAddress(transfer.to),
       asset: {
         kind: "native",
-        chainId,
+        chainId: this.chainId,
       },
       amount: hexToDecimalString(transfer.value),
       metadata: {
@@ -244,9 +249,9 @@ export class NodeRealBscAdapter implements ChainAdapter {
     const input = transfer.input ?? "0x";
 
     return {
-      id: `nodereal:${chainId}:contract:${transfer.hash.toLowerCase()}`,
+      id: `nodereal:${this.chainId}:contract:${transfer.hash.toLowerCase()}`,
       type: "contract_call",
-      chainId,
+      chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
       blockNumber: hexToNumber(transfer.blockNum),
       timestamp: toIsoTimestamp(transfer.blockTimeStamp),
@@ -263,9 +268,9 @@ export class NodeRealBscAdapter implements ChainAdapter {
 
   private mapInternalTransfer(transfer: NodeRealTransfer): NormalizedEvent {
     return {
-      id: `nodereal:${chainId}:internal:${transfer.hash.toLowerCase()}:${String(transfer.traceIndex ?? 0)}`,
+      id: `nodereal:${this.chainId}:internal:${transfer.hash.toLowerCase()}:${String(transfer.traceIndex ?? 0)}`,
       type: "native_transfer",
-      chainId,
+      chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
       blockNumber: hexToNumber(transfer.blockNum),
       timestamp: toIsoTimestamp(transfer.blockTimeStamp),
@@ -273,7 +278,7 @@ export class NodeRealBscAdapter implements ChainAdapter {
       to: normalizeAddress(transfer.to),
       asset: {
         kind: "native",
-        chainId,
+        chainId: this.chainId,
       },
       amount: hexToDecimalString(transfer.value),
       metadata: {
@@ -287,9 +292,9 @@ export class NodeRealBscAdapter implements ChainAdapter {
 
   private mapTokenTransfer(transfer: NodeRealTransfer): NormalizedEvent {
     return {
-      id: `nodereal:${chainId}:20:${transfer.hash.toLowerCase()}:${String(transfer.logIndex ?? 0)}`,
+      id: `nodereal:${this.chainId}:20:${transfer.hash.toLowerCase()}:${String(transfer.logIndex ?? 0)}`,
       type: "token_transfer",
-      chainId,
+      chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
       blockNumber: hexToNumber(transfer.blockNum),
       timestamp: toIsoTimestamp(transfer.blockTimeStamp),
@@ -298,7 +303,7 @@ export class NodeRealBscAdapter implements ChainAdapter {
       contract: normalizeAddress(transfer.contractAddress ?? transfer.to),
       asset: {
         kind: "erc20",
-        chainId,
+        chainId: this.chainId,
         symbol: transfer.asset,
         contract: normalizeAddress(transfer.contractAddress ?? transfer.to),
       },
@@ -313,9 +318,9 @@ export class NodeRealBscAdapter implements ChainAdapter {
 
   private mapErc721Transfer(transfer: NodeRealTransfer): NormalizedEvent {
     return {
-      id: `nodereal:${chainId}:721:${transfer.hash.toLowerCase()}:${String(transfer.logIndex ?? 0)}`,
+      id: `nodereal:${this.chainId}:721:${transfer.hash.toLowerCase()}:${String(transfer.logIndex ?? 0)}`,
       type: "nft_transfer",
-      chainId,
+      chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
       blockNumber: hexToNumber(transfer.blockNum),
       timestamp: toIsoTimestamp(transfer.blockTimeStamp),
@@ -324,7 +329,7 @@ export class NodeRealBscAdapter implements ChainAdapter {
       contract: normalizeAddress(transfer.contractAddress ?? transfer.to),
       asset: {
         kind: "erc721",
-        chainId,
+        chainId: this.chainId,
         symbol: transfer.asset,
         contract: normalizeAddress(transfer.contractAddress ?? transfer.to),
         tokenId: hexToDecimalString(transfer.erc721TokenId),
@@ -343,9 +348,9 @@ export class NodeRealBscAdapter implements ChainAdapter {
       : [{ tokenId: undefined, value: transfer.value }];
 
     return tokenDetails.map((detail, index) => ({
-      id: `nodereal:${chainId}:1155:${transfer.hash.toLowerCase()}:${String(transfer.logIndex ?? 0)}:${index}`,
+      id: `nodereal:${this.chainId}:1155:${transfer.hash.toLowerCase()}:${String(transfer.logIndex ?? 0)}:${index}`,
       type: "nft_transfer",
-      chainId,
+      chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
       blockNumber: hexToNumber(transfer.blockNum),
       timestamp: toIsoTimestamp(transfer.blockTimeStamp),
@@ -354,7 +359,7 @@ export class NodeRealBscAdapter implements ChainAdapter {
       contract: normalizeAddress(transfer.contractAddress ?? transfer.to),
       asset: {
         kind: "erc1155",
-        chainId,
+        chainId: this.chainId,
         symbol: transfer.asset,
         contract: normalizeAddress(transfer.contractAddress ?? transfer.to),
         tokenId: hexToDecimalString(detail.tokenId),
@@ -366,6 +371,17 @@ export class NodeRealBscAdapter implements ChainAdapter {
         logIndex: String(transfer.logIndex ?? 0),
       },
     }));
+  }
+}
+
+export class NodeRealBscAdapter extends NodeRealEvmAdapter {
+  constructor(config: NodeRealBscAdapterConfig) {
+    super({
+      ...config,
+      chainId: 56,
+      name: "NodeReal BSC",
+      baseUrl: config.baseUrl,
+    });
   }
 }
 
@@ -435,10 +451,14 @@ function isRetryableRpcError(error: NodeRealRpcError): boolean {
   return error.code === -32005 || /rate limit|too many|ran out of cu/i.test(error.message);
 }
 
+function slugify(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 function wrapTransportError(error: unknown): Error {
   if (error instanceof Error) {
-    return new Error(`NodeReal BSC request failed before a response was received: ${error.message}`);
+    return new Error(`NodeReal request failed before a response was received: ${error.message}`);
   }
 
-  return new Error("NodeReal BSC request failed before a response was received.");
+  return new Error("NodeReal request failed before a response was received.");
 }

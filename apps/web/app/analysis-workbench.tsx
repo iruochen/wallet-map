@@ -1,5 +1,6 @@
 "use client";
 
+import { MarkdownExporter, PdfReportExporter, type AnalysisReport } from "@wallet-map/exporters";
 import {
   Activity,
   ArrowRight,
@@ -7,16 +8,22 @@ import {
   ClipboardList,
   Database,
   ExternalLink,
+  FileText,
+  Globe2,
+  Layers3,
   Play,
   ShieldCheck,
   Sparkles,
+  Upload,
   WalletCards,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   buildExplorerAddressUrl,
   buildExplorerTokenUrl,
   buildExplorerTxUrl,
+  evmAggregateChainId,
+  getEvmAggregateChains,
   getSupportedAnalysisChain,
   type SupportedAnalysisChain,
 } from "./chains";
@@ -42,6 +49,13 @@ const dataModeOptions = [
   { value: "auto", label: "Auto", description: "自动选择" },
   { value: "fixture", label: "Fixture", description: "本地样本" },
   { value: "live", label: "Live", description: "实时数据" },
+] as const;
+
+const dataProviderOptions = [
+  { value: "auto", label: "Auto", description: "优先 NodeReal" },
+  { value: "nodereal", label: "NodeReal", description: "强制 NodeReal" },
+  { value: "etherscan", label: "Etherscan", description: "强制 Etherscan V2" },
+  { value: "solscan", label: "Solscan", description: "Solana 专用" },
 ] as const;
 
 interface EvidenceEvent {
@@ -122,14 +136,17 @@ interface AnalysisResponse {
   sourceLabel?: string;
   meta: {
     chainId: number;
+    chainIds?: number[];
     chainName: string;
     requestedMode: "auto" | "fixture" | "live";
     resolvedMode: "fixture" | "live";
+    dataProvider?: "auto" | "nodereal" | "etherscan" | "solscan";
     watchedAddressCount: number;
     eventCount: number;
     graphWalletCount: number;
     graphContractCount: number;
     fallbackReason?: string;
+    warnings?: string[];
     fetchedAt: string;
   };
   score: {
@@ -168,10 +185,12 @@ interface AnalysisResponse {
   };
   findings: Array<{
     id: string;
+    analyzerId: string;
     title: string;
     description: string;
     severity: string;
     confidence: string;
+    scoreImpact: number;
     evidenceTotal: number;
     evidenceTruncated: boolean;
     evidence: EvidenceItem[];
@@ -193,24 +212,37 @@ export function AnalysisWorkbench({
   const [addresses, setAddresses] = useState(defaultAddresses);
   const [chainId, setChainId] = useState("1");
   const [dataMode, setDataMode] = useState("auto");
+  const [dataProvider, setDataProvider] = useState("auto");
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [evidenceTab, setEvidenceTab] = useState<"findings" | "edges">("findings");
+  const [openFindingGroups, setOpenFindingGroups] = useState<Record<string, boolean>>({});
+  const [openEdgeGroups, setOpenEdgeGroups] = useState<Record<string, boolean>>({});
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const evmAggregateChains = useMemo(() => getEvmAggregateChains(), []);
+  const effectiveChainIds = useMemo(
+    () =>
+      chainId === String(evmAggregateChainId)
+        ? evmAggregateChains.map((chain) => chain.chainId)
+        : [Number(chainId)],
+    [chainId, evmAggregateChains],
+  );
   const addressCount = useMemo(
     () => addresses.split(/\s+/).filter((address) => address.trim().length > 0).length,
     [addresses],
   );
   const selectedChain = useMemo(
     () =>
-      supportedChains.find((chain) => String(chain.chainId) === chainId) ??
-      supportedChains[0],
+      chainId === String(evmAggregateChainId)
+        ? undefined
+        : (supportedChains.find((chain) => String(chain.chainId) === chainId) ?? supportedChains[0]),
     [chainId, supportedChains],
   );
   const modeDescription = useMemo(() => {
     if (dataMode === "live") {
       return liveConfigured
-        ? "直接拉取 Etherscan API V2 的实时数据。"
+        ? "直接拉取所选 provider 的实时数据。"
         : "当前会请求实时数据；如果本地还没加载 key，这次运行会直接报错。";
     }
 
@@ -219,8 +251,8 @@ export function AnalysisWorkbench({
     }
 
     return liveConfigured
-      ? "优先走实时数据；如果后面临时移除 key，会自动回退到 fixture。"
-      : "当前会自动回退到 fixture，直到本地环境加载了 Etherscan API key。";
+      ? "优先走实时数据；Auto provider 会先试 NodeReal，再按链使用备用 provider。"
+      : "当前会自动回退到 fixture，直到本地环境加载了 API key。";
   }, [dataMode, liveConfigured]);
 
   const watchedAddressSet = useMemo(() => {
@@ -313,6 +345,8 @@ export function AnalysisWorkbench({
     setError(null);
     setResult(null);
     setEvidenceTab("findings");
+    setOpenFindingGroups({});
+    setOpenEdgeGroups({});
 
     try {
       const response = await fetch("/api/analyze", {
@@ -323,7 +357,9 @@ export function AnalysisWorkbench({
         body: JSON.stringify({
           addresses,
           chainId: Number(chainId),
+          chainIds: effectiveChainIds,
           dataMode,
+          dataProvider,
         }),
       });
       const body = (await response.json()) as AnalysisResponse | { error?: string };
@@ -338,6 +374,72 @@ export function AnalysisWorkbench({
     } finally {
       setIsRunning(false);
     }
+  }
+
+  async function importAddressFile(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    const text = await file.text();
+    const imported = text
+      .split(/[\s,;\n\r]+/)
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .join("\n");
+
+    setAddresses(imported);
+  }
+
+  async function downloadMarkdownReport() {
+    if (!result) {
+      return;
+    }
+
+    const report = await new MarkdownExporter().export(buildAnalysisReport(result));
+    const blob = new Blob([report], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `wallet-map-${new Date(result.meta.fetchedAt).toISOString().slice(0, 10)}.md`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function downloadPdfReport() {
+    if (!result) {
+      return;
+    }
+
+    const report = await new PdfReportExporter().export(buildAnalysisReport(result));
+    const url = URL.createObjectURL(report);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `wallet-map-${new Date(result.meta.fetchedAt).toISOString().slice(0, 10)}.pdf`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function isFindingGroupOpen(title: string, index: number) {
+    return openFindingGroups[title] ?? index === 0;
+  }
+
+  function toggleFindingGroup(title: string, index: number) {
+    setOpenFindingGroups((current) => ({
+      ...current,
+      [title]: !(current[title] ?? index === 0),
+    }));
+  }
+
+  function isEdgeGroupOpen(kind: GraphEdge["kind"], index: number) {
+    return openEdgeGroups[kind] ?? index === 0;
+  }
+
+  function toggleEdgeGroup(kind: GraphEdge["kind"], index: number) {
+    setOpenEdgeGroups((current) => ({
+      ...current,
+      [kind]: !(current[kind] ?? index === 0),
+    }));
   }
 
   return (
@@ -355,17 +457,27 @@ export function AnalysisWorkbench({
               <span className="panelEyebrow">Analysis job</span>
               <h2>分析输入</h2>
               <p>
-                {selectedChain?.name ?? "Chain"} · {addressCount} addresses
+                {chainId === String(evmAggregateChainId) ? "EVM Aggregate" : selectedChain?.name ?? "Chain"} · {addressCount} addresses
               </p>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.csv,.tsv"
+              hidden
+              onChange={(event) => {
+                void importAddressFile(event.target.files?.[0]);
+                event.currentTarget.value = "";
+              }}
+            />
             <button
               type="button"
               className="secondaryButton"
               disabled={isRunning}
-              onClick={() => setAddresses(defaultAddresses)}
+              onClick={() => fileInputRef.current?.click()}
             >
-              <ClipboardList size={15} strokeWidth={2.1} />
-              填入示例
+              <Upload size={15} strokeWidth={2.1} />
+              批量导入
             </button>
           </div>
           <div className="fieldGroup">
@@ -379,7 +491,18 @@ export function AnalysisWorkbench({
               rows={6}
               value={addresses}
             />
-            <p>每行或空格分隔一个地址；MVP 会先分析这些 watched wallets 之间的关系。</p>
+            <p>每行、空格或 CSV 分隔一个地址；EVM 聚合会跨主流 L1/L2 同时分析这些 watched wallets。</p>
+          </div>
+          <div className="inlineActionRow">
+            <button
+              type="button"
+              className="secondaryButton"
+              disabled={isRunning}
+              onClick={() => setAddresses(defaultAddresses)}
+            >
+              <ClipboardList size={15} strokeWidth={2.1} />
+              填入示例
+            </button>
           </div>
           <div
             className={`stateBanner ${liveConfigured ? "stateBannerSuccess" : "stateBannerInfo"}`}
@@ -389,30 +512,87 @@ export function AnalysisWorkbench({
             <span>{modeDescription}</span>
           </div>
           <div className="controlStack">
-            <div className="controlGroup">
+            <div className="controlGroup controlCard">
               <div className="controlLabelRow">
-                <span>链</span>
+                <span>
+                  <Layers3 size={15} strokeWidth={2.2} />
+                  链
+                </span>
                 <small>{selectedChain?.explorerName ?? "Explorer"}</small>
               </div>
               <div className="segmentedControl segmentedControlChains" role="radiogroup" aria-label="选择链">
+                <button
+                  type="button"
+                  className={`segmentedButton ${chainId === String(evmAggregateChainId) ? "segmentedButtonActive" : ""}`}
+                  disabled={isRunning}
+                  onClick={() => {
+                    setChainId(String(evmAggregateChainId));
+                    if (dataProvider === "solscan") {
+                      setDataProvider("auto");
+                    }
+                  }}
+                  role="radio"
+                  aria-checked={chainId === String(evmAggregateChainId)}
+                  title="跨 Ethereum、Arbitrum、Base、Optimism、Polygon、BSC 聚合分析"
+                >
+                  <small>EVM</small>
+                  <span>EVM ALL</span>
+                </button>
                 {supportedChains.map((chain) => (
                   <button
                     key={chain.chainId}
                     type="button"
                     className={`segmentedButton ${String(chain.chainId) === chainId ? "segmentedButtonActive" : ""}`}
                     disabled={isRunning}
-                    onClick={() => setChainId(String(chain.chainId))}
+                    onClick={() => {
+                      setChainId(String(chain.chainId));
+                      if (chain.ecosystem === "solana") {
+                        setDataProvider("solscan");
+                      } else if (dataProvider === "solscan") {
+                        setDataProvider("auto");
+                      }
+                    }}
                     role="radio"
                     aria-checked={String(chain.chainId) === chainId}
                   >
+                    <small>{chain.ecosystem === "solana" ? "SVM" : "EVM"}</small>
                     <span>{chain.shortName}</span>
                   </button>
                 ))}
               </div>
             </div>
-            <div className="controlGroup">
+            <div className="controlGroup controlCard">
               <div className="controlLabelRow">
-                <span>数据源</span>
+                <span>
+                  <Globe2 size={15} strokeWidth={2.2} />
+                  Provider
+                </span>
+                <small>{dataProviderOptions.find((option) => option.value === dataProvider)?.description}</small>
+              </div>
+              <div className="segmentedControl segmentedControlModes" role="radiogroup" aria-label="选择 provider">
+                {dataProviderOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`segmentedButton ${dataProvider === option.value ? "segmentedButtonActive" : ""}`}
+                    disabled={isRunning}
+                    onClick={() => setDataProvider(option.value)}
+                    role="radio"
+                    aria-checked={dataProvider === option.value}
+                    title={option.description}
+                  >
+                    <span>{option.label}</span>
+                    <small>{option.description}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="controlGroup controlCard">
+              <div className="controlLabelRow">
+                <span>
+                  <Database size={15} strokeWidth={2.2} />
+                  数据源
+                </span>
                 <small>{dataMode === "live" ? "强制实时" : dataMode === "fixture" ? "固定样本" : "智能选择"}</small>
               </div>
               <div className="segmentedControl segmentedControlModes" role="radiogroup" aria-label="选择数据源">
@@ -428,24 +608,30 @@ export function AnalysisWorkbench({
                     title={option.description}
                   >
                     <span>{option.label}</span>
+                    <small>{option.description}</small>
                   </button>
                 ))}
               </div>
             </div>
           </div>
-          <button type="submit" className="primaryButton" disabled={isRunning}>
-            {isRunning ? <span className="buttonSpinner" aria-hidden="true" /> : <Play size={15} strokeWidth={2.4} />}
-            {isRunning ? "分析中..." : "生成分析任务"}
-          </button>
-          <div aria-live="polite" className="runStatus">
-            {isRunning ? "正在拉取事件、构建关系图并运行分析器。" : "准备就绪"}
-          </div>
-          {error ? (
-            <div className="stateBanner stateBannerError" role="alert">
-              <strong>分析失败</strong>
-              <span>{error}</span>
+          <div className="analysisSubmitBar">
+            <div className="analysisSubmitMeta">
+              <strong>{chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"} · {addressCount} 地址</strong>
+              <span aria-live="polite">
+                {isRunning ? "正在拉取事件、构建图谱并运行分析器" : "选项已配置，可直接提交分析"}
+              </span>
             </div>
-          ) : null}
+            <button type="submit" className="primaryButton primaryButtonCompact" disabled={isRunning}>
+              {isRunning ? <span className="buttonSpinner" aria-hidden="true" /> : <Play size={15} strokeWidth={2.4} />}
+              {isRunning ? "分析中..." : "生成分析任务"}
+            </button>
+            {error ? (
+              <div className="stateBanner stateBannerError analysisSubmitError" role="alert">
+                <strong>分析失败</strong>
+                <span>{error}</span>
+              </div>
+            ) : null}
+          </div>
         </form>
 
         <section className="resultPanel summaryPanel">
@@ -462,7 +648,19 @@ export function AnalysisWorkbench({
                   : "等待任务运行"}
               </p>
             </div>
-            {result ? <span className="statusPill statusSuccess">Complete</span> : null}
+            {result ? (
+              <div className="resultHeaderActions">
+                <button type="button" className="secondaryButton reportButtonInline" onClick={() => void downloadMarkdownReport()}>
+                  <FileText size={15} strokeWidth={2.1} />
+                  MD 报告
+                </button>
+                <button type="button" className="secondaryButton reportButtonInline" onClick={() => void downloadPdfReport()}>
+                  <FileText size={15} strokeWidth={2.1} />
+                  PDF 报告
+                </button>
+                <span className="statusPill statusSuccess">Complete</span>
+              </div>
+            ) : null}
             {isRunning ? <span className="statusPill statusRunning">Running</span> : null}
           </div>
           {isRunning ? (
@@ -483,6 +681,20 @@ export function AnalysisWorkbench({
                 <div className="stateBanner stateBannerInfo">
                   <strong>本次用了 fixture 回退</strong>
                   <span>{result.meta.fallbackReason}</span>
+                </div>
+              ) : null}
+              {result.meta.warnings?.length ? (
+                <div className="stateBanner stateBannerWarning">
+                  <strong>部分链已跳过</strong>
+                  <span>{formatSkippedChainSummary(result.meta.warnings)}</span>
+                  <details className="warningDetails">
+                    <summary>查看详情</summary>
+                    <ul>
+                      {result.meta.warnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  </details>
                 </div>
               ) : null}
               {result.summary.verdict !== "none" ? (
@@ -647,13 +859,20 @@ export function AnalysisWorkbench({
             evidenceTab === "findings" ? (
               result.findings.length > 0 ? (
                 <div className="groupedPanelList">
-                  {groupedFindings.map((group, index) => (
-                    <details
+                  {groupedFindings.map((group, index) => {
+                    const isOpen = isFindingGroupOpen(group.title, index);
+
+                    return (
+                    <section
                       key={group.title}
-                      className="groupedPanel"
-                      open={index === 0}
+                      className={`groupedPanel ${isOpen ? "groupedPanelOpen" : ""}`}
                     >
-                      <summary className="groupedPanelSummary">
+                      <button
+                        type="button"
+                        className="groupedPanelSummary"
+                        aria-expanded={isOpen}
+                        onClick={() => toggleFindingGroup(group.title, index)}
+                      >
                         <span className="groupedPanelSummaryText">
                           <span className="groupedPanelTitle">{group.title}</span>
                           <span className="groupedPanelHint">{group.summary}</span>
@@ -662,8 +881,8 @@ export function AnalysisWorkbench({
                           <span className="groupedPanelCount">{group.findings.length}</span>
                           <ChevronDown size={16} strokeWidth={2.2} className="groupedPanelChevron" aria-hidden="true" />
                         </span>
-                      </summary>
-                      <div className="groupedPanelBody">
+                      </button>
+                      <div className="groupedPanelBody" aria-hidden={!isOpen}>
                         <div className="groupedPanelBodyInner">
                           <ul className="findingList">
                             {group.findings.map((finding) => (
@@ -671,11 +890,12 @@ export function AnalysisWorkbench({
                                 <div className="findingHeader">
                                   <strong>{finding.title}</strong>
                                   <span className="findingMeta">
+                                    <FindingChainBadges finding={finding} fallbackChainId={result.meta.chainId} />
                                     <span className={`severityPill severity-${finding.severity}`}>
-                                      {finding.severity}
+                                      风险 {formatFindingRiskLabel(finding.severity)}
                                     </span>
                                     <span className={`confidencePill confidence-${finding.confidence}`}>
-                                      {finding.confidence}
+                                      置信 {formatFindingConfidenceText(finding.confidence)}
                                     </span>
                                   </span>
                                 </div>
@@ -700,8 +920,9 @@ export function AnalysisWorkbench({
                           </ul>
                         </div>
                       </div>
-                    </details>
-                  ))}
+                    </section>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="emptyStateBlock emptyStatePositive">
@@ -711,13 +932,20 @@ export function AnalysisWorkbench({
               )
             ) : result.graph.edges.length > 0 ? (
               <div className="groupedPanelList">
-                {groupedEdges.map((group, index) => (
-                  <details
+                {groupedEdges.map((group, index) => {
+                  const isOpen = isEdgeGroupOpen(group.kind, index);
+
+                  return (
+                  <section
                     key={group.kind}
-                    className="groupedPanel"
-                    open={index === 0}
+                    className={`groupedPanel ${isOpen ? "groupedPanelOpen" : ""}`}
                   >
-                    <summary className="groupedPanelSummary">
+                    <button
+                      type="button"
+                      className="groupedPanelSummary"
+                      aria-expanded={isOpen}
+                      onClick={() => toggleEdgeGroup(group.kind, index)}
+                    >
                       <span className="groupedPanelSummaryText">
                         <span className="groupedPanelTitle">{formatEdgeKindLabel(group.kind)}</span>
                         <span className="groupedPanelHint">
@@ -728,8 +956,8 @@ export function AnalysisWorkbench({
                         <span className="groupedPanelCount">{group.edges.length}</span>
                         <ChevronDown size={16} strokeWidth={2.2} className="groupedPanelChevron" aria-hidden="true" />
                       </span>
-                    </summary>
-                    <div className="groupedPanelBody">
+                    </button>
+                    <div className="groupedPanelBody" aria-hidden={!isOpen}>
                       <div className="groupedPanelBodyInner">
                         <ul className="edgeList">
                           {group.edges.map((edge) => (
@@ -744,8 +972,9 @@ export function AnalysisWorkbench({
                         </ul>
                       </div>
                     </div>
-                  </details>
-                ))}
+                  </section>
+                  );
+                })}
               </div>
             ) : (
               <div className="emptyStateBlock">
@@ -796,6 +1025,7 @@ function EvidenceItemView({ evidence, chainId, watchedAddressSet }: EvidenceItem
     <div className="evidenceItem">
       <div className="evidenceItemHeader">
         <span className={`eventTypePill event-${event?.type ?? "unknown"}`}>{eventTypeLabel}</span>
+        <ChainBadge chainId={eventChainId} />
         {amountFormatted ? (
           <span className="amountChip">
             <strong>{amountFormatted}</strong>
@@ -968,6 +1198,7 @@ function EdgeRow({ edge, chainId, watchedAddressSet, nodeIndex }: EdgeRowProps) 
     <li className="edgeRow">
       <div className="edgeRowHeader">
         <span className={`eventTypePill event-${edge.kind}`}>{formatEdgeKindLabel(edge.kind)}</span>
+        <ChainBadge chainId={edgeChainId} />
         {(edge.metadata?.txCount ?? 1) > 1 ? (
           <span className="countChip">{edge.metadata?.txCount} tx</span>
         ) : null}
@@ -1120,6 +1351,112 @@ function describeEdgeGroup(kind: GraphEdge["kind"], count: number): string {
   }
 
   return `${count} 条关联边`;
+}
+
+function ChainBadge({ chainId }: { chainId: number }) {
+  const chain = getSupportedAnalysisChain(chainId);
+
+  if (!chain) {
+    return null;
+  }
+
+  return <span className="chainBadge">{chain.shortName}</span>;
+}
+
+function FindingChainBadges({
+  finding,
+  fallbackChainId,
+}: {
+  finding: AnalysisResponse["findings"][number];
+  fallbackChainId: number;
+}) {
+  const chainIds = Array.from(
+    new Set(
+      finding.evidence
+        .map((evidence) => evidence.event?.chainId ?? fallbackChainId)
+        .filter((chainId) => Number.isFinite(chainId)),
+    ),
+  );
+
+  return (
+    <>
+      {chainIds.slice(0, 3).map((chainId) => (
+        <ChainBadge key={chainId} chainId={chainId} />
+      ))}
+    </>
+  );
+}
+
+function formatSkippedChainSummary(warnings: string[]): string {
+  const names = warnings
+    .map((warning) => /^([^:]+?)(?: skipped| analysis| is required)/.exec(warning)?.[1]?.trim())
+    .map((name, index) => /live (.+?) analysis/.exec(warnings[index] ?? "")?.[1]?.trim() ?? name)
+    .filter((name): name is string => Boolean(name));
+  const uniqueNames = Array.from(new Set(names));
+
+  if (uniqueNames.length === 0) {
+    return `${warnings.length} 条链路未完成，可展开查看详情。`;
+  }
+
+  return `跳过链：${uniqueNames.join("、")}`;
+}
+
+function formatFindingRiskLabel(value: string): string {
+  if (value === "high") {
+    return "高";
+  }
+  if (value === "medium") {
+    return "中";
+  }
+  if (value === "low") {
+    return "低";
+  }
+  return "信息";
+}
+
+function formatFindingConfidenceText(value: string): string {
+  if (value === "high") {
+    return "高";
+  }
+  if (value === "medium") {
+    return "中";
+  }
+  return "低";
+}
+
+function buildAnalysisReport(result: AnalysisResponse): AnalysisReport {
+  return {
+    title: "Wallet Map 分析报告",
+    generatedAt: formatAbsoluteTime(result.meta.fetchedAt) ?? result.meta.fetchedAt,
+    scope: result.meta.chainName,
+    sourceLabel: result.sourceLabel ?? result.source,
+    graph: {
+      nodes: result.graph.nodes,
+      edges: result.graph.edges.map((edge) => ({
+        ...edge,
+        weight: edge.weight ?? 1,
+      })),
+    },
+    findings: result.findings.map((finding) => ({
+      id: finding.id,
+      analyzerId: finding.analyzerId,
+      title: finding.title,
+      description: finding.description,
+      severity: finding.severity as AnalysisReport["findings"][number]["severity"],
+      confidence: finding.confidence as AnalysisReport["findings"][number]["confidence"],
+      scoreImpact: finding.scoreImpact,
+      evidence: finding.evidence,
+    })),
+    score: result.score,
+    summary: result.summary,
+    metrics: {
+      watchedAddressCount: result.meta.watchedAddressCount,
+      eventCount: result.meta.eventCount,
+      walletCount: result.meta.graphWalletCount,
+      contractCount: result.meta.graphContractCount,
+      edgeCount: result.graph.totalEdges,
+    },
+  };
 }
 
 function LoadingResult() {

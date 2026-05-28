@@ -17,7 +17,8 @@ describe("resolveAnalyzeEvents", () => {
 
     expect(result.mode).toBe("fixture");
     expect(result.source).toBe("fixtures/sample-events.json");
-    expect(result.fallbackReason).toBe("ETHERSCAN_API_KEY is not configured, so Auto mode used fixture data instead.");
+    expect(result.fallbackReason).toContain("NODEREAL_API_KEY");
+    expect(result.fallbackReason).toContain("ETHERSCAN_API_KEY");
     expect(result.events.length).toBeGreaterThan(1);
   });
 
@@ -79,7 +80,7 @@ describe("resolveAnalyzeEvents", () => {
         dataMode: "live",
         env: {},
       }),
-    ).rejects.toThrow("NODEREAL_BSC_API_KEY or ETHERSCAN_API_KEY is required for live BSC analysis.");
+    ).rejects.toThrow("NODEREAL_API_KEY, NODEREAL_BSC_API_KEY, or ETHERSCAN_API_KEY is required for live BSC analysis.");
   });
 });
 

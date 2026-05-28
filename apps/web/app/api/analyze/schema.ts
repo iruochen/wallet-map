@@ -3,20 +3,26 @@ import type { Address, ChainId } from "@wallet-map/core";
 export interface AnalyzeRequestInput {
   addresses?: unknown;
   chainId?: unknown;
+  chainIds?: unknown;
   dataMode?: unknown;
+  dataProvider?: unknown;
 }
 
 export type AnalyzeDataMode = "auto" | "fixture" | "live";
+export type AnalyzeDataProvider = "auto" | "nodereal" | "etherscan" | "solscan";
 
 export interface ParsedAnalyzeRequest {
   addresses: Address[];
   chainId: ChainId;
+  chainIds: ChainId[];
   dataMode: AnalyzeDataMode;
+  dataProvider: AnalyzeDataProvider;
 }
 
 export function parseAnalyzeRequest(input: AnalyzeRequestInput): ParsedAnalyzeRequest {
   const chainId = parseChainId(input.chainId);
-  const addresses = parseAddresses(input.addresses);
+  const chainIds = parseChainIds(input.chainIds, chainId);
+  const addresses = parseAddresses(input.addresses, chainIds);
 
   if (addresses.length < 2) {
     throw new Error("At least two wallet addresses are required.");
@@ -25,11 +31,13 @@ export function parseAnalyzeRequest(input: AnalyzeRequestInput): ParsedAnalyzeRe
   return {
     addresses,
     chainId,
+    chainIds,
     dataMode: parseDataMode(input.dataMode),
+    dataProvider: parseDataProvider(input.dataProvider),
   };
 }
 
-export function parseAddresses(input: unknown): Address[] {
+export function parseAddresses(input: unknown, chainIds: ChainId[] = [1]): Address[] {
   const values = Array.isArray(input)
     ? input
     : typeof input === "string"
@@ -39,23 +47,44 @@ export function parseAddresses(input: unknown): Address[] {
     .filter((value): value is string => typeof value === "string")
     .map((value) => value.trim())
     .filter(Boolean);
-  const invalidAddress = addresses.find((address) => !isEvmAddress(address));
+  const acceptsSolana = chainIds.some((chainId) => chainId === 101);
+  const acceptsEvm = chainIds.some((chainId) => chainId !== 101);
+  const invalidAddress = addresses.find((address) => {
+    if (acceptsEvm && isEvmAddress(address)) {
+      return false;
+    }
+
+    if (acceptsSolana && isSolanaAddress(address)) {
+      return false;
+    }
+
+    return true;
+  });
 
   if (invalidAddress) {
-    throw new Error(`Invalid EVM address: ${invalidAddress}`);
+    throw new Error(`Invalid wallet address for selected chain: ${invalidAddress}`);
   }
 
-  return Array.from(new Set(addresses.map((address) => address.toLowerCase() as Address)));
+  return Array.from(
+    new Set(addresses.map((address) => (isEvmAddress(address) ? address.toLowerCase() : address) as Address)),
+  );
 }
 
 function parseChainId(input: unknown): ChainId {
   const chainId = typeof input === "number" ? input : Number(input ?? 1);
 
-  if (!Number.isInteger(chainId) || chainId <= 0) {
+  if (!Number.isInteger(chainId) || chainId < 0) {
     throw new Error("A valid chain ID is required.");
   }
 
   return chainId;
+}
+
+function parseChainIds(input: unknown, fallbackChainId: ChainId): ChainId[] {
+  const rawValues = Array.isArray(input) ? input : input === undefined ? [fallbackChainId] : [input];
+  const chainIds = rawValues.map(parseChainId);
+
+  return Array.from(new Set(chainIds));
 }
 
 function parseDataMode(input: unknown): AnalyzeDataMode {
@@ -70,6 +99,22 @@ function parseDataMode(input: unknown): AnalyzeDataMode {
   throw new Error("Data mode must be auto, fixture, or live.");
 }
 
+function parseDataProvider(input: unknown): AnalyzeDataProvider {
+  if (input === undefined || input === null || input === "") {
+    return "auto";
+  }
+
+  if (input === "auto" || input === "nodereal" || input === "etherscan" || input === "solscan") {
+    return input;
+  }
+
+  throw new Error("Data provider must be auto, nodereal, etherscan, or solscan.");
+}
+
 function isEvmAddress(value: string): value is Address {
   return /^0x[a-fA-F0-9]{40}$/.test(value);
+}
+
+function isSolanaAddress(value: string): boolean {
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
 }

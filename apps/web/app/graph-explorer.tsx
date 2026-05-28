@@ -189,7 +189,7 @@ export function GraphExplorer({
       maxZoom: 4,
       boxSelectionEnabled: false,
       autounselectify: false,
-      pixelRatio: 1,
+      pixelRatio: Math.min(2, window.devicePixelRatio || 1),
       hideEdgesOnViewport: edges.length > 120,
       textureOnViewport: edges.length > 120,
       style: buildStylesheet(denseGraph),
@@ -199,7 +199,6 @@ export function GraphExplorer({
 
     cy.on("tap", (event: EventObject) => {
       if (event.target === cy) {
-        restoreOverviewViewport(cy, overviewViewportRef.current);
         setSelection(null);
       }
     });
@@ -207,13 +206,13 @@ export function GraphExplorer({
     cy.on("tap", "node", (event: EventObject) => {
       const node = event.target as NodeSingular;
       setSelection({ kind: "node", id: node.id() });
-      focusElements(cy, node.closedNeighborhood(), denseGraph ? 112 : 92);
+      focusElements(cy, node.closedNeighborhood(), denseGraph ? 112 : 92, { preserveZoomOut: true });
     });
 
     cy.on("tap", "edge", (event: EventObject) => {
       const edge = event.target as EdgeSingular;
       setSelection({ kind: "edge", id: edge.id() });
-      focusElements(cy, edge.connectedNodes().union(edge), denseGraph ? 128 : 104);
+      focusElements(cy, edge.connectedNodes().union(edge), denseGraph ? 128 : 104, { preserveZoomOut: true });
     });
 
     cy.on("dblclick", "node", (event: EventObject) => {
@@ -299,9 +298,9 @@ export function GraphExplorer({
       if (!edgeModel) {
         return;
       }
-      edge.data("label", buildEdgeLabel(edgeModel, chainId, showEdgeLabels));
+      edge.data("label", buildEdgeLabel(edgeModel, chainId, showEdgeLabels, hasMultipleChains(resolvedNodes, edges, chainId)));
     });
-  }, [showEdgeLabels, edges, chainId, graphSignature]);
+  }, [showEdgeLabels, edges, chainId, resolvedNodes, graphSignature]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -352,12 +351,12 @@ export function GraphExplorer({
     if (!cy) {
       return;
     }
+    const currentViewport = captureViewport(cy);
     layoutRunningRef.current = true;
-    setLayoutReady(false);
     runLayout(cy, resolvedNodes, edges, denseGraph, watchedNodeIds, {
-      fitAfter: true,
+      fitAfter: false,
       onComplete: () => {
-        overviewViewportRef.current = captureViewport(cy);
+        setViewport(cy, currentViewport);
         layoutRunningRef.current = false;
         setLayoutReady(true);
       },
@@ -369,9 +368,11 @@ export function GraphExplorer({
     if (!cy) {
       return;
     }
-    restoreOverviewViewport(cy, overviewViewportRef.current);
+    cy.resize();
+    fitOverviewViewport(cy, resolvedNodes.length, edges.length);
+    overviewViewportRef.current = captureViewport(cy);
     setSelection(null);
-  }, []);
+  }, [resolvedNodes.length, edges.length]);
 
   const handleZoomIn = useCallback(() => {
     const cy = cyRef.current;
@@ -432,11 +433,11 @@ export function GraphExplorer({
           >
             {showEdgeLabels ? "边标签 ON" : "边标签 OFF"}
           </button>
-          <button type="button" className="graphChipButton" onClick={handleRelayout} title="重新跑布局">
+          <button type="button" className="graphChipButton" onClick={handleRelayout} title="重新计算节点位置，并保留当前缩放">
             重新布局
           </button>
-          <button type="button" className="graphChipButton" onClick={handleResetView} title="重置视图">
-            适应画布
+          <button type="button" className="graphChipButton" onClick={handleResetView} title="适配画布，回到全图视角">
+            回到全图
           </button>
           <span className="graphSummary">
             {nodes.length} 节点 · {visibleEdgeCount}/{totalEdges} 条已命中的关联边
@@ -458,7 +459,7 @@ export function GraphExplorer({
           <button type="button" className="graphZoomButton" onClick={handleZoomOut} title="缩小">
             <Minus size={16} strokeWidth={2.2} />
           </button>
-          <button type="button" className="graphZoomButton" onClick={handleResetView} title="适应画布">
+          <button type="button" className="graphZoomButton" onClick={handleResetView} title="回到全图">
             <ScanSearch size={16} strokeWidth={2} />
           </button>
         </div>
@@ -474,10 +475,6 @@ export function GraphExplorer({
           edges={edges}
           nodeIndex={nodeIndex}
           onClose={() => {
-            const cy = cyRef.current;
-            if (cy) {
-              restoreOverviewViewport(cy, overviewViewportRef.current);
-            }
             setSelection(null);
           }}
         />
@@ -595,6 +592,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
         >
           {formatEdgeKindLabel(edge.kind)}
         </span>
+        <span className="chainBadge">{formatChainShortName(edgeChainId)}</span>
         <button type="button" className="graphDetailClose" onClick={onClose} aria-label="关闭">
           <X size={16} strokeWidth={2.4} />
         </button>
@@ -701,6 +699,7 @@ interface BuildElementsInput {
 function buildElements(input: BuildElementsInput): ElementDefinition[] {
   const { chainId, resolvedNodes, edges, showEdgeLabels, denseGraph } = input;
   const elements: ElementDefinition[] = [];
+  const multiChain = hasMultipleChains(resolvedNodes, edges, chainId);
 
   for (const node of resolvedNodes) {
     const explorerHref = node.address
@@ -713,7 +712,7 @@ function buildElements(input: BuildElementsInput): ElementDefinition[] {
         id: node.id,
         role: node.role,
         kind: node.kind,
-        label: node.shortLabel,
+        label: multiChain ? `${formatChainShortName(node.chainId ?? chainId)} · ${node.shortLabel}` : node.shortLabel,
         size: nodeSizeForDegree(node.degree, node.role),
         href: explorerHref,
         degree: node.degree,
@@ -731,7 +730,7 @@ function buildElements(input: BuildElementsInput): ElementDefinition[] {
         target: edge.target,
         kind: edge.kind,
         color: edgePalette[edge.kind] ?? "#525a52",
-        label: buildEdgeLabel(edge, chainId, showEdgeLabels),
+        label: buildEdgeLabel(edge, chainId, showEdgeLabels, multiChain),
         weight: Math.max(1.2, Math.log2((edge.evidenceEventIds?.length ?? 1) + 1) + 0.8),
         curveDistance: getParallelEdgeCurveDistance(edge, edges),
         labelOffset: getParallelEdgeLabelOffset(edge, edges),
@@ -751,6 +750,7 @@ function buildEdgeLabel(
   edge: GraphExplorerEdge,
   chainId: number,
   showEdgeLabels: boolean,
+  includeChain: boolean,
 ): string {
   if (!showEdgeLabels) {
     return "";
@@ -773,6 +773,10 @@ function buildEdgeLabel(
     edge.metadata?.asset?.symbol ?? (isNativeAsset ? eventChain?.nativeSymbol : undefined);
 
   const labelPieces: string[] = [];
+  if (includeChain) {
+    labelPieces.push(formatChainShortName(edgeChainId));
+  }
+
   if (amountFormatted) {
     labelPieces.push(amountSymbol ? `${amountFormatted} ${amountSymbol}` : amountFormatted);
   } else if (edge.metadata?.methodId) {
@@ -784,6 +788,28 @@ function buildEdgeLabel(
   }
 
   return labelPieces.join(" · ");
+}
+
+function hasMultipleChains(
+  nodes: ResolvedNode[],
+  edges: GraphExplorerEdge[],
+  fallbackChainId: number,
+): boolean {
+  const chainIds = new Set<number>();
+
+  for (const node of nodes) {
+    chainIds.add(node.chainId ?? fallbackChainId);
+  }
+
+  for (const edge of edges) {
+    chainIds.add(edge.metadata?.chainId ?? fallbackChainId);
+  }
+
+  return chainIds.size > 1;
+}
+
+function formatChainShortName(chainId: number): string {
+  return getSupportedAnalysisChain(chainId)?.shortName ?? `#${chainId}`;
 }
 
 function getParallelEdgeCurveDistance(
@@ -828,7 +854,7 @@ function resolveNodes(
 
   return nodes.map((node) => {
     const role = resolveNodeRole(node);
-    const fallbackLabel = node.address ? shortenAddress(node.address) : node.label ?? node.id;
+    const fallbackLabel = node.label ?? (node.address ? shortenAddress(node.address) : node.id);
     return {
       ...node,
       role,
@@ -905,8 +931,24 @@ function describeEdgeKind(kind: GraphExplorerEdge["kind"]): string {
   }
 }
 
-function focusElements(cy: Core, elements: cytoscape.CollectionReturnValue, padding: number): void {
+function focusElements(
+  cy: Core,
+  elements: cytoscape.CollectionReturnValue,
+  padding: number,
+  options: { preserveZoomOut?: boolean } = {},
+): void {
   if (elements.length === 0) {
+    return;
+  }
+
+  if (options.preserveZoomOut) {
+    cy.animate(
+      {
+        center: { eles: elements },
+        zoom: Math.max(cy.zoom(), Math.min(1.25, cy.maxZoom())),
+      },
+      { duration: 260, easing: "ease-out-cubic" },
+    );
     return;
   }
 
@@ -926,7 +968,11 @@ function runLayout(
   watchedNodeIds: string[],
   options: { fitAfter?: boolean; onComplete?: () => void } = {},
 ): void {
-  const layout = cy.layout(buildLayoutOptions(cy, nodes, edges, denseGraph, watchedNodeIds));
+  const layout = cy.layout(
+    buildLayoutOptions(cy, nodes, edges, denseGraph, watchedNodeIds, {
+      fit: options.fitAfter ?? false,
+    }),
+  );
   layout.one("layoutstop", () => {
     if (options.fitAfter) {
       fitOverviewViewport(cy, nodes.length, edges.length);
@@ -942,7 +988,10 @@ function buildLayoutOptions(
   edges: GraphExplorerEdge[],
   denseGraph: boolean,
   watchedNodeIds: string[],
+  options: { fit?: boolean } = {},
 ): cytoscape.LayoutOptions {
+  const shouldFit = options.fit ?? true;
+
   if (denseGraph) {
     const containerWidth = cy.container()?.clientWidth ?? 0;
     const containerHeight = cy.container()?.clientHeight ?? 0;
@@ -953,7 +1002,7 @@ function buildLayoutOptions(
     return {
       name: "preset",
       animate: false,
-      fit: true,
+      fit: shouldFit,
       padding: 48,
       positions: Object.fromEntries(positions),
     } as cytoscape.LayoutOptions;
@@ -970,7 +1019,7 @@ function buildLayoutOptions(
     gravity: 0.1,
     nodeSeparation: 96,
     padding: 56,
-    fit: true,
+    fit: shouldFit,
     tile: true,
     packComponents: true,
   } as cytoscape.LayoutOptions;
@@ -1258,6 +1307,11 @@ function restoreOverviewViewport(cy: Core, snapshot: ViewportSnapshot | null): v
   );
 }
 
+function setViewport(cy: Core, snapshot: ViewportSnapshot): void {
+  cy.zoom(snapshot.zoom);
+  cy.pan(snapshot.pan);
+}
+
 function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
   return [
     {
@@ -1268,13 +1322,13 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
         "border-width": 1.6,
         "color": "#203027",
         "label": "data(label)",
-        "font-size": 9,
+        "font-size": 11,
         "font-weight": 700,
         "text-valign": "bottom",
         "text-margin-y": 7,
         "text-background-color": "#ffffff",
-        "text-background-opacity": 0.84,
-        "text-background-padding": "2",
+        "text-background-opacity": 0.94,
+        "text-background-padding": "3",
         "text-background-shape": "roundrectangle",
         "width": "data(size)",
         "height": "data(size)",
@@ -1323,7 +1377,7 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
     {
       selector: "node.dense",
       style: {
-        "font-size": 9,
+        "font-size": 10,
         "text-margin-y": 6,
         "text-background-opacity": 0.92,
       },
@@ -1341,11 +1395,11 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
         "arrow-scale": 0.75,
         "opacity": denseGraph ? 0.56 : 0.62,
         "label": "data(label)",
-        "font-size": denseGraph ? 8 : 8,
+        "font-size": denseGraph ? 9 : 10,
         "color": "data(color)",
         "text-margin-y": "data(labelOffset)",
         "text-background-color": "#ffffff",
-        "text-background-opacity": denseGraph ? 0.92 : 0.8,
+        "text-background-opacity": denseGraph ? 0.94 : 0.9,
         "text-background-padding": denseGraph ? "3" : "2",
         "text-background-shape": "roundrectangle",
         "text-outline-color": "#ffffff",

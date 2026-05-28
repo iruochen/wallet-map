@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { JsonExporter, MarkdownExporter } from "./index";
+import { JsonExporter, MarkdownExporter, PdfReportExporter } from "./index";
 import type { AnalysisReport } from "./index";
 
 const report: AnalysisReport = {
@@ -78,14 +78,22 @@ describe("exporters", () => {
     const output = await new MarkdownExporter().export(report);
 
     expect(output).toContain("# Demo Report");
-    expect(output).toContain("## Summary");
-    expect(output).toContain("## Score");
-    expect(output).toContain("## Graph Stats");
+    expect(output).toContain("## Executive Summary");
+    expect(output).toContain("## Scorecard");
+    expect(output).toContain("## Visual Overview");
+    expect(output).toContain("```mermaid");
     expect(output).toContain("Direct transfer found");
     expect(output).toContain(
       "tx: 0x1111111111111111111111111111111111111111111111111111111111111111",
     );
-    expect(output).toContain("## Cautionary Note");
+    expect(output).toContain("## Caution");
+  });
+
+  it("exports PDF reports", async () => {
+    const output = await new PdfReportExporter().export(report);
+
+    expect(output.type).toBe("application/pdf");
+    expect(output.size).toBeGreaterThan(1000);
   });
 
   it("redacts addresses in Markdown reports without redacting transaction hashes", async () => {

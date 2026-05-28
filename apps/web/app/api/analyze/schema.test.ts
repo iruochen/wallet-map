@@ -15,8 +15,14 @@ describe("analyze request schema", () => {
     ]);
   });
 
-  it("rejects invalid EVM addresses", () => {
-    expect(() => parseAddresses("not-an-address")).toThrow("Invalid EVM address");
+  it("rejects invalid addresses for the selected chain", () => {
+    expect(() => parseAddresses("not-an-address")).toThrow("Invalid wallet address");
+  });
+
+  it("keeps Solana addresses case-sensitive", () => {
+    expect(parseAddresses("7UXJBG5rvdz3Bqn62zGqv8RHq6fM3gYDQe1JrTnMx9wd", [101])).toEqual([
+      "7UXJBG5rvdz3Bqn62zGqv8RHq6fM3gYDQe1JrTnMx9wd",
+    ]);
   });
 
   it("requires at least two addresses", () => {
@@ -39,6 +45,7 @@ describe("analyze request schema", () => {
       }),
     ).toMatchObject({
       dataMode: "auto",
+      dataProvider: "auto",
     });
   });
 

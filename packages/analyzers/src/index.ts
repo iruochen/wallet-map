@@ -1,4 +1,11 @@
-import type { AnalysisContext, Analyzer, Finding, GraphEdge, GraphNode } from "@wallet-map/core";
+import type {
+  AnalysisContext,
+  Analyzer,
+  Finding,
+  FindingConfidence,
+  GraphEdge,
+  GraphNode,
+} from "@wallet-map/core";
 
 const transferEdgeKinds = ["native_transfer", "token_transfer", "nft_transfer"] as const;
 
@@ -27,7 +34,7 @@ export class DirectTransferAnalyzer implements Analyzer {
       title: "Direct transfer found",
       description: "Two watched wallets have a direct transfer relationship.",
       severity: "high",
-      confidence: "high",
+      confidence: assessDirectTransferConfidence(edge.evidenceEventIds.length),
       scoreImpact: 40,
       evidence: edge.evidenceEventIds.map((eventId) => {
         const event = context.events.find((candidate) => candidate.id === eventId);
@@ -101,7 +108,10 @@ export class SharedCounterpartyAnalyzer implements Analyzer {
         title: "Shared counterparty found",
         description: "Two or more watched wallets have transfer activity with the same observed wallet.",
         severity: "medium",
-        confidence: "medium",
+        confidence: assessSharedCounterpartyConfidence(
+          watchedWalletNodeIdsForCounterparty.length,
+          evidence.length,
+        ),
         scoreImpact: 24,
         evidence,
         metadata: {
@@ -153,7 +163,7 @@ export class SameContractInteractionAnalyzer implements Analyzer {
         title: "Same contract interaction found",
         description: "Two or more watched wallets interacted with the same contract.",
         severity: "low",
-        confidence: "low",
+        confidence: assessSameContractConfidence(watchedWalletNodeIdsForContract.length, evidence.length),
         scoreImpact: 16,
         evidence,
         metadata: {
@@ -221,6 +231,32 @@ function getObservedWalletCounterpartyNodeId(input: {
 
 function isZeroAddressNodeId(nodeId: string): boolean {
   return nodeId.endsWith(":0x0000000000000000000000000000000000000000");
+}
+
+function assessDirectTransferConfidence(evidenceCount: number): FindingConfidence {
+  return evidenceCount > 0 ? "high" : "medium";
+}
+
+function assessSharedCounterpartyConfidence(
+  watchedWalletCount: number,
+  evidenceCount: number,
+): FindingConfidence {
+  if (watchedWalletCount >= 3 && evidenceCount >= 6) {
+    return "high";
+  }
+
+  return "medium";
+}
+
+function assessSameContractConfidence(
+  watchedWalletCount: number,
+  evidenceCount: number,
+): FindingConfidence {
+  if (watchedWalletCount >= 3 || evidenceCount >= 6) {
+    return "medium";
+  }
+
+  return "low";
 }
 
 function getWatchedWalletNodeIdsForEdges(

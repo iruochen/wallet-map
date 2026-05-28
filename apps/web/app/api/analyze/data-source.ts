@@ -1,13 +1,16 @@
-import { EtherscanLikeAdapter, NodeRealBscAdapter } from "@wallet-map/adapters";
+import { EtherscanLikeAdapter, NodeRealEvmAdapter, SolscanAdapter } from "@wallet-map/adapters";
+import type { ChainAdapter } from "@wallet-map/adapters";
 import type { Address, ChainId, NormalizedEvent } from "@wallet-map/core";
 import { getSupportedAnalysisChain } from "../../chains";
 import fixtureEvents from "../../../../../fixtures/sample-events.json";
-import type { AnalyzeDataMode } from "./schema";
+import type { AnalyzeDataMode, AnalyzeDataProvider } from "./schema";
 
 export interface ResolveEventsInput {
   addresses: Address[];
   chainId: ChainId;
+  chainIds?: ChainId[];
   dataMode: AnalyzeDataMode;
+  dataProvider?: AnalyzeDataProvider;
   env?: Record<string, string | undefined>;
   fetchImpl?: typeof fetch;
 }
@@ -18,111 +21,254 @@ export interface ResolveEventsResult {
   source: string;
   chainName: string;
   fallbackReason?: string;
+  warnings?: string[];
 }
 
 const etherscanV2BaseUrl = "https://api.etherscan.io/v2/api";
 const etherscanApiKeyEnv = "ETHERSCAN_API_KEY";
+const nodeRealApiKeyEnv = "NODEREAL_API_KEY";
 const nodeRealBscApiKeyEnv = "NODEREAL_BSC_API_KEY";
+const solscanApiKeyEnv = "SOLSCAN_API_KEY";
+
+const nodeRealEndpoints = new Map<ChainId, string>([
+  [1, "https://eth-mainnet.nodereal.io/v1/{apiKey}"],
+  [56, "https://bsc-mainnet.nodereal.io/v1/{apiKey}"],
+]);
 
 export async function resolveAnalyzeEvents(
   input: ResolveEventsInput,
 ): Promise<ResolveEventsResult> {
   const env = input.env ?? process.env;
-  const config = getSupportedAnalysisChain(input.chainId);
+  const requestedChainIds = input.chainIds?.length ? input.chainIds : [input.chainId];
   const etherscanApiKey = env[etherscanApiKeyEnv]?.trim();
+  const nodeRealApiKey = env[nodeRealApiKeyEnv]?.trim() || env[nodeRealBscApiKeyEnv]?.trim();
   const nodeRealBscApiKey = env[nodeRealBscApiKeyEnv]?.trim();
-  const liveProvider = resolveLiveProvider(input.chainId, {
-    etherscanApiKey,
-    nodeRealBscApiKey,
-  });
+  const solscanApiKey = env[solscanApiKeyEnv]?.trim();
+  const dataProvider = input.dataProvider ?? "auto";
+  const livePlans = requestedChainIds.map((chainId) =>
+    resolveLiveProvider(chainId, {
+      dataProvider,
+      etherscanApiKey,
+      nodeRealApiKey,
+      nodeRealBscApiKey,
+      solscanApiKey,
+    }),
+  );
+  const hasAnyLiveProvider = livePlans.some((plan) => plan.provider !== null);
 
-  if (input.dataMode === "fixture" || (input.dataMode === "auto" && !liveProvider)) {
+  if (input.dataMode === "fixture" || (input.dataMode === "auto" && !hasAnyLiveProvider)) {
     const fallbackReason =
-      input.dataMode === "auto" && !liveProvider
-        ? buildMissingLiveConfigMessage(input.chainId)
+      input.dataMode === "auto" && !hasAnyLiveProvider
+        ? buildMissingLiveConfigMessage(requestedChainIds, dataProvider)
         : undefined;
 
     return {
-      events: getFixtureEvents(input.chainId),
+      events: dedupeEvents(requestedChainIds.flatMap((chainId) => getFixtureEvents(chainId))),
       mode: "fixture",
       source: "fixtures/sample-events.json",
-      chainName: config?.name ?? `Chain ${input.chainId}`,
+      chainName: buildChainName(requestedChainIds),
       fallbackReason,
     };
   }
 
-  if (!config) {
-    throw new Error(`Live mode is not configured for chain ID ${input.chainId}.`);
+  const unsupportedChainId = requestedChainIds.find((chainId) => !getSupportedAnalysisChain(chainId));
+  if (unsupportedChainId !== undefined) {
+    throw new Error(`Live mode is not configured for chain ID ${unsupportedChainId}.`);
   }
 
-  if (!liveProvider && input.dataMode === "live") {
-    throw new Error(buildMissingLiveRequirementMessage(config.name, input.chainId));
-  }
-
-  const adapter =
-    liveProvider === "nodereal-bsc"
-      ? new NodeRealBscAdapter({
-          apiKey: nodeRealBscApiKey ?? "",
-          requestThrottleMs: 200,
-          maxRateLimitRetries: 3,
-          fetchImpl: input.fetchImpl,
-        })
-      : new EtherscanLikeAdapter({
-          baseUrl: etherscanV2BaseUrl,
-          apiKey: etherscanApiKey,
-          chainId: config.chainId,
-          name: config.name,
-          useChainIdParam: true,
-          requestThrottleMs: 350,
-          maxRateLimitRetries: 3,
-          fetchImpl: input.fetchImpl,
-        });
   const eventsByAddress: NormalizedEvent[][] = [];
+  const sources = new Set<string>();
+  const warnings: string[] = [];
+  const allowPartial = requestedChainIds.length > 1;
 
-  for (const address of input.addresses) {
-    eventsByAddress.push(await adapter.getEvents({ address }));
+  for (const plan of livePlans) {
+    const config = getSupportedAnalysisChain(plan.chainId);
+    if (!config) {
+      continue;
+    }
+
+    if (!plan.provider && input.dataMode === "live") {
+      if (allowPartial) {
+        warnings.push(buildMissingLiveRequirementMessage(config.name, plan.chainId, dataProvider));
+        continue;
+      }
+
+      throw new Error(buildMissingLiveRequirementMessage(config.name, plan.chainId, dataProvider));
+    }
+
+    if (!plan.provider) {
+      warnings.push(buildMissingLiveRequirementMessage(config.name, plan.chainId, dataProvider));
+      continue;
+    }
+
+    const adapter = buildAdapter({
+      plan,
+      configName: config.name,
+      etherscanApiKey,
+      nodeRealApiKey,
+      nodeRealBscApiKey,
+      solscanApiKey,
+      fetchImpl: input.fetchImpl,
+    });
+
+    for (const address of input.addresses.filter((address) => addressMatchesChain(address, plan.chainId))) {
+      try {
+        const events = await adapter.getEvents({ address });
+        eventsByAddress.push(events);
+      } catch (error) {
+        if (input.dataMode === "auto" && plan.provider === "nodereal" && etherscanApiKey && config.ecosystem === "evm") {
+          const fallbackAdapter = buildEtherscanAdapter(plan.chainId, config.name, etherscanApiKey, input.fetchImpl);
+          const events = await fallbackAdapter.getEvents({ address });
+          eventsByAddress.push(events);
+          sources.add(`${fallbackAdapter.id}:fallback-from-nodereal`);
+          continue;
+        }
+
+        if (allowPartial) {
+          warnings.push(`${config.name} skipped: ${error instanceof Error ? error.message : "provider request failed"}`);
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    sources.add(adapter.id);
   }
 
   return {
     events: dedupeEvents(eventsByAddress.flat()),
     mode: "live",
-    source: adapter.id,
-    chainName: config.name,
+    source: Array.from(sources).join(",") || "live-partial-empty",
+    chainName: buildChainName(requestedChainIds),
+    warnings,
   };
 }
 
 function resolveLiveProvider(
   chainId: ChainId,
   input: {
+    dataProvider: AnalyzeDataProvider;
     etherscanApiKey?: string;
+    nodeRealApiKey?: string;
     nodeRealBscApiKey?: string;
+    solscanApiKey?: string;
   },
-): "etherscan-v2" | "nodereal-bsc" | null {
-  if (chainId === 56 && input.nodeRealBscApiKey) {
-    return "nodereal-bsc";
+): { chainId: ChainId; provider: "etherscan-v2" | "nodereal" | "solscan" | null } {
+  const chain = getSupportedAnalysisChain(chainId);
+
+  if (chain?.ecosystem === "solana") {
+    return {
+      chainId,
+      provider: input.solscanApiKey && (input.dataProvider === "auto" || input.dataProvider === "solscan")
+        ? "solscan"
+        : null,
+    };
   }
 
-  if (input.etherscanApiKey) {
-    return "etherscan-v2";
+  if (
+    input.nodeRealApiKey &&
+    nodeRealEndpoints.has(chainId) &&
+    (input.dataProvider === "auto" || input.dataProvider === "nodereal")
+  ) {
+    return { chainId, provider: "nodereal" };
   }
 
-  return null;
+  if (input.etherscanApiKey && (input.dataProvider === "auto" || input.dataProvider === "etherscan")) {
+    return { chainId, provider: "etherscan-v2" };
+  }
+
+  return { chainId, provider: null };
 }
 
-function buildMissingLiveConfigMessage(chainId: ChainId): string {
-  if (chainId === 56) {
-    return `${nodeRealBscApiKeyEnv} or ${etherscanApiKeyEnv} is not configured, so Auto mode used fixture data instead.`;
+function buildAdapter(input: {
+  plan: { chainId: ChainId; provider: "etherscan-v2" | "nodereal" | "solscan" | null };
+  configName: string;
+  etherscanApiKey?: string;
+  nodeRealApiKey?: string;
+  nodeRealBscApiKey?: string;
+  solscanApiKey?: string;
+  fetchImpl?: typeof fetch;
+}): ChainAdapter {
+  if (input.plan.provider === "nodereal") {
+    const apiKey = input.nodeRealApiKey ?? input.nodeRealBscApiKey ?? "";
+    const endpoint = nodeRealEndpoints.get(input.plan.chainId);
+
+    if (!endpoint) {
+      throw new Error(`NodeReal is not configured for chain ID ${input.plan.chainId}.`);
+    }
+
+    return new NodeRealEvmAdapter({
+      apiKey,
+      chainId: input.plan.chainId,
+      name: `NodeReal ${input.configName}`,
+      baseUrl: endpoint.replace("{apiKey}", apiKey),
+      requestThrottleMs: 200,
+      maxRateLimitRetries: 3,
+      fetchImpl: input.fetchImpl,
+    });
   }
 
-  return `${etherscanApiKeyEnv} is not configured, so Auto mode used fixture data instead.`;
+  if (input.plan.provider === "solscan") {
+    return new SolscanAdapter({
+      apiKey: input.solscanApiKey ?? "",
+      requestThrottleMs: 200,
+      fetchImpl: input.fetchImpl,
+    });
+  }
+
+  return buildEtherscanAdapter(input.plan.chainId, input.configName, input.etherscanApiKey, input.fetchImpl);
 }
 
-function buildMissingLiveRequirementMessage(chainName: string, chainId: ChainId): string {
-  if (chainId === 56) {
-    return `${nodeRealBscApiKeyEnv} or ${etherscanApiKeyEnv} is required for live ${chainName} analysis.`;
+function buildEtherscanAdapter(
+  chainId: ChainId,
+  chainName: string,
+  apiKey: string | undefined,
+  fetchImpl: typeof fetch | undefined,
+): EtherscanLikeAdapter {
+  return new EtherscanLikeAdapter({
+    baseUrl: etherscanV2BaseUrl,
+    apiKey,
+    chainId,
+    name: chainName,
+    useChainIdParam: true,
+    requestThrottleMs: 350,
+    maxRateLimitRetries: 3,
+    fetchImpl,
+  });
+}
+
+function buildMissingLiveConfigMessage(chainIds: ChainId[], provider: AnalyzeDataProvider): string {
+  const keyHint =
+    provider === "nodereal"
+      ? `${nodeRealApiKeyEnv} or ${nodeRealBscApiKeyEnv}`
+      : provider === "solscan"
+        ? solscanApiKeyEnv
+        : provider === "etherscan"
+          ? etherscanApiKeyEnv
+          : `${nodeRealApiKeyEnv}, ${nodeRealBscApiKeyEnv}, ${etherscanApiKeyEnv}, or ${solscanApiKeyEnv}`;
+
+  return `${keyHint} is not configured for ${buildChainName(chainIds)}, so Auto mode used fixture data instead.`;
+}
+
+function buildMissingLiveRequirementMessage(
+  chainName: string,
+  chainId: ChainId,
+  provider: AnalyzeDataProvider,
+): string {
+  if (chainId === 101 || provider === "solscan") {
+    return `${solscanApiKeyEnv} is required for live ${chainName} analysis.`;
   }
 
-  return `${etherscanApiKeyEnv} is required for live ${chainName} analysis.`;
+  if (provider === "nodereal") {
+    return `${nodeRealApiKeyEnv} or ${nodeRealBscApiKeyEnv} is required for live ${chainName} analysis.`;
+  }
+
+  if (provider === "etherscan") {
+    return `${etherscanApiKeyEnv} is required for live ${chainName} analysis.`;
+  }
+
+  return `${nodeRealApiKeyEnv}, ${nodeRealBscApiKeyEnv}, or ${etherscanApiKeyEnv} is required for live ${chainName} analysis.`;
 }
 
 function getFixtureEvents(chainId: ChainId): NormalizedEvent[] {
@@ -137,4 +283,21 @@ function dedupeEvents(events: NormalizedEvent[]): NormalizedEvent[] {
 
     return left.id.localeCompare(right.id);
   });
+}
+
+function buildChainName(chainIds: ChainId[]): string {
+  if (chainIds.length > 1) {
+    return "EVM Aggregate";
+  }
+
+  const chainId = chainIds[0] ?? 1;
+  return getSupportedAnalysisChain(chainId)?.name ?? `Chain ${chainId}`;
+}
+
+function addressMatchesChain(address: Address, chainId: ChainId): boolean {
+  if (chainId === 101) {
+    return !address.startsWith("0x");
+  }
+
+  return address.startsWith("0x");
 }

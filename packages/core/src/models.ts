@@ -1,6 +1,6 @@
 export type ChainId = number;
-export type Address = `0x${string}`;
-export type TxHash = `0x${string}`;
+export type Address = string;
+export type TxHash = string;
 
 export interface ChainRef {
   chainId: ChainId;
