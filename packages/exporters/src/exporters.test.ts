@@ -96,6 +96,43 @@ describe("exporters", () => {
     expect(output.size).toBeGreaterThan(1000);
   });
 
+  it("exports PDF reports with localized summaries and many findings", async () => {
+    const longReport: AnalysisReport = {
+      ...report,
+      title: "钱包分析报告",
+      sourceLabel: "实时数据 · Ethereum",
+      scope: "ETH · 3 地址",
+      summary: {
+        verdict: "强关联",
+        headline: "发现多个钱包之间存在直接和间接关联",
+        narrative:
+          "这段中文摘要不应该在 PDF 中造成乱码，也不应该让内容穿出页面。报告应该使用 PDF 安全摘要，并在 finding 较多时自动分页。",
+        pairInsights: [
+          {
+            labels: ["0xaaaa...aaaa", "0xbbbb...bbbb"],
+            strength: "强关联",
+            score: 100,
+            confidence: "high",
+            signalCount: 3,
+            reasons: ["Direct transfer found", "Same contract interaction found"],
+          },
+        ],
+      },
+      findings: Array.from({ length: 18 }, (_, index) => ({
+        ...report.findings[0],
+        id: `finding-${index}`,
+        title: `Direct transfer found ${index + 1}`,
+        description:
+          "Wallet 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa transferred value directly to 0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb. This intentionally long description verifies wrapping inside the PDF finding card without overflowing the page.",
+      })),
+    };
+
+    const output = await new PdfReportExporter().export(longReport);
+
+    expect(output.type).toBe("application/pdf");
+    expect(output.size).toBeGreaterThan(2000);
+  });
+
   it("redacts addresses in Markdown reports without redacting transaction hashes", async () => {
     const output = await new MarkdownExporter().export(report, { redactAddresses: true });
 

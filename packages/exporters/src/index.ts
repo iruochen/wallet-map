@@ -114,38 +114,34 @@ export class PdfReportExporter {
   async export(report: AnalysisReport, options: ExportOptions = {}): Promise<Blob> {
     const safeReport = redactReport(report, options);
     const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const page = {
+    const page: PdfPage = {
       width: doc.internal.pageSize.getWidth(),
       height: doc.internal.pageSize.getHeight(),
       margin: 42,
     };
     const contentWidth = page.width - page.margin * 2;
-    let y = page.margin;
+    let cursor: PdfCursor = { y: page.margin };
 
-    drawHeader(doc, safeReport, page.margin, y, contentWidth);
-    y += 112;
-    drawScoreCards(doc, safeReport, page.margin, y, contentWidth);
-    y += 108;
-    drawGraphBars(doc, safeReport, page.margin, y, contentWidth);
-    y += 120;
-    y = drawSectionText(doc, "Executive summary", formatSummary(safeReport), page.margin, y, contentWidth);
-    y += 18;
-    y = drawFindingBars(doc, safeReport.findings.slice(0, 6), page.margin, y, contentWidth);
+    drawHeader(doc, safeReport, page, cursor, contentWidth);
+    drawScoreCards(doc, safeReport, page, cursor, contentWidth);
+    drawGraphBars(doc, safeReport, page, cursor, contentWidth);
+    drawSectionText(doc, "Executive Summary", formatPdfSummary(safeReport), page, cursor, contentWidth);
+    drawFindingBars(doc, safeReport.findings.slice(0, 8), page, cursor, contentWidth);
 
     if (safeReport.summary?.pairInsights?.length) {
-      if (y > page.height - 160) {
-        doc.addPage();
-        y = page.margin;
-      }
-      y = drawSectionText(
+      drawSectionText(
         doc,
-        "Wallet pair insights",
+        "Wallet Pair Insights",
         safeReport.summary.pairInsights
-          .slice(0, 4)
-          .map((pair) => `${pair.labels.join(" <-> ")}: ${pair.strength}, ${pair.signalCount} signals`)
+          .slice(0, 6)
+          .map((pair) => {
+            const labels = pair.labels.map(formatPdfLabel).join(" <-> ");
+            const reasons = pair.reasons.map(formatPdfLabel).slice(0, 3).join("; ");
+            return `${labels}: ${formatPdfLabel(pair.strength)}, score ${pair.score}, confidence ${formatConfidence(pair.confidence)}, ${pair.signalCount} signals.${reasons ? ` ${reasons}` : ""}`;
+          })
           .join("\n"),
-        page.margin,
-        y + 12,
+        page,
+        cursor,
         contentWidth,
       );
     }
@@ -165,6 +161,31 @@ function formatSummary(report: AnalysisReport): string {
   }
 
   return `This report reviews ${report.graph.nodes.length} graph nodes and ${report.graph.edges.length} relationship edges for signs of wallet association.`;
+}
+
+function formatPdfSummary(report: AnalysisReport): string {
+  const metrics = report.metrics;
+  const walletCount = metrics?.walletCount ?? countNodesByKind(report.graph, "wallet");
+  const contractCount = metrics?.contractCount ?? countNodesByKind(report.graph, "contract");
+  const edgeCount = metrics?.edgeCount ?? report.graph.edges.length;
+  const eventCount = metrics?.eventCount ?? "unknown";
+  const watchedCount = metrics?.watchedAddressCount ?? "unknown";
+  const topSignals = report.findings
+    .slice(0, 3)
+    .map((finding) => `${finding.title} (${formatSeverity(finding.severity)} risk, ${formatConfidence(finding.confidence)} confidence)`);
+
+  return [
+    `Wallet Map reviewed ${watchedCount} watched wallets across ${eventCount} on-chain events.`,
+    `The relationship graph contains ${walletCount} wallet nodes, ${contractCount} contract nodes, and ${edgeCount} evidence-backed edges.`,
+    `Overall score is ${report.score.score}/100 with ${formatConfidence(report.score.confidence)} confidence.`,
+    topSignals.length > 0
+      ? `Top signals: ${topSignals.join("; ")}.`
+      : "No relationship findings were generated for this run.",
+    report.score.reasons.length > 0 ? `Score drivers: ${report.score.reasons.map(formatPdfLabel).join("; ")}.` : undefined,
+    report.score.counterEvidence.length > 0
+      ? `Counter evidence: ${report.score.counterEvidence.map(formatPdfLabel).join("; ")}.`
+      : undefined,
+  ].filter(Boolean).join("\n\n");
 }
 
 function formatMermaidOverview(report: AnalysisReport): string {
@@ -258,13 +279,19 @@ function formatConfidence(value: string): string {
   return "Low";
 }
 
-function drawHeader(
-  doc: jsPDF,
-  report: AnalysisReport,
-  x: number,
-  y: number,
-  width: number,
-): void {
+interface PdfPage {
+  width: number;
+  height: number;
+  margin: number;
+}
+
+interface PdfCursor {
+  y: number;
+}
+
+function drawHeader(doc: jsPDF, report: AnalysisReport, page: PdfPage, cursor: PdfCursor, width: number): void {
+  const x = page.margin;
+  const y = cursor.y;
   doc.setFillColor(24, 61, 48);
   doc.roundedRect(x, y, width, 82, 14, 14, "F");
   doc.setTextColor(255, 255, 255);
@@ -273,17 +300,27 @@ function drawHeader(
   doc.text("Wallet Map Relationship Report", x + 24, y + 34);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`Generated: ${report.generatedAt}`, x + 24, y + 56);
-  doc.text(`Scope: ${report.scope ?? "unknown"} | Source: ${report.sourceLabel ?? "unknown"}`, x + 24, y + 72);
+  doc.text(formatPdfLabel(`Generated: ${report.generatedAt}`), x + 24, y + 56);
+  drawPdfTextLine(
+    doc,
+    formatPdfLabel(`Scope: ${report.scope ?? "unknown"} | Source: ${report.sourceLabel ?? "unknown"}`),
+    x + 24,
+    y + 72,
+    width - 48,
+  );
+  cursor.y += 112;
 }
 
 function drawScoreCards(
   doc: jsPDF,
   report: AnalysisReport,
-  x: number,
-  y: number,
+  page: PdfPage,
+  cursor: PdfCursor,
   width: number,
 ): void {
+  ensurePageSpace(doc, page, cursor, 86);
+  const x = page.margin;
+  const y = cursor.y;
   const gap = 12;
   const cardWidth = (width - gap * 2) / 3;
   const cards = [
@@ -305,15 +342,19 @@ function drawScoreCards(
     doc.setFontSize(22);
     doc.text(card.value, left + 16, y + 55);
   });
+  cursor.y += 104;
 }
 
 function drawGraphBars(
   doc: jsPDF,
   report: AnalysisReport,
-  x: number,
-  y: number,
+  page: PdfPage,
+  cursor: PdfCursor,
   width: number,
 ): void {
+  ensurePageSpace(doc, page, cursor, 116);
+  const x = page.margin;
+  const y = cursor.y;
   const values = [
     ["Watched", report.metrics?.watchedAddressCount ?? 0],
     ["Events", report.metrics?.eventCount ?? 0],
@@ -342,70 +383,104 @@ function drawGraphBars(
     doc.setTextColor(36, 49, 41);
     doc.text(String(value), x + width - 36, rowY + 8);
   });
+  cursor.y += 122;
 }
 
 function drawSectionText(
   doc: jsPDF,
   title: string,
   body: string,
-  x: number,
-  y: number,
+  page: PdfPage,
+  cursor: PdfCursor,
   width: number,
-): number {
+): void {
+  const x = page.margin;
+  const safeBody = formatPdfLabel(body);
+  const lines = splitPdfText(doc, safeBody, width);
+  const titleHeight = 19;
+  const lineHeight = 12;
+
+  ensurePageSpace(doc, page, cursor, titleHeight + Math.min(lines.length, 8) * lineHeight + 18);
   doc.setTextColor(36, 49, 41);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text(title, x, y);
+  doc.text(formatPdfLabel(title), x, cursor.y);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(76, 91, 81);
-  const lines = doc.splitTextToSize(body, width);
-  doc.text(lines, x, y + 18);
-  return y + 18 + lines.length * 12;
+
+  cursor.y += titleHeight;
+  lines.forEach((line) => {
+    ensurePageSpace(doc, page, cursor, lineHeight + 6);
+    doc.text(line, x, cursor.y);
+    cursor.y += lineHeight;
+  });
+  cursor.y += 18;
 }
 
 function drawFindingBars(
   doc: jsPDF,
   findings: Finding[],
-  x: number,
-  y: number,
+  page: PdfPage,
+  cursor: PdfCursor,
   width: number,
-): number {
+): void {
+  const x = page.margin;
+  ensurePageSpace(doc, page, cursor, 52);
   doc.setTextColor(36, 49, 41);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("Signal highlights", x, y);
+  doc.text("Signal Highlights", x, cursor.y);
+  cursor.y += 24;
 
   if (findings.length === 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(76, 91, 81);
-    doc.text("No findings were generated.", x, y + 20);
-    return y + 40;
+    doc.text("No findings were generated.", x, cursor.y);
+    cursor.y += 40;
+    return;
   }
 
   findings.forEach((finding, index) => {
-    const rowY = y + 24 + index * 34;
-    const barWidth = Math.max(12, (finding.scoreImpact / 40) * (width - 180));
+    const rowHeight = 64;
+    ensurePageSpace(doc, page, cursor, rowHeight);
+    const rowY = cursor.y;
+    const barMaxWidth = Math.max(20, width - 330);
+    const barWidth = clamp((finding.scoreImpact / 40) * barMaxWidth, 12, barMaxWidth);
+    const title = formatPdfLabel(finding.title);
+    const description = splitPdfText(doc, formatPdfLabel(finding.description), width - 172).slice(0, 2);
+
+    doc.setFillColor(251, 252, 249);
+    doc.setDrawColor(224, 231, 222);
+    doc.roundedRect(x, rowY - 12, width, rowHeight - 8, 8, 8, "FD");
+
     doc.setTextColor(36, 49, 41);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
-    doc.text(finding.title.slice(0, 54), x, rowY);
+    doc.text(truncatePdfText(title, 72), x + 14, rowY + 4);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(92, 105, 96);
-    doc.text(`Risk ${formatSeverity(finding.severity)} | Confidence ${formatConfidence(finding.confidence)}`, x, rowY + 12);
+    doc.text(
+      `Risk ${formatSeverity(finding.severity)} | Confidence ${formatConfidence(finding.confidence)}`,
+      x + 14,
+      rowY + 17,
+    );
+    description.forEach((line, descriptionIndex) => {
+      doc.text(line, x + 14, rowY + 31 + descriptionIndex * 10);
+    });
     doc.setFillColor(244, 246, 242);
-    doc.roundedRect(x + 270, rowY - 8, width - 300, 10, 4, 4, "F");
+    doc.roundedRect(x + 280, rowY - 2, barMaxWidth, 10, 4, 4, "F");
     doc.setFillColor(184, 120, 16);
-    doc.roundedRect(x + 270, rowY - 8, barWidth, 10, 4, 4, "F");
+    doc.roundedRect(x + 280, rowY - 2, barWidth, 10, 4, 4, "F");
     doc.setTextColor(36, 49, 41);
-    doc.text(String(finding.scoreImpact), x + width - 24, rowY);
+    doc.text(String(finding.scoreImpact), x + width - 30, rowY + 6);
+    cursor.y += rowHeight;
   });
-
-  return y + 34 + findings.length * 34;
+  cursor.y += 8;
 }
 
-function drawFooter(doc: jsPDF, page: { width: number; height: number; margin: number }): void {
+function drawFooter(doc: jsPDF, page: PdfPage): void {
   const count = doc.getNumberOfPages();
   for (let index = 1; index <= count; index += 1) {
     doc.setPage(index);
@@ -417,6 +492,63 @@ function drawFooter(doc: jsPDF, page: { width: number; height: number; margin: n
     doc.text("Analytical signals only. Review chain context before making decisions.", page.margin, page.height - 18);
     doc.text(`Page ${index}/${count}`, page.width - page.margin - 42, page.height - 18);
   }
+}
+
+function ensurePageSpace(doc: jsPDF, page: PdfPage, cursor: PdfCursor, requiredHeight: number): void {
+  if (cursor.y + requiredHeight <= page.height - page.margin - 40) {
+    return;
+  }
+
+  doc.addPage();
+  cursor.y = page.margin;
+}
+
+function splitPdfText(doc: jsPDF, text: string, width: number): string[] {
+  const lines = doc.splitTextToSize(formatPdfLabel(text), width) as string[];
+  return lines.flatMap((line) => {
+    if (line.length <= 110) return [line];
+    return line.match(/.{1,110}/g) ?? [line];
+  });
+}
+
+function drawPdfTextLine(doc: jsPDF, text: string, x: number, y: number, width: number): void {
+  const [line] = splitPdfText(doc, text, width);
+  doc.text(line ?? "", x, y);
+}
+
+function formatPdfLabel(value: string): string {
+  return translatePdfTerms(value)
+    .normalize("NFKD")
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s+/g, "\n")
+    .trim();
+}
+
+function translatePdfTerms(value: string): string {
+  return value
+    .replaceAll("强关联", "Strong relationship")
+    .replaceAll("中等关联", "Moderate relationship")
+    .replaceAll("弱关联", "Weak relationship")
+    .replaceAll("无明显关联", "No clear relationship")
+    .replaceAll("实时数据", "Live data")
+    .replaceAll("本地样本", "Fixture data")
+    .replaceAll("固定样本", "Fixture data")
+    .replaceAll("地址", "addresses")
+    .replaceAll("置信", "confidence")
+    .replaceAll("风险", "risk")
+    .replaceAll("分析", "analysis")
+    .replaceAll("报告", "report")
+    .replaceAll("·", "-");
+}
+
+function truncatePdfText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 1))}...`;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 function redactReport(report: AnalysisReport, options: ExportOptions): AnalysisReport {
