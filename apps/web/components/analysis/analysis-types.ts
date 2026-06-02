@@ -1,4 +1,4 @@
-import type { SupportedAnalysisChain } from "./chains";
+import type { SupportedAnalysisChain } from "../../app/chains";
 
 export interface EvidenceEvent {
   type: string;

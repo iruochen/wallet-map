@@ -4,7 +4,7 @@ import {
   buildExplorerTokenUrl,
   buildExplorerTxUrl,
   getSupportedAnalysisChain,
-} from "./chains";
+} from "../../app/chains";
 import type { AnalysisResponse, EvidenceItem, GraphEdge, GraphNode } from "./analysis-types";
 import {
   formatAbsoluteTime,
@@ -15,7 +15,7 @@ import {
   formatRelativeTime,
   shortenAddress,
   shortenTxHash,
-} from "./format";
+} from "../../app/format";
 
 export function EvidenceItemView({
   evidence,

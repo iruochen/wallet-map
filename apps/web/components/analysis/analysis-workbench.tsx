@@ -3,7 +3,6 @@
 import { MarkdownExporter, PdfReportExporter } from "@wallet-map/exporters";
 import {
   Activity,
-  ChevronDown,
   ClipboardList,
   Database,
   FileText,
@@ -19,24 +18,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   evmAggregateChainId,
   getEvmAggregateChains,
-} from "./chains";
-import { EdgeRow, EvidenceItemView, FindingChainBadges } from "./analysis-evidence";
+} from "../../app/chains";
+import { AnalysisEvidencePanel } from "./analysis-evidence-panel";
 import {
-  describeEdgeGroup,
   describeFindingGroup,
   formatConfidenceLabel,
-  formatFindingConfidenceText,
-  formatFindingRiskLabel,
   formatSkippedChainSummary,
   formatVerdictLabel,
 } from "./analysis-formatters";
-import { AnalysisProgress, getAnalysisProgressValue, LoadingList, LoadingResult } from "./analysis-progress";
+import { AnalysisProgress, getAnalysisProgressValue } from "./analysis-progress";
 import { buildAnalysisReport } from "./analysis-report";
 import type { AnalysisResponse, AnalysisWorkbenchProps, GraphEdge, GraphNode } from "./analysis-types";
-import {
-  formatEdgeKindLabel,
-} from "./format";
-import { GraphExplorer } from "./graph-explorer";
+import { GraphExplorer } from "../graph/graph-explorer";
 
 const sampleAddresses = [
   "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -490,9 +483,7 @@ export function AnalysisWorkbench({
           <div className="analysisSubmitBar">
             <div className="analysisSubmitMeta">
               <strong>{chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"} · {addressCount} 地址</strong>
-              <span aria-live="polite">
-                {isRunning ? "正在按阶段处理链上数据和标签" : "选项已配置，可直接提交分析"}
-              </span>
+              {isRunning ? <span aria-live="polite">正在按阶段处理链上数据和标签</span> : null}
             </div>
             <button type="submit" className="primaryButton primaryButtonCompact" disabled={isRunning}>
               {isRunning ? <span className="buttonSpinner" aria-hidden="true" /> : <Play size={15} strokeWidth={2.4} />}
@@ -502,15 +493,6 @@ export function AnalysisWorkbench({
               <div className="stateBanner stateBannerError analysisSubmitError" role="alert">
                 <strong>分析失败</strong>
                 <span>{error}</span>
-              </div>
-            ) : null}
-            {isRunning ? (
-              <div className="analysisSubmitProgress">
-                <AnalysisProgress
-                  progress={analysisProgress}
-                  chainName={chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"}
-                  addressCount={addressCount}
-                />
               </div>
             ) : null}
           </div>
@@ -546,14 +528,10 @@ export function AnalysisWorkbench({
             {isRunning ? <span className="statusPill statusRunning">Running</span> : null}
           </div>
           {isRunning ? (
-            <>
-              <AnalysisProgress
-                progress={analysisProgress}
-                chainName={chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.name ?? "Chain"}
-                addressCount={addressCount}
-              />
-              <LoadingResult />
-            </>
+            <div className="emptyStateBlock emptyStateRunning">
+              <strong>任务正在运行</strong>
+              <p>主画布会展示实时阶段进度；分析完成后这里会显示评分、钱包对洞察和信号摘要。</p>
+            </div>
           ) : result && graphSummary ? (
             <>
               <div className="scoreRow">
@@ -683,6 +661,7 @@ export function AnalysisWorkbench({
                 progress={analysisProgress}
                 chainName={chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"}
                 addressCount={addressCount}
+                variant="hero"
               />
             </div>
           ) : result && result.graph.totalEdges > 0 ? (
@@ -745,141 +724,19 @@ export function AnalysisWorkbench({
           </div>
         </header>
         <div className="workbenchScroll">
-          {isRunning ? (
-            <LoadingList />
-          ) : result ? (
-            evidenceTab === "findings" ? (
-              result.findings.length > 0 ? (
-                <div className="groupedPanelList">
-                  {groupedFindings.map((group, index) => {
-                    const isOpen = isFindingGroupOpen(group.title, index);
-
-                    return (
-                    <section
-                      key={group.title}
-                      className={`groupedPanel ${isOpen ? "groupedPanelOpen" : ""}`}
-                    >
-                      <button
-                        type="button"
-                        className="groupedPanelSummary"
-                        aria-expanded={isOpen}
-                        onClick={() => toggleFindingGroup(group.title, index)}
-                      >
-                        <span className="groupedPanelSummaryText">
-                          <span className="groupedPanelTitle">{group.title}</span>
-                          <span className="groupedPanelHint">{group.summary}</span>
-                        </span>
-                        <span className="groupedPanelMeta">
-                          <span className="groupedPanelCount">{group.findings.length}</span>
-                          <ChevronDown size={16} strokeWidth={2.2} className="groupedPanelChevron" aria-hidden="true" />
-                        </span>
-                      </button>
-                      <div className="groupedPanelBody" aria-hidden={!isOpen}>
-                        <div className="groupedPanelBodyInner">
-                          <ul className="findingList">
-                            {group.findings.map((finding) => (
-                              <li key={finding.id}>
-                                <div className="findingHeader">
-                                  <strong>{finding.title}</strong>
-                                  <span className="findingMeta">
-                                    <FindingChainBadges finding={finding} fallbackChainId={result.meta.chainId} />
-                                    <span className={`severityPill severity-${finding.severity}`}>
-                                      风险 {formatFindingRiskLabel(finding.severity)}
-                                    </span>
-                                    <span className={`confidencePill confidence-${finding.confidence}`}>
-                                      置信 {formatFindingConfidenceText(finding.confidence)}
-                                    </span>
-                                  </span>
-                                </div>
-                                <p>{finding.description}</p>
-                                {finding.evidenceTruncated ? (
-                                  <p className="previewHint">
-                                    仅展示前 {finding.evidence.length} 条证据，共 {finding.evidenceTotal} 条。
-                                  </p>
-                                ) : null}
-                                <div className="evidenceList">
-                                  {finding.evidence.map((evidence) => (
-                                    <EvidenceItemView
-                                      key={evidence.eventId}
-                                      evidence={evidence}
-                                      chainId={result.meta.chainId}
-                                      watchedAddressSet={watchedAddressSet}
-                                    />
-                                  ))}
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </section>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="emptyStateBlock emptyStatePositive">
-                  <strong>没有明显关联信号</strong>
-                  <p>分析器没有发现 watched 钱包之间的直接转账、共享 counterparty 或同合约交互。</p>
-                </div>
-              )
-            ) : result.graph.edges.length > 0 ? (
-              <div className="groupedPanelList">
-                {groupedEdges.map((group, index) => {
-                  const isOpen = isEdgeGroupOpen(group.kind, index);
-
-                  return (
-                  <section
-                    key={group.kind}
-                    className={`groupedPanel ${isOpen ? "groupedPanelOpen" : ""}`}
-                  >
-                    <button
-                      type="button"
-                      className="groupedPanelSummary"
-                      aria-expanded={isOpen}
-                      onClick={() => toggleEdgeGroup(group.kind, index)}
-                    >
-                      <span className="groupedPanelSummaryText">
-                        <span className="groupedPanelTitle">{formatEdgeKindLabel(group.kind)}</span>
-                        <span className="groupedPanelHint">
-                          {describeEdgeGroup(group.kind, group.edges.length)}
-                        </span>
-                      </span>
-                      <span className="groupedPanelMeta">
-                        <span className="groupedPanelCount">{group.edges.length}</span>
-                        <ChevronDown size={16} strokeWidth={2.2} className="groupedPanelChevron" aria-hidden="true" />
-                      </span>
-                    </button>
-                    <div className="groupedPanelBody" aria-hidden={!isOpen}>
-                      <div className="groupedPanelBodyInner">
-                        <ul className="edgeList">
-                          {group.edges.map((edge) => (
-                            <EdgeRow
-                              key={edge.id}
-                              edge={edge}
-                              chainId={result.meta.chainId}
-                              watchedAddressSet={watchedAddressSet}
-                              nodeIndex={graphNodeIndex}
-                            />
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </section>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="emptyStateBlock">
-                <strong>暂无关联边</strong>
-                <p>当前分析没有产出命中分析器规则的关系边。</p>
-              </div>
-            )
-          ) : (
-            <div className="emptyStateBlock">
-              <strong>暂无证据</strong>
-              <p>分析完成后这里会列出 findings 和 graph edges，各自独立滚动，不会挤占图谱区域。</p>
-            </div>
-          )}
+          <AnalysisEvidencePanel
+            result={result}
+            isRunning={isRunning}
+            evidenceTab={evidenceTab}
+            groupedFindings={groupedFindings}
+            groupedEdges={groupedEdges}
+            watchedAddressSet={watchedAddressSet}
+            graphNodeIndex={graphNodeIndex}
+            isFindingGroupOpen={isFindingGroupOpen}
+            toggleFindingGroup={toggleFindingGroup}
+            isEdgeGroupOpen={isEdgeGroupOpen}
+            toggleEdgeGroup={toggleEdgeGroup}
+          />
         </div>
       </aside>
     </section>

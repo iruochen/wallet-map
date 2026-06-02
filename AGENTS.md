@@ -17,6 +17,7 @@ Before committing, pushing, creating a repository, or deploying this project, al
   - `pnpm -r typecheck`
   - `pnpm -r test`
   - `pnpm --filter @wallet-map/web build`
+- After changing frontend loading, progress, navigation, or report-export flows, verify the affected UI with a browser/dev-server check in addition to automated tests. Confirm loading/progress appears in only the intended region and that labels/buttons are not truncated.
 - Inspect `git status --short` and `git diff --stat` before staging.
 - Review all newly added files before staging, especially generated reports, screenshots, local config, and deployment metadata.
 

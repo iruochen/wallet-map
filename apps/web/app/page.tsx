@@ -1,4 +1,4 @@
-import { AnalysisWorkbench } from "./analysis-workbench";
+import { AnalysisWorkbench } from "../components/analysis/analysis-workbench";
 import { supportedAnalysisChains } from "./chains";
 
 export default function HomePage() {

@@ -3,12 +3,12 @@ import {
   buildExplorerAddressUrl,
   buildExplorerTxUrl,
   getSupportedAnalysisChain,
-} from "./chains";
+} from "../../app/chains";
 import {
   formatAmount,
   formatMethodSelectorLabel,
   shortenAddress,
-} from "./format";
+} from "../../app/format";
 import type { GraphExplorerEdge, GraphExplorerNode, ResolvedNode } from "./graph-types";
 
 export const edgePalette: Record<GraphExplorerEdge["kind"], string> = {

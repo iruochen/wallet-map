@@ -1,6 +1,6 @@
 import type { AnalysisReport } from "@wallet-map/exporters";
 import type { AnalysisResponse } from "./analysis-types";
-import { formatAbsoluteTime } from "./format";
+import { formatAbsoluteTime } from "../../app/format";
 
 export function buildAnalysisReport(result: AnalysisResponse): AnalysisReport {
   return {

@@ -113,6 +113,7 @@ export class PdfReportExporter {
 
   async export(report: AnalysisReport, options: ExportOptions = {}): Promise<Blob> {
     const safeReport = redactReport(report, options);
+    const signalGroups = summarizeFindings(safeReport.findings);
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const page: PdfPage = {
       width: doc.internal.pageSize.getWidth(),
@@ -123,10 +124,10 @@ export class PdfReportExporter {
     let cursor: PdfCursor = { y: page.margin };
 
     drawHeader(doc, safeReport, page, cursor, contentWidth);
+    drawSectionText(doc, "Executive Summary", formatPdfSummary(safeReport), page, cursor, contentWidth);
     drawScoreCards(doc, safeReport, page, cursor, contentWidth);
     drawGraphBars(doc, safeReport, page, cursor, contentWidth);
-    drawSectionText(doc, "Executive Summary", formatPdfSummary(safeReport), page, cursor, contentWidth);
-    drawFindingBars(doc, safeReport.findings.slice(0, 8), page, cursor, contentWidth);
+    drawFindingBars(doc, signalGroups.slice(0, 8), page, cursor, contentWidth);
 
     if (safeReport.summary?.pairInsights?.length) {
       drawSectionText(
@@ -145,6 +146,8 @@ export class PdfReportExporter {
         contentWidth,
       );
     }
+
+    drawEvidenceAppendix(doc, safeReport.findings.slice(0, 12), page, cursor, contentWidth);
 
     drawFooter(doc, page);
     return doc.output("blob") as Blob;
@@ -170,21 +173,24 @@ function formatPdfSummary(report: AnalysisReport): string {
   const edgeCount = metrics?.edgeCount ?? report.graph.edges.length;
   const eventCount = metrics?.eventCount ?? "unknown";
   const watchedCount = metrics?.watchedAddressCount ?? "unknown";
-  const topSignals = report.findings
-    .slice(0, 3)
-    .map((finding) => `${finding.title} (${formatSeverity(finding.severity)} risk, ${formatConfidence(finding.confidence)} confidence)`);
+  const topSignals = summarizeFindings(report.findings)
+    .slice(0, 4)
+    .map((group) => `${group.title} x${group.count} (${formatSeverity(group.severity)} risk, ${formatConfidence(group.confidence)} confidence)`);
+  const scoreDrivers = uniqueFormatted(report.score.reasons).slice(0, 5);
+  const counterEvidence = uniqueFormatted(report.score.counterEvidence).slice(0, 4);
 
   return [
-    `Wallet Map reviewed ${watchedCount} watched wallets across ${eventCount} on-chain events.`,
-    `The relationship graph contains ${walletCount} wallet nodes, ${contractCount} contract nodes, and ${edgeCount} evidence-backed edges.`,
-    `Overall score is ${report.score.score}/100 with ${formatConfidence(report.score.confidence)} confidence.`,
+    report.summary?.headline ? `Conclusion: ${formatPdfLabel(report.summary.headline)}` : undefined,
+    `Scope: reviewed ${watchedCount} watched wallets across ${eventCount} on-chain events. The graph contains ${walletCount} wallet nodes, ${contractCount} contract nodes, and ${edgeCount} evidence-backed edges.`,
+    `Score: ${report.score.score}/100 with ${formatConfidence(report.score.confidence)} confidence.`,
     topSignals.length > 0
-      ? `Top signals: ${topSignals.join("; ")}.`
+      ? `Primary signals: ${topSignals.join("; ")}.`
       : "No relationship findings were generated for this run.",
-    report.score.reasons.length > 0 ? `Score drivers: ${report.score.reasons.map(formatPdfLabel).join("; ")}.` : undefined,
-    report.score.counterEvidence.length > 0
-      ? `Counter evidence: ${report.score.counterEvidence.map(formatPdfLabel).join("; ")}.`
+    scoreDrivers.length > 0 ? `Score drivers: ${scoreDrivers.join("; ")}.` : undefined,
+    counterEvidence.length > 0
+      ? `Counter evidence: ${counterEvidence.join("; ")}.`
       : undefined,
+    "Reviewer note: treat these as analytical signals. Confirm timing, exchange or bridge behavior, and contract-mediated flows before drawing attribution conclusions.",
   ].filter(Boolean).join("\n\n");
 }
 
@@ -287,6 +293,51 @@ interface PdfPage {
 
 interface PdfCursor {
   y: number;
+}
+
+interface SignalGroup {
+  title: string;
+  description: string;
+  severity: Finding["severity"];
+  confidence: Finding["confidence"];
+  scoreImpact: number;
+  count: number;
+}
+
+function summarizeFindings(findings: Finding[]): SignalGroup[] {
+  const groups = new Map<string, SignalGroup>();
+
+  for (const finding of findings) {
+    const existing = groups.get(finding.title);
+    if (!existing) {
+      groups.set(finding.title, {
+        title: finding.title,
+        description: finding.description,
+        severity: finding.severity,
+        confidence: finding.confidence,
+        scoreImpact: finding.scoreImpact,
+        count: 1,
+      });
+      continue;
+    }
+
+    existing.count += 1;
+    existing.scoreImpact += finding.scoreImpact;
+    existing.severity = pickHigherSeverity(existing.severity, finding.severity);
+    existing.confidence = pickHigherConfidence(existing.confidence, finding.confidence);
+  }
+
+  return [...groups.values()].sort((a, b) => b.scoreImpact - a.scoreImpact || b.count - a.count);
+}
+
+function pickHigherSeverity(left: Finding["severity"], right: Finding["severity"]): Finding["severity"] {
+  const rank = { info: 0, low: 1, medium: 2, high: 3 } as const;
+  return rank[right] > rank[left] ? right : left;
+}
+
+function pickHigherConfidence(left: Finding["confidence"], right: Finding["confidence"]): Finding["confidence"] {
+  const rank = { low: 0, medium: 1, high: 2 } as const;
+  return rank[right] > rank[left] ? right : left;
 }
 
 function drawHeader(doc: jsPDF, report: AnalysisReport, page: PdfPage, cursor: PdfCursor, width: number): void {
@@ -420,7 +471,7 @@ function drawSectionText(
 
 function drawFindingBars(
   doc: jsPDF,
-  findings: Finding[],
+  signals: SignalGroup[],
   page: PdfPage,
   cursor: PdfCursor,
   width: number,
@@ -430,10 +481,10 @@ function drawFindingBars(
   doc.setTextColor(36, 49, 41);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("Signal Highlights", x, cursor.y);
+  doc.text("Signal Summary", x, cursor.y);
   cursor.y += 24;
 
-  if (findings.length === 0) {
+  if (signals.length === 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(76, 91, 81);
@@ -442,14 +493,14 @@ function drawFindingBars(
     return;
   }
 
-  findings.forEach((finding, index) => {
-    const rowHeight = 64;
+  signals.forEach((signal) => {
+    const rowHeight = 70;
     ensurePageSpace(doc, page, cursor, rowHeight);
     const rowY = cursor.y;
     const barMaxWidth = Math.max(20, width - 330);
-    const barWidth = clamp((finding.scoreImpact / 40) * barMaxWidth, 12, barMaxWidth);
-    const title = formatPdfLabel(finding.title);
-    const description = splitPdfText(doc, formatPdfLabel(finding.description), width - 172).slice(0, 2);
+    const barWidth = clamp((signal.scoreImpact / 80) * barMaxWidth, 12, barMaxWidth);
+    const title = formatPdfLabel(signal.title);
+    const description = splitPdfText(doc, formatPdfLabel(signal.description), width - 178).slice(0, 2);
 
     doc.setFillColor(251, 252, 249);
     doc.setDrawColor(224, 231, 222);
@@ -462,7 +513,7 @@ function drawFindingBars(
     doc.setFont("helvetica", "normal");
     doc.setTextColor(92, 105, 96);
     doc.text(
-      `Risk ${formatSeverity(finding.severity)} | Confidence ${formatConfidence(finding.confidence)}`,
+      `Count ${signal.count} | Risk ${formatSeverity(signal.severity)} | Confidence ${formatConfidence(signal.confidence)}`,
       x + 14,
       rowY + 17,
     );
@@ -474,10 +525,70 @@ function drawFindingBars(
     doc.setFillColor(184, 120, 16);
     doc.roundedRect(x + 280, rowY - 2, barWidth, 10, 4, 4, "F");
     doc.setTextColor(36, 49, 41);
-    doc.text(String(finding.scoreImpact), x + width - 30, rowY + 6);
+    doc.text(String(signal.scoreImpact), x + width - 30, rowY + 6);
     cursor.y += rowHeight;
   });
   cursor.y += 8;
+}
+
+function drawEvidenceAppendix(
+  doc: jsPDF,
+  findings: Finding[],
+  page: PdfPage,
+  cursor: PdfCursor,
+  width: number,
+): void {
+  const rows = findings
+    .flatMap((finding) =>
+      finding.evidence.slice(0, 2).map((evidence) => ({
+        title: finding.title,
+        evidence: evidence.summary || evidence.eventId,
+        txHash: evidence.txHash,
+      })),
+    )
+    .slice(0, 12);
+
+  ensurePageSpace(doc, page, cursor, 54);
+  const x = page.margin;
+  doc.setTextColor(36, 49, 41);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Evidence Appendix", x, cursor.y);
+  cursor.y += 20;
+
+  if (rows.length === 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(76, 91, 81);
+    doc.text("No transaction evidence was attached.", x, cursor.y);
+    cursor.y += 34;
+    return;
+  }
+
+  rows.forEach((row) => {
+    const evidenceLines = splitPdfText(doc, formatPdfLabel(row.evidence), width - 28).slice(0, 2);
+    const rowHeight = 34 + evidenceLines.length * 10;
+    ensurePageSpace(doc, page, cursor, rowHeight);
+    const rowY = cursor.y;
+
+    doc.setFillColor(252, 253, 251);
+    doc.setDrawColor(225, 231, 223);
+    doc.roundedRect(x, rowY - 10, width, rowHeight - 6, 7, 7, "FD");
+    doc.setTextColor(36, 49, 41);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.8);
+    doc.text(truncatePdfText(formatPdfLabel(row.title), 78), x + 12, rowY + 3);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(76, 91, 81);
+    evidenceLines.forEach((line, index) => {
+      doc.text(line, x + 12, rowY + 16 + index * 10);
+    });
+    if (row.txHash) {
+      doc.setTextColor(100, 115, 106);
+      doc.text(`tx ${truncatePdfText(formatPdfLabel(row.txHash), 24)}`, x + width - 118, rowY + 3);
+    }
+    cursor.y += rowHeight;
+  });
 }
 
 function drawFooter(doc: jsPDF, page: PdfPage): void {
@@ -523,6 +634,10 @@ function formatPdfLabel(value: string): string {
     .replace(/[ \t]+/g, " ")
     .replace(/\n\s+/g, "\n")
     .trim();
+}
+
+function uniqueFormatted(values: string[]): string[] {
+  return [...new Set(values.map(formatPdfLabel).filter(Boolean))];
 }
 
 function translatePdfTerms(value: string): string {

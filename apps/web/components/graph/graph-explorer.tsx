@@ -22,7 +22,7 @@ import {
   buildExplorerTokenUrl,
   buildExplorerTxUrl,
   getSupportedAnalysisChain,
-} from "./chains";
+} from "../../app/chains";
 import {
   formatAmount,
   formatEdgeKindLabel,
@@ -30,7 +30,7 @@ import {
   formatMethodSelectorLabel,
   shortenAddress,
   shortenTxHash,
-} from "./format";
+} from "../../app/format";
 import type { GraphExplorerEdge, GraphExplorerNode, ResolvedNode } from "./graph-types";
 import { buildLayoutOptions, fitOverviewViewport, runLayout } from "./graph-layout";
 import {

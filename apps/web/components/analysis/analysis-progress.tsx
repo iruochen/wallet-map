@@ -45,20 +45,25 @@ export function AnalysisProgress({
   chainName,
   addressCount,
   steps = defaultSteps,
+  variant = "panel",
 }: {
   progress: number;
   chainName: string;
   addressCount: number;
   steps?: AnalysisProgressStep[];
+  variant?: "panel" | "hero";
 }) {
   const activeIndex = Math.min(steps.length - 1, Math.floor((progress / 100) * steps.length));
 
   return (
-    <div className="analysisProgressPanel" role="status" aria-live="polite">
+    <div className={`analysisProgressPanel analysisProgressPanel-${variant}`} role="status" aria-live="polite">
       <div className="analysisProgressHeader">
         <div>
           <span className="panelEyebrow">Running analysis</span>
           <strong>{chainName} · {addressCount} 地址</strong>
+          {variant === "hero" ? (
+            <p>正在读取链上事件、补全地址标签并构建证据图谱。结果完成后会自动切换到关系视图。</p>
+          ) : null}
         </div>
         <span className="analysisProgressValue">{progress}%</span>
       </div>
