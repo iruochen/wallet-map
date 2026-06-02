@@ -98,6 +98,28 @@ describe("label enrichment", () => {
     });
   });
 
+  it("labels known BSC stablecoin contracts from the static registry", async () => {
+    const graph: RelationshipGraph = {
+      nodes: [
+        {
+          id: "contract:56:0x55d398326f99059ff775485246999027b3197955",
+          kind: "contract",
+          address: "0x55d398326f99059ff775485246999027b3197955",
+          chainId: 56,
+        },
+      ],
+      edges: [],
+    };
+    const enriched = await enrichGraphWithLabels(graph, [], [createStaticLabelProvider()]);
+
+    expect(enriched.nodes[0]).toEqual(
+      expect.objectContaining({
+        label: "USDT",
+        tags: expect.arrayContaining(["token", "stablecoin"]),
+      }),
+    );
+  });
+
   it("maps Etherscan nametag metadata into node labels", async () => {
     const fetchMock = async () =>
       new Response(
@@ -224,6 +246,41 @@ describe("label enrichment", () => {
     const provider = createChainbaseLabelProvider({
       apiKey: "test-key",
       fetchImpl: async () => new Response(JSON.stringify({ code: 0, message: "ok", data: {} })),
+      requestThrottleMs: 0,
+    });
+    const labels = await provider.findLabels({
+      nodes: [
+        {
+          id: "wallet:56:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          kind: "wallet",
+          address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          chainId: 56,
+        },
+      ],
+      events: [],
+    });
+
+    expect(labels).toEqual([]);
+  });
+
+  it("ignores low-quality Chainbase unknown-only labels", async () => {
+    const provider = createChainbaseLabelProvider({
+      apiKey: "test-key",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            code: 0,
+            message: "ok",
+            data: {
+              address: [
+                {
+                  category: "unknown",
+                  tags: ["hot wallet"],
+                },
+              ],
+            },
+          }),
+        ),
       requestThrottleMs: 0,
     });
     const labels = await provider.findLabels({

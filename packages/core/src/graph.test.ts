@@ -109,4 +109,48 @@ describe("buildRelationshipGraph", () => {
       }),
     ]);
   });
+
+  it("adds token contract nodes for token transfer assets", () => {
+    const tokenContract = "0xcccccccccccccccccccccccccccccccccccccccc";
+    const graph = buildRelationshipGraph({
+      watchedAddresses: ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+      events: [
+        {
+          id: "event:1",
+          type: "token_transfer",
+          chainId: 56,
+          txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+          blockNumber: 1,
+          timestamp: "2024-01-01T00:00:00.000Z",
+          from: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          asset: {
+            kind: "erc20",
+            chainId: 56,
+            symbol: "USDT",
+            contract: tokenContract,
+          },
+        },
+      ],
+    });
+
+    expect(graph.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: getContractNodeId(56, tokenContract),
+          kind: "contract",
+        }),
+      ]),
+    );
+    expect(graph.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "contract_interaction",
+          source: getWalletNodeId(56, "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+          target: getContractNodeId(56, tokenContract),
+          evidenceEventIds: ["event:1"],
+        }),
+      ]),
+    );
+  });
 });

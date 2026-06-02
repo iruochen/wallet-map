@@ -582,6 +582,10 @@ select {
   grid-column: 1 / -1;
 }
 
+.analysisSubmitProgress {
+  grid-column: 1 / -1;
+}
+
 .primaryButton {
   width: 100%;
   min-height: 44px;
@@ -708,6 +712,115 @@ select {
   border: 1px solid #ead8aa;
   background: #fff9e8;
   color: #73510b;
+}
+
+.analysisProgressPanel {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(198, 218, 203, 0.9);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(240, 248, 241, 0.72)),
+    #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.analysisProgressHeader {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.analysisProgressHeader > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.analysisProgressHeader strong {
+  color: #1f3d2c;
+  font-size: 0.86rem;
+}
+
+.analysisProgressValue {
+  color: #1f6b3d;
+  font-size: 0.86rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.analysisProgressTrack {
+  position: relative;
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: #e2ebe4;
+}
+
+.analysisProgressTrack span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2d7b49, #8abf6f);
+  transition: width 420ms ease;
+}
+
+.analysisProgressSteps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.analysisProgressStep {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  color: #69786e;
+}
+
+.analysisProgressIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #d2ded5;
+  border-radius: 999px;
+  background: #f8fbf8;
+  color: #809086;
+}
+
+.analysisProgressStep strong {
+  display: block;
+  color: #34463a;
+  font-size: 0.78rem;
+}
+
+.analysisProgressStep small {
+  display: block;
+  margin-top: 2px;
+  color: #738077;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.analysisProgressStep-active .analysisProgressIcon {
+  border-color: #9fcda9;
+  background: #eefaf1;
+  color: #1f6b3d;
+  box-shadow: 0 0 0 4px rgba(31, 107, 61, 0.08);
+}
+
+.analysisProgressStep-done .analysisProgressIcon {
+  border-color: #8fc89e;
+  background: #f2faf4;
+  color: #227044;
 }
 
 .warningDetails {

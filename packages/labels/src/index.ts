@@ -415,7 +415,7 @@ function normalizeChainbaseLabel(input: {
     ...(category ? [category] : []),
   ])).filter(Boolean);
 
-  if (!label && !entity && !category && tags.length <= 1) {
+  if (!label && !entity && (!category || category === "unknown")) {
     return undefined;
   }
 
@@ -460,12 +460,18 @@ async function loadLabels(
   const labels = new Map<string, NodeLabel>();
 
   for (const provider of providers) {
-    const providerLabels = await provider.findLabels({ nodes, events });
+    const unresolvedNodes = nodes.filter((node) => !labels.has(buildNodeKey(node)));
+
+    if (unresolvedNodes.length === 0) {
+      break;
+    }
+
+    const providerLabels = await provider.findLabels({ nodes: unresolvedNodes, events });
 
     for (const label of providerLabels) {
       const key = buildLabelKey(label.chainId, label.address, label.nodeKind);
 
-      if (!labels.has(key)) {
+      if (!labels.has(key) && isUsefulLabel(label)) {
         labels.set(key, label);
       }
     }
@@ -509,6 +515,16 @@ function buildLabelKey(
 
 function mergeTags(existing: string[] | undefined, additional: string[]): string[] {
   return Array.from(new Set([...(existing ?? []), ...additional]));
+}
+
+function isUsefulLabel(label: NodeLabel): boolean {
+  const displayLabel = label.label.trim().toLowerCase();
+
+  if (displayLabel && displayLabel !== "unknown" && displayLabel !== "known address") {
+    return true;
+  }
+
+  return Boolean(label.entity || (label.category && label.category !== "unknown"));
 }
 
 function inferCategory(labels: string[] | undefined): LabelCategory | undefined {

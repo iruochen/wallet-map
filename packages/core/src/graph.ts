@@ -87,6 +87,25 @@ export function buildRelationshipGraph(input: GraphBuildInput): RelationshipGrap
         },
       });
 
+      if (event.asset?.contract) {
+        const contract = addContractNode(nodes, event.chainId, event.asset.contract);
+        const contractEdgeId = `contract_interaction:${event.chainId}:${event.txHash}:${event.from.toLowerCase()}:${event.asset.contract.toLowerCase()}`;
+
+        upsertEdge(edges, {
+          id: contractEdgeId,
+          kind: "contract_interaction",
+          source: source.id,
+          target: contract.id,
+          weight: 1,
+          evidenceEventIds: [event.id],
+          metadata: {
+            chainId: event.chainId,
+            txHash: event.txHash,
+            asset: event.asset,
+          },
+        });
+      }
+
       continue;
     }
 

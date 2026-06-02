@@ -1,13 +1,11 @@
 "use client";
 
-import { MarkdownExporter, PdfReportExporter, type AnalysisReport } from "@wallet-map/exporters";
+import { MarkdownExporter, PdfReportExporter } from "@wallet-map/exporters";
 import {
   Activity,
-  ArrowRight,
   ChevronDown,
   ClipboardList,
   Database,
-  ExternalLink,
   FileText,
   Globe2,
   Layers3,
@@ -17,25 +15,26 @@ import {
   Upload,
   WalletCards,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  buildExplorerAddressUrl,
-  buildExplorerTokenUrl,
-  buildExplorerTxUrl,
   evmAggregateChainId,
   getEvmAggregateChains,
-  getSupportedAnalysisChain,
-  type SupportedAnalysisChain,
 } from "./chains";
+import { EdgeRow, EvidenceItemView, FindingChainBadges } from "./analysis-evidence";
 import {
-  formatAbsoluteTime,
-  formatAmount,
+  describeEdgeGroup,
+  describeFindingGroup,
+  formatConfidenceLabel,
+  formatFindingConfidenceText,
+  formatFindingRiskLabel,
+  formatSkippedChainSummary,
+  formatVerdictLabel,
+} from "./analysis-formatters";
+import { AnalysisProgress, getAnalysisProgressValue, LoadingList, LoadingResult } from "./analysis-progress";
+import { buildAnalysisReport } from "./analysis-report";
+import type { AnalysisResponse, AnalysisWorkbenchProps, GraphEdge, GraphNode } from "./analysis-types";
+import {
   formatEdgeKindLabel,
-  formatEventTypeLabel,
-  formatMethodSelectorLabel,
-  formatRelativeTime,
-  shortenAddress,
-  shortenTxHash,
 } from "./format";
 import { GraphExplorer } from "./graph-explorer";
 
@@ -58,151 +57,6 @@ const dataProviderOptions = [
   { value: "solscan", label: "Solscan", description: "Solana 专用" },
 ] as const;
 
-interface EvidenceEvent {
-  type: string;
-  chainId: number;
-  txHash: string;
-  blockNumber: number;
-  timestamp: string;
-  from?: string;
-  to?: string;
-  contract?: string;
-  methodId?: string;
-  amount?: string;
-  asset?: {
-    kind: string;
-    symbol?: string;
-    contract?: string;
-    decimals?: number;
-    tokenId?: string;
-  };
-  transferScope?: string;
-}
-
-interface EvidenceItem {
-  eventId: string;
-  txHash?: string;
-  summary: string;
-  event?: EvidenceEvent;
-}
-
-interface GraphNode {
-  id: string;
-  kind: "wallet" | "contract" | "entity" | "asset";
-  address?: string;
-  chainId?: number;
-  label?: string;
-  tags?: string[];
-}
-
-interface GraphEdge {
-  id: string;
-  kind:
-    | "native_transfer"
-    | "token_transfer"
-    | "nft_transfer"
-    | "contract_interaction"
-    | "shared_counterparty"
-    | "temporal_similarity"
-    | "bridge_route";
-  source: string;
-  target: string;
-  weight?: number;
-  evidenceEventIds: string[];
-  metadata?: {
-    chainId?: number;
-    txHash?: string;
-    transactions?: Array<{
-      txHash: string;
-      timestamp: string;
-      type: string;
-    }>;
-    amount?: string;
-    methodId?: string;
-    txCount?: number;
-    asset?: {
-      kind?: string;
-      symbol?: string;
-      contract?: string;
-      decimals?: number;
-      tokenId?: string;
-    };
-  };
-}
-
-interface AnalysisResponse {
-  mode: "fixture" | "live";
-  source: string;
-  sourceLabel?: string;
-  meta: {
-    chainId: number;
-    chainIds?: number[];
-    chainName: string;
-    requestedMode: "auto" | "fixture" | "live";
-    resolvedMode: "fixture" | "live";
-    dataProvider?: "auto" | "nodereal" | "etherscan" | "solscan";
-    watchedAddressCount: number;
-    eventCount: number;
-    graphWalletCount: number;
-    graphContractCount: number;
-    fallbackReason?: string;
-    warnings?: string[];
-    fetchedAt: string;
-  };
-  score: {
-    score: number;
-    confidence: "low" | "medium" | "high";
-    reasons: string[];
-    counterEvidence: string[];
-  };
-  summary: {
-    verdict: "none" | "weak" | "medium" | "strong";
-    headline: string;
-    narrative: string;
-    pairInsights: Array<{
-      id: string;
-      wallets: string[];
-      labels: string[];
-      strength: "weak" | "medium" | "strong";
-      score: number;
-      confidence: "low" | "medium" | "high";
-      signalCount: number;
-      reasons: string[];
-    }>;
-    signalHighlights: Array<{
-      analyzerId: string;
-      title: string;
-      count: number;
-    }>;
-  };
-  graph: {
-    totalNodes: number;
-    totalEdges: number;
-    nodesTruncated: boolean;
-    edgesTruncated: boolean;
-    nodes: GraphNode[];
-    edges: GraphEdge[];
-  };
-  findings: Array<{
-    id: string;
-    analyzerId: string;
-    title: string;
-    description: string;
-    severity: string;
-    confidence: string;
-    scoreImpact: number;
-    evidenceTotal: number;
-    evidenceTruncated: boolean;
-    evidence: EvidenceItem[];
-  }>;
-}
-
-interface AnalysisWorkbenchProps {
-  liveConfigured: boolean;
-  supportedChains: SupportedAnalysisChain[];
-  initialAddresses?: string;
-}
-
 export function AnalysisWorkbench({
   liveConfigured,
   supportedChains,
@@ -216,6 +70,8 @@ export function AnalysisWorkbench({
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [analysisStartedAt, setAnalysisStartedAt] = useState<number | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
   const [evidenceTab, setEvidenceTab] = useState<"findings" | "edges">("findings");
   const [openFindingGroups, setOpenFindingGroups] = useState<Record<string, boolean>>({});
   const [openEdgeGroups, setOpenEdgeGroups] = useState<Record<string, boolean>>({});
@@ -254,6 +110,19 @@ export function AnalysisWorkbench({
       ? "优先走实时数据；Auto provider 会先试 NodeReal，再按链使用备用 provider。"
       : "当前会自动回退到 fixture，直到本地环境加载了 API key。";
   }, [dataMode, liveConfigured]);
+
+  useEffect(() => {
+    if (!isRunning || !analysisStartedAt) {
+      return undefined;
+    }
+
+    setAnalysisProgress(getAnalysisProgressValue(analysisStartedAt));
+    const timer = window.setInterval(() => {
+      setAnalysisProgress(getAnalysisProgressValue(analysisStartedAt));
+    }, 700);
+
+    return () => window.clearInterval(timer);
+  }, [analysisStartedAt, isRunning]);
 
   const watchedAddressSet = useMemo(() => {
     if (!result) {
@@ -342,6 +211,8 @@ export function AnalysisWorkbench({
 
   async function runAnalysis() {
     setIsRunning(true);
+    setAnalysisStartedAt(Date.now());
+    setAnalysisProgress(6);
     setError(null);
     setResult(null);
     setEvidenceTab("findings");
@@ -369,10 +240,12 @@ export function AnalysisWorkbench({
       }
 
       setResult(body as AnalysisResponse);
+      setAnalysisProgress(100);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Analysis failed.");
     } finally {
       setIsRunning(false);
+      setAnalysisStartedAt(null);
     }
   }
 
@@ -618,7 +491,7 @@ export function AnalysisWorkbench({
             <div className="analysisSubmitMeta">
               <strong>{chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"} · {addressCount} 地址</strong>
               <span aria-live="polite">
-                {isRunning ? "正在拉取事件、构建图谱并运行分析器" : "选项已配置，可直接提交分析"}
+                {isRunning ? "正在按阶段处理链上数据和标签" : "选项已配置，可直接提交分析"}
               </span>
             </div>
             <button type="submit" className="primaryButton primaryButtonCompact" disabled={isRunning}>
@@ -629,6 +502,15 @@ export function AnalysisWorkbench({
               <div className="stateBanner stateBannerError analysisSubmitError" role="alert">
                 <strong>分析失败</strong>
                 <span>{error}</span>
+              </div>
+            ) : null}
+            {isRunning ? (
+              <div className="analysisSubmitProgress">
+                <AnalysisProgress
+                  progress={analysisProgress}
+                  chainName={chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"}
+                  addressCount={addressCount}
+                />
               </div>
             ) : null}
           </div>
@@ -664,7 +546,14 @@ export function AnalysisWorkbench({
             {isRunning ? <span className="statusPill statusRunning">Running</span> : null}
           </div>
           {isRunning ? (
-            <LoadingResult />
+            <>
+              <AnalysisProgress
+                progress={analysisProgress}
+                chainName={chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.name ?? "Chain"}
+                addressCount={addressCount}
+              />
+              <LoadingResult />
+            </>
           ) : result && graphSummary ? (
             <>
               <div className="scoreRow">
@@ -790,8 +679,11 @@ export function AnalysisWorkbench({
         <div className="workbenchGraphBody">
           {isRunning ? (
             <div className="graphLoadingState" aria-live="polite">
-              <div className="skeletonBlock skeletonTall" />
-              <p>正在拉取事件、构建关系图…</p>
+              <AnalysisProgress
+                progress={analysisProgress}
+                chainName={chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"}
+                addressCount={addressCount}
+              />
             </div>
           ) : result && result.graph.totalEdges > 0 ? (
             <GraphExplorer
@@ -991,494 +883,5 @@ export function AnalysisWorkbench({
         </div>
       </aside>
     </section>
-  );
-}
-
-interface EvidenceItemViewProps {
-  evidence: EvidenceItem;
-  chainId: number;
-  watchedAddressSet: Set<string>;
-}
-
-function EvidenceItemView({ evidence, chainId, watchedAddressSet }: EvidenceItemViewProps) {
-  const event = evidence.event;
-  const txHash = event?.txHash ?? evidence.txHash;
-  const eventChainId = event?.chainId ?? chainId;
-  const txHref = txHash ? buildExplorerTxUrl(eventChainId, txHash) : undefined;
-  const eventChain = getSupportedAnalysisChain(eventChainId);
-  const isNativeAsset = event?.asset?.kind === "native";
-  const amountDecimals = isNativeAsset
-    ? eventChain?.nativeDecimals ?? 18
-    : event?.asset?.decimals;
-  const canRenderAmount =
-    event?.amount !== undefined &&
-    event.amount !== "" &&
-    (isNativeAsset || event?.asset?.decimals !== undefined);
-  const amountFormatted = canRenderAmount ? formatAmount(event?.amount, amountDecimals) : undefined;
-  const amountSymbol =
-    event?.asset?.symbol ?? (isNativeAsset ? eventChain?.nativeSymbol : undefined);
-  const eventTypeLabel = formatEventTypeLabel(event?.type);
-  const relativeTime = formatRelativeTime(event?.timestamp);
-  const absoluteTime = formatAbsoluteTime(event?.timestamp);
-
-  return (
-    <div className="evidenceItem">
-      <div className="evidenceItemHeader">
-        <span className={`eventTypePill event-${event?.type ?? "unknown"}`}>{eventTypeLabel}</span>
-        <ChainBadge chainId={eventChainId} />
-        {amountFormatted ? (
-          <span className="amountChip">
-            <strong>{amountFormatted}</strong>
-            {amountSymbol ? <span>{amountSymbol}</span> : null}
-          </span>
-        ) : null}
-        {event?.transferScope === "internal" ? (
-          <span className="scopeChip" title="Internal call">
-            internal
-          </span>
-        ) : null}
-        {event?.asset?.tokenId ? (
-          <span className="scopeChip" title="Token ID">
-            #{event.asset.tokenId}
-          </span>
-        ) : null}
-        {relativeTime ? (
-          <span className="evidenceTime" title={absoluteTime}>
-            {relativeTime}
-          </span>
-        ) : null}
-      </div>
-      <div className="evidenceItemBody">
-        {event?.from ? (
-          <AddressLink
-            address={event.from}
-            chainId={eventChainId}
-            role="from"
-            watchedAddressSet={watchedAddressSet}
-          />
-        ) : null}
-        <ArrowRight size={14} strokeWidth={2.2} className="evidenceArrowIcon" aria-hidden="true" />
-        {event?.to ? (
-          <AddressLink
-            address={event.to}
-            chainId={eventChainId}
-            role="to"
-            watchedAddressSet={watchedAddressSet}
-          />
-        ) : event?.contract ? (
-          <AddressLink
-            address={event.contract}
-            chainId={eventChainId}
-            role="contract"
-            watchedAddressSet={watchedAddressSet}
-            label="contract"
-          />
-        ) : (
-          <span className="evidenceUnknown">unknown</span>
-        )}
-      </div>
-      <div className="evidenceItemFooter">
-        {txHash ? (
-          <a
-            className="txLink"
-            href={txHref}
-            target="_blank"
-            rel="noreferrer noopener"
-            title={txHash}
-          >
-            <ExternalLink size={13} strokeWidth={2.1} aria-hidden="true" />
-            <code>{shortenTxHash(txHash)}</code>
-          </a>
-        ) : (
-          <code className="evidenceEventId" title={evidence.eventId}>
-            {evidence.eventId}
-          </code>
-        )}
-        {event?.asset?.contract && event.asset.kind !== "native" ? (
-          <TokenLink
-            chainId={eventChainId}
-            contract={event.asset.contract}
-            symbol={event.asset.symbol}
-          />
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-interface AddressLinkProps {
-  address: string;
-  chainId: number;
-  role: "from" | "to" | "contract" | "source" | "target";
-  watchedAddressSet: Set<string>;
-  label?: string;
-  isContract?: boolean;
-}
-
-function AddressLink({
-  address,
-  chainId,
-  role,
-  watchedAddressSet,
-  label,
-  isContract,
-}: AddressLinkProps) {
-  const href = buildExplorerAddressUrl(chainId, address);
-  const isWatched = watchedAddressSet.has(address.toLowerCase());
-  const pillKind = isContract ? "contract" : isWatched ? "watched" : "observed";
-  const roleLabel = label ?? (isContract ? "contract" : isWatched ? "watched" : "observed");
-
-  return (
-    <span className={`addressLink addressLink-${role} addressLink-${pillKind}`}>
-      <span className="addressRoleTag">{roleLabel}</span>
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer noopener"
-        title={address}
-        className="addressValue"
-      >
-        {shortenAddress(address)}
-      </a>
-    </span>
-  );
-}
-
-interface TokenLinkProps {
-  chainId: number;
-  contract: string;
-  symbol?: string;
-}
-
-function TokenLink({ chainId, contract, symbol }: TokenLinkProps) {
-  const href = buildExplorerTokenUrl(chainId, contract);
-
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer noopener"
-      className="tokenChip"
-      title={contract}
-    >
-      {symbol ?? "token"} <ExternalLink size={12} strokeWidth={2.1} aria-hidden="true" />
-    </a>
-  );
-}
-
-interface EdgeRowProps {
-  edge: GraphEdge;
-  chainId: number;
-  watchedAddressSet: Set<string>;
-  nodeIndex: Map<string, GraphNode>;
-}
-
-function EdgeRow({ edge, chainId, watchedAddressSet, nodeIndex }: EdgeRowProps) {
-  const edgeChainId = edge.metadata?.chainId ?? chainId;
-  const eventChain = getSupportedAnalysisChain(edgeChainId);
-  const isNativeAsset = edge.metadata?.asset?.kind === "native";
-  const amountDecimals = isNativeAsset
-    ? eventChain?.nativeDecimals ?? 18
-    : edge.metadata?.asset?.decimals;
-  const canRenderAmount =
-    edge.metadata?.amount !== undefined &&
-    edge.metadata.amount !== "" &&
-    (isNativeAsset || edge.metadata?.asset?.decimals !== undefined);
-  const amountFormatted = canRenderAmount
-    ? formatAmount(edge.metadata?.amount, amountDecimals)
-    : undefined;
-  const amountSymbol =
-    edge.metadata?.asset?.symbol ?? (isNativeAsset ? eventChain?.nativeSymbol : undefined);
-  const txHash = edge.metadata?.txHash;
-  const txHref = txHash ? buildExplorerTxUrl(edgeChainId, txHash) : undefined;
-  const sourceNode = nodeIndex.get(edge.source);
-  const targetNode = nodeIndex.get(edge.target);
-
-  return (
-    <li className="edgeRow">
-      <div className="edgeRowHeader">
-        <span className={`eventTypePill event-${edge.kind}`}>{formatEdgeKindLabel(edge.kind)}</span>
-        <ChainBadge chainId={edgeChainId} />
-        {(edge.metadata?.txCount ?? 1) > 1 ? (
-          <span className="countChip">{edge.metadata?.txCount} tx</span>
-        ) : null}
-        {amountFormatted ? (
-          <span className="amountChip">
-            <strong>{amountFormatted}</strong>
-            {amountSymbol ? <span>{amountSymbol}</span> : null}
-          </span>
-        ) : null}
-        {edge.metadata?.methodId ? (
-          <span className="methodChip" title="Method selector">
-            {formatMethodSelectorLabel(edge.metadata.methodId) ?? edge.metadata.methodId}
-          </span>
-        ) : null}
-      </div>
-      <div className="edgeRowBody">
-        <GraphNodeLink
-          node={sourceNode}
-          fallbackId={edge.source}
-          chainId={edgeChainId}
-          watchedAddressSet={watchedAddressSet}
-        />
-        <ArrowRight size={14} strokeWidth={2.2} className="evidenceArrowIcon" aria-hidden="true" />
-        <GraphNodeLink
-          node={targetNode}
-          fallbackId={edge.target}
-          chainId={edgeChainId}
-          watchedAddressSet={watchedAddressSet}
-        />
-      </div>
-      <div className="edgeRowFooter">
-        {txHash ? (
-          <a
-            className="txLink"
-            href={txHref}
-            target="_blank"
-            rel="noreferrer noopener"
-            title={txHash}
-          >
-            <ExternalLink size={13} strokeWidth={2.1} aria-hidden="true" />
-            <code>{shortenTxHash(txHash)}</code>
-          </a>
-        ) : (
-          <code className="evidenceEventId" title={edge.id}>
-            {edge.id}
-          </code>
-        )}
-        {edge.metadata?.asset?.contract && !isNativeAsset ? (
-          <TokenLink
-            chainId={edgeChainId}
-            contract={edge.metadata.asset.contract}
-            symbol={edge.metadata.asset.symbol}
-          />
-        ) : null}
-      </div>
-    </li>
-  );
-}
-
-interface GraphNodeLinkProps {
-  node?: GraphNode;
-  fallbackId: string;
-  chainId: number;
-  watchedAddressSet: Set<string>;
-}
-
-function GraphNodeLink({ node, fallbackId, chainId, watchedAddressSet }: GraphNodeLinkProps) {
-  const address = node?.address ?? extractAddressFromNodeId(fallbackId);
-  const isContract = node?.kind === "contract";
-  const isWatched =
-    node?.kind === "wallet" &&
-    (node.tags?.includes("watched") ?? watchedAddressSet.has(address.toLowerCase()));
-  const roleLabel = isContract ? "contract" : isWatched ? "watched" : "observed";
-  const pillKind = isContract ? "contract" : isWatched ? "watched" : "observed";
-  const href = buildExplorerAddressUrl(node?.chainId ?? chainId, address);
-
-  return (
-    <span className={`addressLink addressLink-${pillKind}`}>
-      <span className="addressRoleTag">{roleLabel}</span>
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer noopener"
-        title={address}
-        className="addressValue"
-      >
-        {shortenAddress(address)}
-      </a>
-    </span>
-  );
-}
-
-function extractAddressFromNodeId(nodeId: string): string {
-  const match = /(0x[a-fA-F0-9]{40})/.exec(nodeId);
-  return match?.[1] ?? nodeId;
-}
-
-function formatVerdictLabel(verdict: "none" | "weak" | "medium" | "strong"): string {
-  switch (verdict) {
-    case "strong":
-      return "强关联";
-    case "medium":
-      return "中关联";
-    case "weak":
-      return "弱关联";
-    default:
-      return "无结论";
-  }
-}
-
-function formatConfidenceLabel(confidence: "low" | "medium" | "high"): string {
-  if (confidence === "high") {
-    return "高置信度";
-  }
-
-  if (confidence === "medium") {
-    return "中置信度";
-  }
-
-  return "低置信度";
-}
-
-function describeFindingGroup(title: string, count: number): string {
-  if (title === "Direct transfer found") {
-    return `命中了 ${count} 笔直接转账证据`;
-  }
-
-  if (title === "Shared counterparty found") {
-    return `命中了 ${count} 组共享对手方线索`;
-  }
-
-  if (title === "Same contract interaction found") {
-    return `命中了 ${count} 组共同合约交互`;
-  }
-
-  return `命中了 ${count} 条关联信号`;
-}
-
-function describeEdgeGroup(kind: GraphEdge["kind"], count: number): string {
-  if (kind === "native_transfer") {
-    return `${count} 条原生币关联边`;
-  }
-
-  if (kind === "token_transfer") {
-    return `${count} 条代币关联边`;
-  }
-
-  if (kind === "contract_interaction") {
-    return `${count} 条合约交互关联边`;
-  }
-
-  return `${count} 条关联边`;
-}
-
-function ChainBadge({ chainId }: { chainId: number }) {
-  const chain = getSupportedAnalysisChain(chainId);
-
-  if (!chain) {
-    return null;
-  }
-
-  return <span className="chainBadge">{chain.shortName}</span>;
-}
-
-function FindingChainBadges({
-  finding,
-  fallbackChainId,
-}: {
-  finding: AnalysisResponse["findings"][number];
-  fallbackChainId: number;
-}) {
-  const chainIds = Array.from(
-    new Set(
-      finding.evidence
-        .map((evidence) => evidence.event?.chainId ?? fallbackChainId)
-        .filter((chainId) => Number.isFinite(chainId)),
-    ),
-  );
-
-  return (
-    <>
-      {chainIds.slice(0, 3).map((chainId) => (
-        <ChainBadge key={chainId} chainId={chainId} />
-      ))}
-    </>
-  );
-}
-
-function formatSkippedChainSummary(warnings: string[]): string {
-  const names = warnings
-    .map((warning) => /^([^:]+?)(?: skipped| analysis| is required)/.exec(warning)?.[1]?.trim())
-    .map((name, index) => /live (.+?) analysis/.exec(warnings[index] ?? "")?.[1]?.trim() ?? name)
-    .filter((name): name is string => Boolean(name));
-  const uniqueNames = Array.from(new Set(names));
-
-  if (uniqueNames.length === 0) {
-    return `${warnings.length} 条链路未完成，可展开查看详情。`;
-  }
-
-  return `跳过链：${uniqueNames.join("、")}`;
-}
-
-function formatFindingRiskLabel(value: string): string {
-  if (value === "high") {
-    return "高";
-  }
-  if (value === "medium") {
-    return "中";
-  }
-  if (value === "low") {
-    return "低";
-  }
-  return "信息";
-}
-
-function formatFindingConfidenceText(value: string): string {
-  if (value === "high") {
-    return "高";
-  }
-  if (value === "medium") {
-    return "中";
-  }
-  return "低";
-}
-
-function buildAnalysisReport(result: AnalysisResponse): AnalysisReport {
-  return {
-    title: "Wallet Map 分析报告",
-    generatedAt: formatAbsoluteTime(result.meta.fetchedAt) ?? result.meta.fetchedAt,
-    scope: result.meta.chainName,
-    sourceLabel: result.sourceLabel ?? result.source,
-    graph: {
-      nodes: result.graph.nodes,
-      edges: result.graph.edges.map((edge) => ({
-        ...edge,
-        weight: edge.weight ?? 1,
-      })),
-    },
-    findings: result.findings.map((finding) => ({
-      id: finding.id,
-      analyzerId: finding.analyzerId,
-      title: finding.title,
-      description: finding.description,
-      severity: finding.severity as AnalysisReport["findings"][number]["severity"],
-      confidence: finding.confidence as AnalysisReport["findings"][number]["confidence"],
-      scoreImpact: finding.scoreImpact,
-      evidence: finding.evidence,
-    })),
-    score: result.score,
-    summary: result.summary,
-    metrics: {
-      watchedAddressCount: result.meta.watchedAddressCount,
-      eventCount: result.meta.eventCount,
-      walletCount: result.meta.graphWalletCount,
-      contractCount: result.meta.graphContractCount,
-      edgeCount: result.graph.totalEdges,
-    },
-  };
-}
-
-function LoadingResult() {
-  return (
-    <div className="loadingStack" aria-label="分析任务运行中">
-      <div className="skeletonBlock skeletonTall" />
-      <div className="skeletonGrid">
-        <div className="skeletonBlock" />
-        <div className="skeletonBlock" />
-        <div className="skeletonBlock" />
-      </div>
-      <div className="skeletonLine" />
-    </div>
-  );
-}
-
-function LoadingList() {
-  return (
-    <div className="loadingStack">
-      <div className="skeletonBlock" />
-      <div className="skeletonBlock" />
-      <div className="skeletonBlock" />
-    </div>
   );
 }
