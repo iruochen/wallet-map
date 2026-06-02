@@ -28,10 +28,15 @@ describe("storage package", () => {
         save: async () => undefined,
         findByJobId: async () => undefined,
       },
+      labels: {
+        findKnownLabels: async () => [],
+        upsertKnownLabels: async () => undefined,
+      },
     } satisfies WalletMapStorage;
 
     expect(storage.jobs).toBeDefined();
     expect(storage.runs).toBeDefined();
+    expect(storage.labels).toBeDefined();
   });
 
   it("includes the MVP persistence tables in the initial migration", async () => {
@@ -42,5 +47,6 @@ describe("storage package", () => {
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS graph_nodes");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS graph_edges");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS findings");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS known_labels");
   });
 });

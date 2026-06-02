@@ -48,6 +48,28 @@ export interface SaveAnalysisRunInput {
   result: AnalysisRunResult;
 }
 
+export interface KnownLabelRecord {
+  id: string;
+  nodeKind: GraphNode["kind"];
+  chainId: ChainId;
+  address: Address;
+  label: string;
+  entity?: string;
+  category?: string;
+  tags: string[];
+  source: string;
+  confidence?: number;
+  firstSeenAt?: string;
+  lastSeenAt?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface LabelLookupInput {
+  chainId: ChainId;
+  addresses: Address[];
+  nodeKinds?: Array<GraphNode["kind"]>;
+}
+
 export interface AnalysisJobRepository {
   create(input: CreateAnalysisJobInput): Promise<AnalysisJobRecord>;
   findById(jobId: string): Promise<AnalysisJobRecord | undefined>;
@@ -61,7 +83,16 @@ export interface AnalysisRunRepository {
   findByJobId(jobId: string): Promise<StoredAnalysisRun | undefined>;
 }
 
+export interface LabelRepository {
+  findKnownLabels(input: LabelLookupInput): Promise<KnownLabelRecord[]>;
+  upsertKnownLabels(labels: KnownLabelRecord[]): Promise<void>;
+}
+
 export interface WalletMapStorage {
   jobs: AnalysisJobRepository;
   runs: AnalysisRunRepository;
+  labels?: LabelRepository;
 }
+
+export { createPostgresLabelRepository } from "./postgres-labels";
+export type { PostgresLabelRepositoryOptions } from "./postgres-labels";

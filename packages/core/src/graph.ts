@@ -9,6 +9,7 @@ export interface GraphNode {
   chainId?: ChainId;
   label?: string;
   tags?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export type GraphEdgeKind =

@@ -15,10 +15,13 @@
     "@wallet-map/analyzers": "workspace:*",
     "@wallet-map/core": "workspace:*",
     "@wallet-map/exporters": "workspace:*",
+    "@wallet-map/labels": "workspace:*",
+    "@wallet-map/storage": "workspace:*",
     "cytoscape": "^3.33.4",
     "cytoscape-fcose": "^2.2.0",
     "lucide-react": "^1.16.0",
     "next": "^16.0.4",
+    "redis": "^5.10.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

@@ -36,10 +36,16 @@ export interface Analyzer {
   run(context: AnalysisContext): Promise<Finding[]>;
 }
 
+export interface GraphEnricher {
+  id: string;
+  enrich(graph: RelationshipGraph, events: NormalizedEvent[]): Promise<RelationshipGraph>;
+}
+
 export interface AnalysisRunInput {
   watchedAddresses: Address[];
   events: NormalizedEvent[];
   analyzers: Analyzer[];
+  graphEnrichers?: GraphEnricher[];
 }
 
 export interface AnalysisRunResult {
@@ -49,10 +55,15 @@ export interface AnalysisRunResult {
 }
 
 export async function runAnalysis(input: AnalysisRunInput): Promise<AnalysisRunResult> {
-  const graph = buildRelationshipGraph({
+  let graph = buildRelationshipGraph({
     watchedAddresses: input.watchedAddresses,
     events: input.events,
   });
+
+  for (const enricher of input.graphEnrichers ?? []) {
+    graph = await enricher.enrich(graph, input.events);
+  }
+
   const context: AnalysisContext = {
     graph,
     events: input.events,

@@ -1,0 +1,245 @@
+[
+  {
+    "nodeKind": "contract",
+    "chainId": 1,
+    "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "label": "USDC",
+    "entity": "Circle",
+    "category": "token",
+    "tags": ["token", "stablecoin"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 1,
+    "address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    "label": "USDT",
+    "entity": "Tether",
+    "category": "token",
+    "tags": ["token", "stablecoin"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 1,
+    "address": "0x6b175474e89094c44da98b954eedeac495271d0f",
+    "label": "DAI",
+    "entity": "MakerDAO",
+    "category": "token",
+    "tags": ["token", "stablecoin"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 1,
+    "address": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+    "label": "WBTC",
+    "entity": "Wrapped BTC",
+    "category": "token",
+    "tags": ["token", "wrapped_asset"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 1,
+    "address": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+    "label": "WETH",
+    "entity": "Wrapped Ether",
+    "category": "token",
+    "tags": ["token", "wrapped_asset"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 42161,
+    "address": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+    "label": "USDC",
+    "entity": "Circle",
+    "category": "token",
+    "tags": ["token", "stablecoin"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 42161,
+    "address": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
+    "label": "USDC.e",
+    "entity": "Circle",
+    "category": "token",
+    "tags": ["token", "stablecoin", "bridged_token"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 42161,
+    "address": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+    "label": "USDT",
+    "entity": "Tether",
+    "category": "token",
+    "tags": ["token", "stablecoin"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 42161,
+    "address": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+    "label": "WETH",
+    "entity": "Wrapped Ether",
+    "category": "token",
+    "tags": ["token", "wrapped_asset"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 10,
+    "address": "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
+    "label": "USDC",
+    "entity": "Circle",
+    "category": "token",
+    "tags": ["token", "stablecoin"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 10,
+    "address": "0x7f5c764cbc14f9669b88837ca1490cca17c31607",
+    "label": "USDC.e",
+    "entity": "Circle",
+    "category": "token",
+    "tags": ["token", "stablecoin", "bridged_token"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 10,
+    "address": "0x4200000000000000000000000000000000000006",
+    "label": "WETH",
+    "entity": "Wrapped Ether",
+    "category": "token",
+    "tags": ["token", "wrapped_asset"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 8453,
+    "address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+    "label": "USDC",
+    "entity": "Circle",
+    "category": "token",
+    "tags": ["token", "stablecoin"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 8453,
+    "address": "0x4200000000000000000000000000000000000006",
+    "label": "WETH",
+    "entity": "Wrapped Ether",
+    "category": "token",
+    "tags": ["token", "wrapped_asset"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 137,
+    "address": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+    "label": "USDC",
+    "entity": "Circle",
+    "category": "token",
+    "tags": ["token", "stablecoin"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 137,
+    "address": "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
+    "label": "USDC.e",
+    "entity": "Circle",
+    "category": "token",
+    "tags": ["token", "stablecoin", "bridged_token"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 137,
+    "address": "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
+    "label": "USDT",
+    "entity": "Tether",
+    "category": "token",
+    "tags": ["token", "stablecoin"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 56,
+    "address": "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+    "label": "USDC",
+    "entity": "Circle",
+    "category": "token",
+    "tags": ["token", "stablecoin"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 56,
+    "address": "0x55d398326f99059ff775485246999027b3197955",
+    "label": "USDT",
+    "entity": "Tether",
+    "category": "token",
+    "tags": ["token", "stablecoin"]
+  },
+  {
+    "nodeKind": "contract",
+    "chainId": 56,
+    "address": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+    "label": "WBNB",
+    "entity": "Wrapped BNB",
+    "category": "token",
+    "tags": ["token", "wrapped_asset"]
+  },
+  {
+    "nodeKind": "wallet",
+    "chainId": 56,
+    "address": "0x631fc1ea2270e98fbd9d92658ece0f5a269aa161",
+    "label": "Binance Hot Wallet",
+    "entity": "Binance",
+    "category": "cex",
+    "tags": ["known_entity", "cex", "binance", "hot_wallet"]
+  },
+  {
+    "nodeKind": "wallet",
+    "chainId": 56,
+    "address": "0xbd612a3f30dca67bf60a39fd0d35e39b7ab80774",
+    "label": "Binance Hot Wallet 13",
+    "entity": "Binance",
+    "category": "cex",
+    "tags": ["known_entity", "cex", "binance", "hot_wallet"]
+  },
+  {
+    "nodeKind": "wallet",
+    "chainId": 56,
+    "address": "0x7a8a34db9acd10c3b6277473b192fe47192569ca",
+    "label": "Binance Hot Wallet 14",
+    "entity": "Binance",
+    "category": "cex",
+    "tags": ["known_entity", "cex", "binance", "hot_wallet"]
+  },
+  {
+    "nodeKind": "wallet",
+    "chainId": 56,
+    "address": "0xa180fe01b906a1be37be6c534a3300785b20d947",
+    "label": "Binance Hot Wallet 16",
+    "entity": "Binance",
+    "category": "cex",
+    "tags": ["known_entity", "cex", "binance", "hot_wallet"]
+  },
+  {
+    "nodeKind": "wallet",
+    "chainId": 56,
+    "address": "0x73f5ebe90f27b46ea12e5795d16c4b408b19cc6f",
+    "label": "Binance Hot Wallet 18",
+    "entity": "Binance",
+    "category": "cex",
+    "tags": ["known_entity", "cex", "binance", "hot_wallet"]
+  },
+  {
+    "nodeKind": "wallet",
+    "chainId": 56,
+    "address": "0x1fbe2acee135d991592f167ac371f3dd893a508b",
+    "label": "Binance Hot Wallet 19",
+    "entity": "Binance",
+    "category": "cex",
+    "tags": ["known_entity", "cex", "binance", "hot_wallet"]
+  },
+  {
+    "nodeKind": "wallet",
+    "chainId": 56,
+    "address": "0x439fd9a1d573807378b77472723e83c7ec5adf52",
+    "label": "Binance Hot Wallet 30",
+    "entity": "Binance",
+    "category": "cex",
+    "tags": ["known_entity", "cex", "binance", "hot_wallet"]
+  }
+]

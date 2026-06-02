@@ -24,3 +24,11 @@ Before committing, pushing, creating a repository, or deploying this project, al
 
 - Configure production secrets through the deployment provider environment variable UI or CLI, not through committed files.
 - Keep the app deployable without local-only defaults; production should receive keys from Vercel environment variables.
+
+## Module Boundaries and File Size
+
+- Keep UI files focused. If a React component grows past roughly 350 lines, split pure types, formatting helpers, data shaping, subcomponents, and styles into nearby modules before adding more behavior.
+- Avoid placing data-source, label-provider, storage, or normalization logic inside page/component files. Put those concerns in `packages/*` or route-local service modules.
+- Treat address and contract labels as data enrichment. New label sources should implement provider-style modules, not hard-coded frontend conditionals.
+- Prefer small pure helper modules with unit tests for graph shaping, presentation models, label enrichment, and API request planning.
+- When adding a new feature to an already-large file such as `analysis-workbench.tsx` or `graph-explorer.tsx`, first extract at least one coherent helper/subcomponent if the change would make the file larger.

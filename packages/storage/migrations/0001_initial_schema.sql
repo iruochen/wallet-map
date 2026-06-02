@@ -74,9 +74,29 @@ CREATE TABLE IF NOT EXISTS findings (
   PRIMARY KEY (analysis_job_id, id)
 );
 
+CREATE TABLE IF NOT EXISTS known_labels (
+  id TEXT PRIMARY KEY,
+  node_kind TEXT NOT NULL,
+  chain_id INTEGER NOT NULL,
+  address TEXT NOT NULL,
+  label TEXT NOT NULL,
+  entity TEXT,
+  category TEXT,
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  source TEXT NOT NULL,
+  confidence DOUBLE PRECISION,
+  first_seen_at TIMESTAMPTZ,
+  last_seen_at TIMESTAMPTZ,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (node_kind, chain_id, address, source)
+);
+
 CREATE INDEX IF NOT EXISTS idx_analysis_jobs_status ON analysis_jobs(status);
 CREATE INDEX IF NOT EXISTS idx_normalized_events_job ON normalized_events(analysis_job_id);
 CREATE INDEX IF NOT EXISTS idx_normalized_events_tx_hash ON normalized_events(chain_id, tx_hash);
 CREATE INDEX IF NOT EXISTS idx_normalized_events_addresses ON normalized_events(chain_id, from_address, to_address);
 CREATE INDEX IF NOT EXISTS idx_graph_edges_job ON graph_edges(analysis_job_id);
 CREATE INDEX IF NOT EXISTS idx_findings_job ON findings(analysis_job_id);
+CREATE INDEX IF NOT EXISTS idx_known_labels_lookup ON known_labels(chain_id, address, node_kind);

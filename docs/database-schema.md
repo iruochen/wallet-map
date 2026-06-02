@@ -6,7 +6,8 @@ Wallet Map uses PostgreSQL as the first durable storage target. The MVP storage 
 
 - `@wallet-map/storage` owns schema files and repository interfaces.
 - The web app still runs in fixture mode and does not write to PostgreSQL yet.
-- API keys, wallet labels, and private local exports are not stored by this schema.
+- API keys, private user wallet labels, and private local exports are not stored by this schema.
+- Public known entity labels can be stored in `known_labels` and copied onto graph nodes during analysis.
 - Future database clients should implement the repository interfaces rather than leaking SQL details into UI or analyzer packages.
 
 ## Tables
@@ -76,6 +77,17 @@ Key fields:
 - `title`, `description`, `severity`, `confidence`, `score_impact`: user-facing result fields.
 - `evidence`: serialized evidence references.
 - `metadata`: analyzer-specific details.
+
+### `known_labels`
+
+Stores public or team-curated labels that can enrich graph nodes before analyzers run.
+
+Key fields:
+
+- `node_kind`: wallet, contract, entity, or asset.
+- `chain_id`, `address`: lookup key for chain-scoped addresses.
+- `label`, `entity`, `category`, `tags`: display and analysis attributes.
+- `source`, `confidence`, timestamps, `metadata`: provenance for static seeds, database imports, or future live providers.
 
 ## Next Integration Points
 

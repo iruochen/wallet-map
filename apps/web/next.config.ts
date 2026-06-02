@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
     "@wallet-map/adapters",
     "@wallet-map/analyzers",
     "@wallet-map/exporters",
+    "@wallet-map/labels",
+    "@wallet-map/storage",
   ],
 };
 
