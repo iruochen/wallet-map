@@ -140,6 +140,24 @@ export interface AnalysisResponse {
   }>;
 }
 
+export interface AnalysisJobProgress {
+  phase: "fetch" | "graph" | "labels" | "analysis" | null;
+  completedPhases: Array<"fetch" | "graph" | "labels" | "analysis">;
+}
+
+export interface AnalysisJobStartResponse {
+  jobId: string;
+}
+
+export interface AnalysisJobPollResponse {
+  jobId: string;
+  status: "pending" | "running" | "completed" | "failed";
+  progress: AnalysisJobProgress;
+  percent: number;
+  error?: string;
+  result?: AnalysisResponse;
+}
+
 export interface AnalysisWorkbenchProps {
   liveConfigured: boolean;
   supportedChains: SupportedAnalysisChain[];

@@ -26,9 +26,17 @@ import {
   formatSkippedChainSummary,
   formatVerdictLabel,
 } from "./analysis-formatters";
-import { AnalysisProgress, getAnalysisProgressValue } from "./analysis-progress";
+import { AnalysisProgress } from "./analysis-progress";
 import { buildAnalysisReport } from "./analysis-report";
-import type { AnalysisResponse, AnalysisWorkbenchProps, GraphEdge, GraphNode } from "./analysis-types";
+import type {
+  AnalysisJobPollResponse,
+  AnalysisJobProgress,
+  AnalysisJobStartResponse,
+  AnalysisResponse,
+  AnalysisWorkbenchProps,
+  GraphEdge,
+  GraphNode,
+} from "./analysis-types";
 import { GraphExplorer } from "../graph/graph-explorer";
 
 const sampleAddresses = [
@@ -63,8 +71,7 @@ export function AnalysisWorkbench({
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
-  const [analysisStartedAt, setAnalysisStartedAt] = useState<number | null>(null);
-  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [jobProgress, setJobProgress] = useState<AnalysisJobProgress | null>(null);
   const [evidenceTab, setEvidenceTab] = useState<"findings" | "edges">("findings");
   const [openFindingGroups, setOpenFindingGroups] = useState<Record<string, boolean>>({});
   const [openEdgeGroups, setOpenEdgeGroups] = useState<Record<string, boolean>>({});
@@ -103,19 +110,6 @@ export function AnalysisWorkbench({
       ? "优先走实时数据；Auto provider 会先试 NodeReal，再按链使用备用 provider。"
       : "当前会自动回退到 fixture，直到本地环境加载了 API key。";
   }, [dataMode, liveConfigured]);
-
-  useEffect(() => {
-    if (!isRunning || !analysisStartedAt) {
-      return undefined;
-    }
-
-    setAnalysisProgress(getAnalysisProgressValue(analysisStartedAt));
-    const timer = window.setInterval(() => {
-      setAnalysisProgress(getAnalysisProgressValue(analysisStartedAt));
-    }, 700);
-
-    return () => window.clearInterval(timer);
-  }, [analysisStartedAt, isRunning]);
 
   const watchedAddressSet = useMemo(() => {
     if (!result) {
@@ -202,15 +196,42 @@ export function AnalysisWorkbench({
     return Array.from(groups.values()).sort((left, right) => right.edges.length - left.edges.length);
   }, [result]);
 
+  async function pollAnalyzeJob(jobId: string, signal: AbortSignal): Promise<AnalysisResponse> {
+    while (!signal.aborted) {
+      const response = await fetch(`/api/analyze/jobs/${jobId}`, { signal });
+      const body = (await response.json()) as AnalysisJobPollResponse | { error?: string };
+
+      if (!response.ok) {
+        throw new Error("error" in body && body.error ? body.error : "Failed to poll analysis job.");
+      }
+
+      const poll = body as AnalysisJobPollResponse;
+      setJobProgress(poll.progress);
+
+      if (poll.status === "completed" && poll.result) {
+        return poll.result;
+      }
+
+      if (poll.status === "failed") {
+        throw new Error(poll.error ?? "Analysis failed.");
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+    }
+
+    throw new Error("Analysis cancelled.");
+  }
+
   async function runAnalysis() {
     setIsRunning(true);
-    setAnalysisStartedAt(Date.now());
-    setAnalysisProgress(6);
+    setJobProgress(null);
     setError(null);
     setResult(null);
     setEvidenceTab("findings");
     setOpenFindingGroups({});
     setOpenEdgeGroups({});
+
+    const controller = new AbortController();
 
     try {
       const response = await fetch("/api/analyze", {
@@ -225,20 +246,29 @@ export function AnalysisWorkbench({
           dataMode,
           dataProvider,
         }),
+        signal: controller.signal,
       });
-      const body = (await response.json()) as AnalysisResponse | { error?: string };
+      const body = (await response.json()) as AnalysisJobStartResponse | { error?: string };
 
       if (!response.ok) {
         throw new Error("error" in body && body.error ? body.error : "Analysis failed.");
       }
 
-      setResult(body as AnalysisResponse);
-      setAnalysisProgress(100);
+      if (!("jobId" in body) || !body.jobId) {
+        throw new Error("Analysis job was not created.");
+      }
+
+      const analysisResult = await pollAnalyzeJob(body.jobId, controller.signal);
+      setResult(analysisResult);
     } catch (caught) {
+      if (caught instanceof Error && caught.name === "AbortError") {
+        return;
+      }
+
       setError(caught instanceof Error ? caught.message : "Analysis failed.");
     } finally {
       setIsRunning(false);
-      setAnalysisStartedAt(null);
+      setJobProgress(null);
     }
   }
 
@@ -530,7 +560,7 @@ export function AnalysisWorkbench({
           {isRunning ? (
             <div className="emptyStateBlock emptyStateRunning">
               <strong>任务正在运行</strong>
-              <p>主画布会展示实时阶段进度；分析完成后这里会显示评分、钱包对洞察和信号摘要。</p>
+              <p>主画布会展示后端实时阶段进度；分析完成后这里会显示评分、钱包对洞察和信号摘要。</p>
             </div>
           ) : result && graphSummary ? (
             <>
@@ -658,7 +688,7 @@ export function AnalysisWorkbench({
           {isRunning ? (
             <div className="graphLoadingState" aria-live="polite">
               <AnalysisProgress
-                progress={analysisProgress}
+                progress={jobProgress}
                 chainName={chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"}
                 addressCount={addressCount}
                 variant="hero"

@@ -41,11 +41,19 @@ export interface GraphEnricher {
   enrich(graph: RelationshipGraph, events: NormalizedEvent[]): Promise<RelationshipGraph>;
 }
 
+export type AnalysisPipelinePhase = "graph" | "labels" | "analysis";
+
+export interface AnalysisProgressUpdate {
+  phase: AnalysisPipelinePhase;
+  status: "started" | "completed";
+}
+
 export interface AnalysisRunInput {
   watchedAddresses: Address[];
   events: NormalizedEvent[];
   analyzers: Analyzer[];
   graphEnrichers?: GraphEnricher[];
+  onProgress?: (update: AnalysisProgressUpdate) => void;
 }
 
 export interface AnalysisRunResult {
@@ -55,15 +63,23 @@ export interface AnalysisRunResult {
 }
 
 export async function runAnalysis(input: AnalysisRunInput): Promise<AnalysisRunResult> {
+  input.onProgress?.({ phase: "graph", status: "started" });
   let graph = buildRelationshipGraph({
     watchedAddresses: input.watchedAddresses,
     events: input.events,
   });
+  input.onProgress?.({ phase: "graph", status: "completed" });
 
-  for (const enricher of input.graphEnrichers ?? []) {
-    graph = await enricher.enrich(graph, input.events);
+  const enrichers = input.graphEnrichers ?? [];
+  if (enrichers.length > 0) {
+    input.onProgress?.({ phase: "labels", status: "started" });
+    for (const enricher of enrichers) {
+      graph = await enricher.enrich(graph, input.events);
+    }
+    input.onProgress?.({ phase: "labels", status: "completed" });
   }
 
+  input.onProgress?.({ phase: "analysis", status: "started" });
   const context: AnalysisContext = {
     graph,
     events: input.events,
@@ -71,10 +87,12 @@ export async function runAnalysis(input: AnalysisRunInput): Promise<AnalysisRunR
   const findings = (
     await Promise.all(input.analyzers.map((analyzer) => analyzer.run(context)))
   ).flat();
+  const score = scoreFindings(findings);
+  input.onProgress?.({ phase: "analysis", status: "completed" });
 
   return {
     graph,
     findings,
-    score: scoreFindings(findings),
+    score,
   };
 }

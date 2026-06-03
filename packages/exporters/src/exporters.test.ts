@@ -5,6 +5,37 @@ import type { AnalysisReport } from "./index";
 const report: AnalysisReport = {
   title: "Demo Report",
   generatedAt: "2024-01-01T00:00:00.000Z",
+  scope: "Ethereum",
+  sourceLabel: "Etherscan V2 live · Ethereum",
+  summary: {
+    verdict: "strong",
+    headline: "发现 1 组高价值关联，其中至少 1 组可判定为强关联。",
+    narrative: "0xaaaa...aaaa ↔ 0xbbbb...bbbb 命中了 Direct transfer found。",
+    pairInsights: [
+      {
+        labels: ["0xaaaa...aaaa", "0xbbbb...bbbb"],
+        strength: "strong",
+        score: 40,
+        confidence: "high",
+        signalCount: 1,
+        reasons: ["Direct transfer found"],
+      },
+    ],
+    signalHighlights: [{ analyzerId: "direct-transfer", title: "Direct transfer found", count: 1 }],
+  },
+  meta: {
+    reportId: "WM-20240101000000",
+    chainName: "Ethereum",
+    resolvedMode: "live",
+    fetchedAt: "2024-01-01T00:00:00.000Z",
+  },
+  metrics: {
+    watchedAddressCount: 2,
+    eventCount: 1,
+    walletCount: 2,
+    contractCount: 0,
+    edgeCount: 1,
+  },
   graph: {
     nodes: [
       {
@@ -46,12 +77,21 @@ const report: AnalysisReport = {
       severity: "high",
       confidence: "high",
       scoreImpact: 40,
+      evidenceTotal: 1,
+      evidenceTruncated: false,
       evidence: [
         {
           eventId: "event-1",
           txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
           summary:
             "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa sent native value to 0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.",
+          event: {
+            type: "native_transfer",
+            chainId: 1,
+            txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+            blockNumber: 12345,
+            timestamp: "2024-01-01T00:00:00.000Z",
+          },
         },
       ],
     },
@@ -69,7 +109,7 @@ describe("exporters", () => {
     const output = await new JsonExporter().export(report);
 
     expect(JSON.parse(output)).toMatchObject({
-      schemaVersion: "1.0",
+      schemaVersion: "1.1",
       title: "Demo Report",
     });
   });
@@ -78,15 +118,19 @@ describe("exporters", () => {
     const output = await new MarkdownExporter().export(report);
 
     expect(output).toContain("# Demo Report");
-    expect(output).toContain("## Executive Summary");
-    expect(output).toContain("## Scorecard");
-    expect(output).toContain("## Visual Overview");
+    expect(output).toContain("## 报告信息");
+    expect(output).toContain("## 一、结论摘要");
+    expect(output).toContain("## 二、核心指标");
+    expect(output).toContain("## 三、信号概览");
+    expect(output).toContain("## 四、钱包对关联洞察");
+    expect(output).toContain("## 五、关系图谱概览");
+    expect(output).toContain("## 六、详细发现");
     expect(output).toContain("```mermaid");
     expect(output).toContain("Direct transfer found");
     expect(output).toContain(
-      "tx: 0x1111111111111111111111111111111111111111111111111111111111111111",
+      "0x1111111111111111111111111111111111111111111111111111111111111111",
     );
-    expect(output).toContain("## Caution");
+    expect(output).toContain("## 方法说明与免责声明");
   });
 
   it("exports PDF reports", async () => {
@@ -103,7 +147,7 @@ describe("exporters", () => {
       sourceLabel: "实时数据 · Ethereum",
       scope: "ETH · 3 地址",
       summary: {
-        verdict: "强关联",
+        verdict: "strong",
         headline: "发现多个钱包之间存在直接和间接关联",
         narrative:
           "这段中文摘要不应该在 PDF 中造成乱码，也不应该让内容穿出页面。报告应该使用 PDF 安全摘要，并在 finding 较多时自动分页。",
@@ -117,6 +161,7 @@ describe("exporters", () => {
             reasons: ["Direct transfer found", "Same contract interaction found"],
           },
         ],
+        signalHighlights: [{ analyzerId: "direct-transfer", title: "Direct transfer found", count: 18 }],
       },
       findings: Array.from({ length: 18 }, (_, index) => ({
         ...report.findings[0],

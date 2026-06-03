@@ -50,4 +50,55 @@ describe("runAnalysis", () => {
       confidence: "high",
     });
   });
+
+  it("reports pipeline progress phases", async () => {
+    const updates: string[] = [];
+    const analyzer: Analyzer = {
+      id: "test-analyzer",
+      name: "Test Analyzer",
+      async run() {
+        return [];
+      },
+    };
+
+    await runAnalysis({
+      watchedAddresses: [
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      ],
+      events: [
+        {
+          id: "event:1",
+          type: "native_transfer",
+          chainId: 1,
+          txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+          blockNumber: 1,
+          timestamp: "2024-01-01T00:00:00.000Z",
+          from: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        },
+      ],
+      analyzers: [analyzer],
+      graphEnrichers: [
+        {
+          id: "noop-enricher",
+          async enrich(graph) {
+            return graph;
+          },
+        },
+      ],
+      onProgress: (update) => {
+        updates.push(`${update.phase}:${update.status}`);
+      },
+    });
+
+    expect(updates).toEqual([
+      "graph:started",
+      "graph:completed",
+      "labels:started",
+      "labels:completed",
+      "analysis:started",
+      "analysis:completed",
+    ]);
+  });
 });

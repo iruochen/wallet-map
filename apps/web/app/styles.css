@@ -768,14 +768,39 @@ select {
 }
 
 .analysisProgressValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: #1f6b3d;
   font-size: 0.86rem;
   font-weight: 850;
-  font-variant-numeric: tabular-nums;
+}
+
+.analysisProgressSpinner {
+  animation: analysisProgressSpin 1s linear infinite;
+}
+
+@keyframes analysisProgressSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.analysisProgressHint {
+  display: block;
+  max-width: 620px;
+  margin-top: 4px;
+  color: #7a8b80;
+  font-size: 0.74rem;
+  line-height: 1.4;
 }
 
 .analysisProgressPanel-hero .analysisProgressValue {
-  font-size: 1rem;
+  font-size: 0.92rem;
 }
 
 .analysisProgressTrack {
@@ -797,6 +822,22 @@ select {
   border-radius: inherit;
   background: linear-gradient(90deg, #2d7b49, #8abf6f);
   transition: width 420ms ease;
+}
+
+.analysisProgressTrack-indeterminate span {
+  width: 38%;
+  transition: none;
+  animation: analysisProgressIndeterminate 1.7s ease-in-out infinite;
+}
+
+@keyframes analysisProgressIndeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(320%);
+  }
 }
 
 .analysisProgressSteps {
@@ -831,6 +872,26 @@ select {
 .analysisProgressPanel-hero .analysisProgressStep-active {
   border-color: #acd5b5;
   background: #f1faf3;
+}
+
+.analysisProgressPanel-hero .analysisProgressStep-done {
+  border-color: #c8e2d1;
+  background: #f4fbf6;
+}
+
+.analysisProgressPanel-hero .analysisProgressStep-done strong {
+  color: #2f5a3d;
+}
+
+.analysisProgressPanel-hero .analysisProgressStep-done small {
+  color: #6a8574;
+}
+
+.analysisProgressPanel:not(.analysisProgressPanel-hero) .analysisProgressStep-done {
+  padding: 8px 10px;
+  margin: -8px -10px;
+  border-radius: 8px;
+  background: #f4fbf6;
 }
 
 .analysisProgressIcon {
