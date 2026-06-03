@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Suspense } from "react";
 import { AnalysisWorkbench } from "../components/analysis/analysis-workbench";
 import { supportedAnalysisChains } from "./chains";
 
@@ -23,6 +25,14 @@ export default function HomePage() {
           </div>
         </div>
         <div className="appHeaderStatus">
+          <nav className="appHeaderNav" aria-label="主导航">
+            <Link className="headerNavLink headerNavLinkActive" href="/">
+              工作台
+            </Link>
+            <Link className="headerNavLink" href="/history">
+              历史分析
+            </Link>
+          </nav>
           <span className={`headerChip ${liveConfigured ? "headerChipOk" : "headerChipMuted"}`}>
             <span className="headerChipDot" aria-hidden="true" />
             {liveConfigured ? "Live data ready" : "Fixture fallback"}
@@ -30,11 +40,13 @@ export default function HomePage() {
         </div>
       </header>
 
-      <AnalysisWorkbench
-        liveConfigured={liveConfigured}
-        supportedChains={supportedAnalysisChains}
-        initialAddresses={initialAddresses}
-      />
+      <Suspense fallback={<div className="workbenchLoadingFallback">正在加载工作台…</div>}>
+        <AnalysisWorkbench
+          liveConfigured={liveConfigured}
+          supportedChains={supportedAnalysisChains}
+          initialAddresses={initialAddresses}
+        />
+      </Suspense>
     </div>
   );
 }

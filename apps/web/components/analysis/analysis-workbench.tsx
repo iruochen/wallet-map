@@ -14,6 +14,7 @@ import {
   Upload,
   WalletCards,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   evmAggregateChainId,
@@ -76,6 +77,7 @@ export function AnalysisWorkbench({
   const [openFindingGroups, setOpenFindingGroups] = useState<Record<string, boolean>>({});
   const [openEdgeGroups, setOpenEdgeGroups] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const searchParams = useSearchParams();
   const evmAggregateChains = useMemo(() => getEvmAggregateChains(), []);
   const effectiveChainIds = useMemo(
     () =>
@@ -110,6 +112,16 @@ export function AnalysisWorkbench({
       ? "优先走实时数据；Auto provider 会先试 NodeReal，再按链使用备用 provider。"
       : "当前会自动回退到 fixture，直到本地环境加载了 API key。";
   }, [dataMode, liveConfigured]);
+
+  useEffect(() => {
+    const replayJobId = searchParams.get("job");
+
+    if (!replayJobId) {
+      return;
+    }
+
+    void loadReplayJob(replayJobId);
+  }, [searchParams]);
 
   const watchedAddressSet = useMemo(() => {
     if (!result) {
@@ -195,6 +207,29 @@ export function AnalysisWorkbench({
 
     return Array.from(groups.values()).sort((left, right) => right.edges.length - left.edges.length);
   }, [result]);
+
+  async function loadReplayJob(jobId: string) {
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/analyze/jobs/${jobId}`);
+      const body = (await response.json()) as AnalysisJobPollResponse | { error?: string };
+
+      if (!response.ok) {
+        throw new Error("error" in body && body.error ? body.error : "Failed to load saved analysis.");
+      }
+
+      const poll = body as AnalysisJobPollResponse;
+
+      if (poll.status !== "completed" || !poll.result) {
+        throw new Error("This analysis job is not ready for replay yet.");
+      }
+
+      setResult(poll.result);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Failed to load saved analysis.");
+    }
+  }
 
   async function pollAnalyzeJob(jobId: string, signal: AbortSignal): Promise<AnalysisResponse> {
     while (!signal.aborted) {

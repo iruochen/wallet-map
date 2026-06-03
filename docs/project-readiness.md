@@ -27,6 +27,9 @@ This checklist tracks the early project setup needed before feature work grows.
 
 - [ ] Add CI for `pnpm typecheck`, `pnpm test`, `pnpm lint`, and `pnpm build`.
 - [x] Add database migrations and schema documentation.
+- [x] Persist analysis jobs and results to PostgreSQL.
+- [x] Store in-flight analysis progress in Redis.
+- [x] Add analysis history page (`/history`).
 - [ ] Add a public demo fixture that does not contain private wallet data.
 - [x] Add report redaction guidance.
 - [ ] Add dependency update policy.

@@ -6,7 +6,9 @@ import {
   type LabelSink,
   type LabelProvider,
 } from "@wallet-map/labels";
+import { Pool } from "pg";
 import { createPostgresLabelRepository } from "@wallet-map/storage";
+import { getPostgresPool } from "../../../lib/server-db";
 import {
   createRedisLabelProvider,
   createRepositoryLabelProvider,
@@ -22,18 +24,30 @@ const labelDatabaseEnabledEnv = "LABEL_DATABASE_ENABLED";
 const redisUrlEnv = "REDIS_URL";
 const labelRedisCacheEnabledEnv = "LABEL_REDIS_CACHE_ENABLED";
 
-export function createAnalyzeLabelProviders(
+export interface AnalyzeLabelStack {
+  providers: LabelProvider[];
+  sinks: LabelSink[];
+}
+
+export function createAnalyzeLabelStack(
   env: Record<string, string | undefined> = process.env,
-): LabelProvider[] {
+): AnalyzeLabelStack {
   const providers: LabelProvider[] = [];
   const sinks: LabelSink[] = [];
   const etherscanApiKey = env[etherscanApiKeyEnv]?.trim();
   const chainbaseApiKey = env[chainbaseApiKeyEnv]?.trim();
+  const connectionString = env[databaseUrlEnv]?.trim();
+  const pool =
+    getPostgresPool() ??
+    (connectionString
+      ? new Pool({
+          connectionString,
+          max: 4,
+        })
+      : undefined);
 
-  if (env[databaseUrlEnv] && env[labelDatabaseEnabledEnv] !== "false") {
-    const repository = createPostgresLabelRepository({
-      connectionString: env[databaseUrlEnv],
-    });
+  if (pool && env[labelDatabaseEnabledEnv] !== "false") {
+    const repository = createPostgresLabelRepository({ pool });
 
     providers.push(createRepositoryLabelProvider(repository));
     sinks.push(createRepositoryLabelSink(repository));
@@ -41,7 +55,7 @@ export function createAnalyzeLabelProviders(
 
   if (env[redisUrlEnv] && env[labelRedisCacheEnabledEnv] !== "false") {
     const redisCache = createRedisLabelProvider({
-      url: env[redisUrlEnv],
+      url: env[redisUrlEnv]!,
     });
 
     providers.push(redisCache);
@@ -51,7 +65,9 @@ export function createAnalyzeLabelProviders(
   if (chainbaseApiKey && env[chainbaseLabelsEnabledEnv] !== "false") {
     const provider = createChainbaseLabelProvider({
       apiKey: chainbaseApiKey,
-      onError: () => undefined,
+      onError: (error) => {
+        console.error("[labels] chainbase lookup failed:", error.message);
+      },
     });
 
     providers.push(
@@ -59,7 +75,9 @@ export function createAnalyzeLabelProviders(
         ? createPersistingLabelProvider({
             provider,
             sinks,
-            onError: () => undefined,
+            onError: (error) => {
+              console.error("[labels] failed to persist chainbase labels:", error.message);
+            },
           })
         : provider,
     );
@@ -68,7 +86,9 @@ export function createAnalyzeLabelProviders(
   if (etherscanApiKey && env[etherscanNametagEnabledEnv] === "true") {
     const provider = createEtherscanNametagProvider({
       apiKey: etherscanApiKey,
-      onError: () => undefined,
+      onError: (error) => {
+        console.error("[labels] etherscan nametag lookup failed:", error.message);
+      },
     });
 
     providers.push(
@@ -76,7 +96,9 @@ export function createAnalyzeLabelProviders(
         ? createPersistingLabelProvider({
             provider,
             sinks,
-            onError: () => undefined,
+            onError: (error) => {
+              console.error("[labels] failed to persist etherscan labels:", error.message);
+            },
           })
         : provider,
     );
@@ -84,5 +106,11 @@ export function createAnalyzeLabelProviders(
 
   providers.push(createStaticLabelProvider());
 
-  return providers;
+  return { providers, sinks };
+}
+
+export function createAnalyzeLabelProviders(
+  env: Record<string, string | undefined> = process.env,
+): LabelProvider[] {
+  return createAnalyzeLabelStack(env).providers;
 }

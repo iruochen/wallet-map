@@ -9,7 +9,10 @@ import type {
   RelationshipScore,
 } from "@wallet-map/core";
 
-export const STORAGE_MIGRATIONS = ["0001_initial_schema.sql"] as const;
+export const STORAGE_MIGRATIONS = [
+  "0001_initial_schema.sql",
+  "0002_analysis_job_metadata.sql",
+] as const;
 
 export type AnalysisJobStatus = "pending" | "running" | "completed" | "failed";
 
@@ -96,3 +99,11 @@ export interface WalletMapStorage {
 
 export { createPostgresLabelRepository } from "./postgres-labels";
 export type { PostgresLabelRepositoryOptions } from "./postgres-labels";
+export { createPostgresAnalysisStorage } from "./postgres-analysis";
+export type {
+  AnalysisJobListItem,
+  AnalysisJobProgressSnapshot,
+  CreatePersistedAnalysisJobInput,
+  PersistAnalysisRunInput,
+  PostgresAnalysisStorage,
+} from "./postgres-analysis";

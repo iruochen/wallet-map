@@ -6,7 +6,7 @@ describe("executeAnalyzeJob", () => {
   it("runs fixture analysis with staged progress", async () => {
     resetAnalyzeJobStoreForTests();
     const jobId = "job-test-fixture";
-    createAnalyzeJob(jobId);
+    await createAnalyzeJob(jobId);
 
     await executeAnalyzeJob(jobId, {
       addresses: [
@@ -19,7 +19,7 @@ describe("executeAnalyzeJob", () => {
       dataProvider: "auto",
     });
 
-    const job = getAnalyzeJob(jobId);
+    const job = await getAnalyzeJob(jobId);
     expect(job?.status).toBe("completed");
     expect(job?.progress.completedPhases).toEqual(["fetch", "graph", "labels", "analysis"]);
     expect(job?.result).toBeTruthy();

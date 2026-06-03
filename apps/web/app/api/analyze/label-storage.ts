@@ -51,7 +51,7 @@ export function createRepositoryLabelSink(repository: LabelRepository): LabelSin
         entity: label.entity,
         category: label.category,
         tags: label.tags ?? [],
-        source: label.source ?? "unknown",
+        source: label.source?.trim() || "unlabeled",
         lastSeenAt: label.updatedAt ?? new Date().toISOString(),
       })));
     },

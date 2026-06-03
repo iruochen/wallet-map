@@ -1,14 +1,29 @@
 # Database Schema
 
-Wallet Map uses PostgreSQL as the first durable storage target. The MVP storage layer is intentionally thin: it defines SQL migrations and TypeScript repository contracts, but it does not yet include a live database client or migration runner.
+Wallet Map uses PostgreSQL as the durable storage target and Redis for hot caches and in-flight analysis job progress.
 
 ## Current Boundary
 
-- `@wallet-map/storage` owns schema files and repository interfaces.
-- The web app still runs in fixture mode and does not write to PostgreSQL yet.
-- API keys, private user wallet labels, and private local exports are not stored by this schema.
-- Public known entity labels can be stored in `known_labels` and copied onto graph nodes during analysis.
-- Future database clients should implement the repository interfaces rather than leaking SQL details into UI or analyzer packages.
+- `@wallet-map/storage` owns schema files, repository interfaces, and PostgreSQL implementations.
+- The web app writes analysis jobs and results through `createPostgresAnalysisStorage`.
+- Analysis job **progress** is stored in Redis (`wallet-map:analyze-job:{id}`) for multi-instance polling.
+- Completed analysis **snapshots** and normalized rows are stored in PostgreSQL for replay and history.
+- Public known entity labels are stored in `known_labels` and mirrored in Redis for fast lookup.
+
+## Migrations
+
+Apply in order:
+
+1. `packages/storage/migrations/0001_initial_schema.sql`
+2. `packages/storage/migrations/0002_analysis_job_metadata.sql`
+
+Example (local Docker Compose):
+
+```bash
+docker-compose up -d
+psql "$DATABASE_URL" -f packages/storage/migrations/0001_initial_schema.sql
+psql "$DATABASE_URL" -f packages/storage/migrations/0002_analysis_job_metadata.sql
+```
 
 ## Tables
 
@@ -20,9 +35,10 @@ Key fields:
 
 - `id`: stable job identifier.
 - `status`: `pending`, `running`, `completed`, or `failed`.
-- `subject_id`: optional higher-level subject/entity id.
-- `input_addresses`: JSON array of watched wallet addresses.
-- `chain_ids`: chains included in the run.
+- `progress`: JSON snapshot of the latest pipeline phase (also mirrored in Redis while running).
+- `result_snapshot`: serialized API response for fast replay.
+- `input_addresses`, `chain_ids`, `data_mode`, `chain_name`, `source_label`.
+- `watched_address_count`, `event_count`.
 - `score`: serialized relationship score from `runAnalysis`.
 - `error_message`: failure reason when a job cannot complete.
 - Timestamps for creation, updates, start, and completion.
@@ -31,67 +47,36 @@ Key fields:
 
 Stores normalized chain events used as analysis evidence.
 
-Key fields:
+### `graph_nodes` / `graph_edges`
 
-- `analysis_job_id`: parent job.
-- `event_type`, `chain_id`, `tx_hash`, `block_number`, `occurred_at`: event identity and ordering.
-- `from_address`, `to_address`, `contract_address`, `method_id`: common query fields.
-- `asset`, `amount`, `metadata`: normalized event details.
-- `raw_event`: complete serialized `NormalizedEvent` so MVP fields are not lost as the model evolves.
-
-### `graph_nodes`
-
-Stores nodes produced by `buildRelationshipGraph`.
-
-Key fields:
-
-- `analysis_job_id`: parent job.
-- `id`: graph node id scoped to the job.
-- `node_kind`: wallet, contract, entity, or asset.
-- `address`, `chain_id`, `label`, `tags`: display and filtering fields.
-- `metadata`: reserved for future enrichment.
-
-### `graph_edges`
-
-Stores relationship edges produced by `buildRelationshipGraph` and future graph builders.
-
-Key fields:
-
-- `analysis_job_id`: parent job.
-- `id`: graph edge id scoped to the job.
-- `edge_kind`: transfer, contract interaction, shared counterparty, temporal similarity, bridge route, etc.
-- `source_node_id`, `target_node_id`: composite references to `graph_nodes`.
-- `weight`: edge strength.
-- `evidence_event_ids`: event ids supporting the edge.
-- `metadata`: serialized edge metadata.
+Stores relationship graph output scoped to a job.
 
 ### `findings`
 
 Stores analyzer output from `runAnalysis`.
 
-Key fields:
-
-- `analysis_job_id`: parent job.
-- `id`: finding id scoped to the job.
-- `analyzer_id`: analyzer that emitted the finding.
-- `title`, `description`, `severity`, `confidence`, `score_impact`: user-facing result fields.
-- `evidence`: serialized evidence references.
-- `metadata`: analyzer-specific details.
-
 ### `known_labels`
 
-Stores public or team-curated labels that can enrich graph nodes before analyzers run.
+Stores public or team-curated labels enriched from Chainbase, Etherscan nametag, or static seeds.
 
-Key fields:
+Lookup priority in PostgreSQL favors `chainbase-address-labels`, then `etherscan-nametag`, then `static-label-registry`.
 
-- `node_kind`: wallet, contract, entity, or asset.
-- `chain_id`, `address`: lookup key for chain-scoped addresses.
-- `label`, `entity`, `category`, `tags`: display and analysis attributes.
-- `source`, `confidence`, timestamps, `metadata`: provenance for static seeds, database imports, or future live providers.
+## API Integration
 
-## Next Integration Points
+| Endpoint | Storage |
+| --- | --- |
+| `POST /api/analyze` | Creates Redis job + PostgreSQL `analysis_jobs` row |
+| `GET /api/analyze/jobs/:id` | Reads Redis first, falls back to PostgreSQL snapshot |
+| `GET /api/analyze/jobs` | Lists recent jobs from PostgreSQL |
 
-1. Add a migration runner for local development and CI.
-2. Implement a PostgreSQL-backed `WalletMapStorage`.
-3. Connect `/api/analyze` so it creates a job, saves normalized events, saves graph output, and persists findings.
-4. Add a job detail endpoint for replaying saved analysis results.
+## Environment
+
+```bash
+DATABASE_URL=postgresql://...
+REDIS_URL=redis://...
+CHAINBASE_API_KEY=...
+LABEL_DATABASE_ENABLED=true
+LABEL_REDIS_CACHE_ENABLED=true
+```
+
+On Vercel, use managed PostgreSQL and Redis (for example Neon + Upstash). Do not run Docker Compose services on Vercel itself.

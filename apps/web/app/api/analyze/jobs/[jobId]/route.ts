@@ -1,3 +1,4 @@
+import { getAnalysisStorage } from "../../analysis-storage";
 import { getAnalyzeJob } from "../../job-store";
 import { getProgressPercent } from "../../progress";
 
@@ -6,18 +7,31 @@ export async function GET(
   context: { params: Promise<{ jobId: string }> },
 ): Promise<Response> {
   const { jobId } = await context.params;
-  const job = getAnalyzeJob(jobId);
+  const redisJob = await getAnalyzeJob(jobId);
+  const storage = getAnalysisStorage();
+  const persistedJob = storage ? await storage.getJobRecord(jobId).catch(() => undefined) : undefined;
 
-  if (!job) {
+  if (!redisJob && !persistedJob) {
     return Response.json({ error: "Analysis job not found." }, { status: 404 });
   }
 
+  if (redisJob) {
+    return Response.json({
+      jobId,
+      status: redisJob.status,
+      progress: redisJob.progress,
+      percent: getProgressPercent(redisJob.progress),
+      error: redisJob.error,
+      result: redisJob.status === "completed" ? redisJob.result : undefined,
+    });
+  }
+
   return Response.json({
-    jobId: job.jobId,
-    status: job.status,
-    progress: job.progress,
-    percent: getProgressPercent(job.progress),
-    error: job.error,
-    result: job.status === "completed" ? job.result : undefined,
+    jobId,
+    status: persistedJob!.status,
+    progress: persistedJob!.progress ?? { phase: null, completedPhases: [] },
+    percent: getProgressPercent(persistedJob!.progress ?? null),
+    error: persistedJob!.errorMessage,
+    result: persistedJob!.status === "completed" ? persistedJob!.resultSnapshot : undefined,
   });
 }

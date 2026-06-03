@@ -16,7 +16,8 @@ Wallet Map 的产品表述应保持克制：它是一个本地优先的钱包关
 - 分析器：`@wallet-map/analyzers` 已包含 direct transfer、shared counterparty、same contract interaction 三类基础信号。
 - 评分：`scoreFindings` 已提供 0-100 的基础加权评分和 confidence。
 - 前端：Next.js workbench 已展示输入区、总评分、pair insights、findings、evidence 和 Cytoscape 图谱。
-- 本地基础设施：仓库已包含 PostgreSQL、Redis 的 Docker Compose 配置和初版 SQL migration，但 API 尚未真正持久化 job、events、graph、findings。
+- 本地基础设施：PostgreSQL、Redis 已通过 Docker Compose 接入；分析 job 进度写入 Redis，完整结果与标签缓存写入 PostgreSQL/Redis。
+- 历史分析：`/history` 页面可查看已持久化的分析任务，并回到工作台复盘。
 
 这说明项目已经完成从“想法验证”到“可演示工具”的跨越。下一阶段重点不应是堆 UI，而是让分析结果更稳定、更快、更可信，并让用户理解每个风险判断背后的证据。
 
@@ -401,18 +402,20 @@ interface SybilExposureScore {
 
 交付：
 
-- PostgreSQL storage implementation。
-- Redis cache。
-- Ankr 或 Moralis provider。
-- Provider selector。
-- Job persistence 和结果回放。
-- Live mode 并发控制。
+- [x] PostgreSQL storage implementation（`createPostgresAnalysisStorage`、分析结果落库）。
+- [x] Redis cache（分析 job 进度、标签热缓存）。
+- [x] Job persistence 和结果回放（`POST /api/analyze` + `GET /api/analyze/jobs/:id`、历史页 `/history`）。
+- [x] Chainbase/Etherscan 标签写入 PG + Redis，分析时优先读缓存。
+- [ ] Ankr 或 Moralis provider。
+- [ ] Provider selector（统一抽象与自动切换）。
+- [ ] Live mode 并发控制（地址级并发与限流）。
 
 核心指标：
 
-- 已分析地址组二次打开明显加速。
-- Etherscan 失败时可切到备用 provider。
-- job、events、graph、findings 均可持久化。
+- [x] 已分析任务可在历史页复盘。
+- [x] job、events、graph、findings 均可持久化。
+- [ ] 已分析地址组二次打开明显加速（依赖缓存命中率验证）。
+- [ ] Etherscan 失败时可切到备用 provider。
 
 ### M3：高级分析器
 
@@ -499,5 +502,5 @@ interface SybilExposureScore {
 
 ## 12. 下一步建议
 
-下一步最值得做的是 M1：证据闭环和报告导出。原因是它不依赖昂贵数据源，也不会过早引入复杂基础设施，但能显著提高产品可信度。等用户能顺畅地从 score 看到 pair、从 pair 看到 edge、从 edge 看到 tx hash，再进入 M2 的数据库和缓存会更稳。
+M1 的证据闭环、报告导出与图谱联动已基本具备。当前建议继续推进 M2 剩余项：第二 live provider、provider selector、live 并发控制；并验证 Vercel 环境下 Redis job 与 PostgreSQL 持久化的稳定性。完成后进入 M3 高级分析器（共同上游、多跳路径、公共实体降权）。
 

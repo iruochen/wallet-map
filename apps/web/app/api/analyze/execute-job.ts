@@ -2,8 +2,10 @@ import { createDefaultAnalyzers } from "@wallet-map/analyzers";
 import type { AnalysisPipelinePhase } from "@wallet-map/core";
 import { runAnalysis } from "@wallet-map/core";
 import { createLabelGraphEnricher } from "@wallet-map/labels";
+import { getAnalysisStorage } from "./analysis-storage";
 import { buildAnalyzeResponse } from "./build-response";
 import { resolveAnalyzeEvents } from "./data-source";
+import { warmWalletLabelCache, persistDiscoveredGraphLabels } from "./label-cache";
 import {
   createAnalyzeJob,
   getAnalyzeJob,
@@ -13,7 +15,7 @@ import {
   markAnalyzeJobPhaseStarted,
   markAnalyzeJobRunning,
 } from "./job-store";
-import { createAnalyzeLabelProviders } from "./label-providers";
+import { createAnalyzeLabelStack } from "./label-providers";
 import type { AnalysisPhaseId } from "./progress";
 import type { ParsedAnalyzeRequest } from "./schema";
 
@@ -23,48 +25,111 @@ function mapPipelinePhase(phase: AnalysisPipelinePhase): AnalysisPhaseId {
 
 export function startAnalyzeJob(parsed: ParsedAnalyzeRequest): string {
   const jobId = crypto.randomUUID();
-  createAnalyzeJob(jobId);
-  void executeAnalyzeJob(jobId, parsed);
+  void initializeAndExecuteAnalyzeJob(jobId, parsed);
   return jobId;
 }
 
-export async function executeAnalyzeJob(jobId: string, parsed: ParsedAnalyzeRequest): Promise<void> {
-  if (!getAnalyzeJob(jobId)) {
+async function initializeAndExecuteAnalyzeJob(
+  jobId: string,
+  parsed: ParsedAnalyzeRequest,
+): Promise<void> {
+  const storage = getAnalysisStorage();
+
+  try {
+    await createAnalyzeJob(jobId);
+
+    if (storage) {
+      await storage.createJob({
+        id: jobId,
+        inputAddresses: parsed.addresses,
+        chainIds: parsed.chainIds,
+        dataMode: parsed.dataMode,
+      });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to initialize analysis job.";
+    await markAnalyzeJobFailed(jobId, message);
+    await storage?.markJobFailed(jobId, message).catch(() => undefined);
     return;
   }
 
-  markAnalyzeJobRunning(jobId);
+  await executeAnalyzeJob(jobId, parsed);
+}
+
+export async function executeAnalyzeJob(jobId: string, parsed: ParsedAnalyzeRequest): Promise<void> {
+  const existingJob = await getAnalyzeJob(jobId);
+  if (!existingJob) {
+    return;
+  }
+
+  const storage = getAnalysisStorage();
+
+  await markAnalyzeJobRunning(jobId);
+  await storage?.markJobRunning(jobId).catch(() => undefined);
 
   try {
-    markAnalyzeJobPhaseStarted(jobId, "fetch");
+    await syncJobProgress(jobId, "fetch", "started", storage);
     const resolved = await resolveAnalyzeEvents(parsed);
-    markAnalyzeJobPhaseCompleted(jobId, "fetch");
+    await syncJobProgress(jobId, "fetch", "completed", storage);
 
+    const labelStack = createAnalyzeLabelStack();
     const result = await runAnalysis({
       watchedAddresses: parsed.addresses,
       events: resolved.events,
       analyzers: createDefaultAnalyzers(),
       graphEnrichers: [
         createLabelGraphEnricher({
-          providers: createAnalyzeLabelProviders(),
+          providers: labelStack.providers,
         }),
       ],
-      onProgress: (update) => {
+      onProgress: async (update) => {
         const phase = mapPipelinePhase(update.phase);
 
-        if (update.status === "started") {
-          markAnalyzeJobPhaseStarted(jobId, phase);
-          return;
+        if (phase === "labels" && update.status === "started") {
+          await warmWalletLabelCache(parsed.addresses, parsed.chainIds);
         }
 
-        markAnalyzeJobPhaseCompleted(jobId, phase);
+        await syncJobProgress(jobId, phase, update.status === "started" ? "started" : "completed", storage);
       },
     });
 
+    await persistDiscoveredGraphLabels(result.graph);
+
     const response = buildAnalyzeResponse(parsed, resolved, result);
-    markAnalyzeJobCompleted(jobId, response);
+    await markAnalyzeJobCompleted(jobId, response);
+
+    if (storage) {
+      await storage.saveCompletedRun({
+        jobId,
+        events: resolved.events,
+        result,
+        responseSnapshot: response,
+        chainName: resolved.chainName,
+        sourceLabel: response.sourceLabel,
+        dataMode: parsed.dataMode,
+      });
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected analysis error.";
-    markAnalyzeJobFailed(jobId, message);
+    await markAnalyzeJobFailed(jobId, message);
+    await storage?.markJobFailed(jobId, message).catch(() => undefined);
+  }
+}
+
+async function syncJobProgress(
+  jobId: string,
+  phase: AnalysisPhaseId,
+  status: "started" | "completed",
+  storage: ReturnType<typeof getAnalysisStorage>,
+): Promise<void> {
+  if (status === "started") {
+    await markAnalyzeJobPhaseStarted(jobId, phase);
+  } else {
+    await markAnalyzeJobPhaseCompleted(jobId, phase);
+  }
+
+  const job = await getAnalyzeJob(jobId);
+  if (job && storage) {
+    await storage.updateJobProgress(jobId, job.progress).catch(() => undefined);
   }
 }

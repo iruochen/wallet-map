@@ -28,16 +28,19 @@ interface KnownLabelRow {
 
 export interface PostgresLabelRepositoryOptions {
   connectionString?: string;
+  pool?: Pool;
   poolConfig?: PoolConfig;
 }
 
 export function createPostgresLabelRepository(
   options: PostgresLabelRepositoryOptions = {},
 ): LabelRepository {
-  const pool = new Pool({
-    connectionString: options.connectionString ?? process.env.DATABASE_URL,
-    ...options.poolConfig,
-  });
+  const pool =
+    options.pool ??
+    new Pool({
+      connectionString: options.connectionString ?? process.env.DATABASE_URL,
+      ...options.poolConfig,
+    });
 
   return {
     async findKnownLabels(input) {
