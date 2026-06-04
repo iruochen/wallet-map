@@ -12,6 +12,7 @@ import type {
 export const STORAGE_MIGRATIONS = [
   "0001_initial_schema.sql",
   "0002_analysis_job_metadata.sql",
+  "0003_scoped_event_and_job_subjects.sql",
 ] as const;
 
 export type AnalysisJobStatus = "pending" | "running" | "completed" | "failed";

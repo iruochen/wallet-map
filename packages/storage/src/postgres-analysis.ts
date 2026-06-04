@@ -17,6 +17,7 @@ export interface AnalysisJobProgressSnapshot {
 
 export interface CreatePersistedAnalysisJobInput {
   id: string;
+  subjectId?: string;
   inputAddresses: Address[];
   chainIds: ChainId[];
   dataMode?: string;
@@ -54,13 +55,13 @@ export interface PostgresAnalysisStorage {
   markJobRunning(jobId: string): Promise<void>;
   markJobFailed(jobId: string, errorMessage: string): Promise<void>;
   saveCompletedRun(input: PersistAnalysisRunInput): Promise<void>;
-  getJobRecord(jobId: string): Promise<{
+  getJobRecord(jobId: string, subjectId?: string): Promise<{
     status: AnalysisJobStatus;
     progress?: AnalysisJobProgressSnapshot;
     errorMessage?: string;
     resultSnapshot?: unknown;
   } | undefined>;
-  listJobs(limit?: number): Promise<AnalysisJobListItem[]>;
+  listJobs(limit?: number, subjectId?: string): Promise<AnalysisJobListItem[]>;
 }
 
 export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStorage {
@@ -82,6 +83,7 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
         INSERT INTO analysis_jobs (
           id,
           status,
+          subject_id,
           input_addresses,
           chain_ids,
           data_mode,
@@ -92,10 +94,11 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
           created_at,
           updated_at
         )
-        VALUES ($1, 'pending', $2::jsonb, $3::int[], $4, $5, $6, $7, $8::jsonb, $9, $9)
+        VALUES ($1, 'pending', $2, $3::jsonb, $4::int[], $5, $6, $7, $8, $9::jsonb, $10, $10)
       `,
       [
         input.id,
+        input.subjectId ?? null,
         JSON.stringify(input.inputAddresses),
         input.chainIds,
         input.dataMode ?? null,
@@ -297,7 +300,7 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
     }
   }
 
-  async function getJobRecord(jobId: string) {
+  async function getJobRecord(jobId: string, subjectId?: string) {
     const result = await pool.query<{
       status: AnalysisJobStatus;
       progress: AnalysisJobProgressSnapshot | null;
@@ -307,9 +310,9 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
       `
         SELECT status, progress, error_message, result_snapshot
         FROM analysis_jobs
-        WHERE id = $1
+        WHERE id = $1 AND ($2::text IS NULL OR subject_id = $2)
       `,
-      [jobId],
+      [jobId, subjectId ?? null],
     );
 
     const row = result.rows[0];
@@ -325,7 +328,7 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
     };
   }
 
-  async function listJobs(limit = 20): Promise<AnalysisJobListItem[]> {
+  async function listJobs(limit = 20, subjectId?: string): Promise<AnalysisJobListItem[]> {
     const result = await pool.query<{
       id: string;
       status: AnalysisJobStatus;
@@ -353,10 +356,11 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
           completed_at,
           error_message
         FROM analysis_jobs
+        WHERE ($2::text IS NULL OR subject_id = $2)
         ORDER BY created_at DESC
         LIMIT $1
       `,
-      [limit],
+      [limit, subjectId ?? null],
     );
 
     return result.rows.map((row) => ({

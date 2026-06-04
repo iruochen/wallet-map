@@ -7,6 +7,7 @@ const REDIS_KEY_PREFIX = "wallet-map:analyze-job:";
 
 export interface AnalysisJobRecord {
   jobId: string;
+  subjectId?: string;
   status: AnalysisJobStatus;
   progress: AnalysisJobProgress;
   result?: unknown;
@@ -80,10 +81,11 @@ async function writeJob(record: AnalysisJobRecord): Promise<void> {
     });
 }
 
-export async function createAnalyzeJob(jobId: string): Promise<AnalysisJobRecord> {
+export async function createAnalyzeJob(jobId: string, subjectId?: string): Promise<AnalysisJobRecord> {
   const now = new Date().toISOString();
   const record: AnalysisJobRecord = {
     jobId,
+    subjectId,
     status: "pending",
     progress: createInitialJobProgress(),
     createdAt: now,

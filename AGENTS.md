@@ -2,6 +2,13 @@
 
 Before committing, pushing, creating a repository, or deploying this project, always perform a safety pass.
 
+## Project Docs
+
+- Start with [Development Workflow](docs/development-workflow.md), [Architecture Map](docs/architecture-map.md), and [Product Design Roadmap](docs/product-design-roadmap.zh.md) before broad product or architecture changes.
+- Follow [Code Style](docs/code-style.md), [Documentation Style](docs/documentation-style.md), and [Commit Convention](docs/commit-convention.md) when editing code, docs, or preparing commits.
+- Use [Analysis Guidelines](docs/analysis-guidelines.md), [Graph Visualization Plan](docs/graph-visualization.md), and [Database Schema](docs/database-schema.md) for analyzer behavior, graph data contracts, and persistence/API boundaries.
+- Check [Project Readiness](docs/project-readiness.md), [Release Process](docs/release-process.md), and [Open Source Guidelines](docs/open-source.md) before public release, tagging, deployment, repository creation, or publishing.
+
 ## Secret and Data Safety
 
 - Never commit local environment files: `.env`, `.env.*`, `apps/web/.env`, `apps/web/.env.*`.
@@ -20,6 +27,7 @@ Before committing, pushing, creating a repository, or deploying this project, al
 - After changing frontend loading, progress, navigation, or report-export flows, verify the affected UI with a browser/dev-server check in addition to automated tests. Confirm loading/progress appears in only the intended region and that labels/buttons are not truncated.
 - Inspect `git status --short` and `git diff --stat` before staging.
 - Review all newly added files before staging, especially generated reports, screenshots, local config, and deployment metadata.
+- When code changes are complete and verified, create a focused git commit unless the user explicitly asks not to commit.
 
 ## Deployment Notes
 

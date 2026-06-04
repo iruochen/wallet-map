@@ -224,7 +224,7 @@ export class NodeRealEvmAdapter implements ChainAdapter {
 
   private mapNativeTransfer(transfer: NodeRealTransfer): NormalizedEvent {
     return {
-      id: `nodereal:${this.chainId}:external:${transfer.hash.toLowerCase()}`,
+      id: `nodereal:${this.chainId}:external:${buildTransferEventKey(transfer)}`,
       type: "native_transfer",
       chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
@@ -249,7 +249,7 @@ export class NodeRealEvmAdapter implements ChainAdapter {
     const input = transfer.input ?? "0x";
 
     return {
-      id: `nodereal:${this.chainId}:contract:${transfer.hash.toLowerCase()}`,
+      id: `nodereal:${this.chainId}:contract:${buildTransferEventKey(transfer)}`,
       type: "contract_call",
       chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
@@ -268,7 +268,7 @@ export class NodeRealEvmAdapter implements ChainAdapter {
 
   private mapInternalTransfer(transfer: NodeRealTransfer): NormalizedEvent {
     return {
-      id: `nodereal:${this.chainId}:internal:${transfer.hash.toLowerCase()}:${String(transfer.traceIndex ?? 0)}`,
+      id: `nodereal:${this.chainId}:internal:${buildTransferEventKey(transfer)}:${String(transfer.traceIndex ?? 0)}`,
       type: "native_transfer",
       chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
@@ -292,7 +292,7 @@ export class NodeRealEvmAdapter implements ChainAdapter {
 
   private mapTokenTransfer(transfer: NodeRealTransfer): NormalizedEvent {
     return {
-      id: `nodereal:${this.chainId}:20:${transfer.hash.toLowerCase()}:${String(transfer.logIndex ?? 0)}`,
+      id: `nodereal:${this.chainId}:20:${buildTransferEventKey(transfer)}:${String(transfer.logIndex ?? 0)}`,
       type: "token_transfer",
       chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
@@ -318,7 +318,7 @@ export class NodeRealEvmAdapter implements ChainAdapter {
 
   private mapErc721Transfer(transfer: NodeRealTransfer): NormalizedEvent {
     return {
-      id: `nodereal:${this.chainId}:721:${transfer.hash.toLowerCase()}:${String(transfer.logIndex ?? 0)}`,
+      id: `nodereal:${this.chainId}:721:${buildTransferEventKey(transfer)}:${String(transfer.logIndex ?? 0)}`,
       type: "nft_transfer",
       chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
@@ -348,7 +348,7 @@ export class NodeRealEvmAdapter implements ChainAdapter {
       : [{ tokenId: undefined, value: transfer.value }];
 
     return tokenDetails.map((detail, index) => ({
-      id: `nodereal:${this.chainId}:1155:${transfer.hash.toLowerCase()}:${String(transfer.logIndex ?? 0)}:${index}`,
+      id: `nodereal:${this.chainId}:1155:${buildTransferEventKey(transfer)}:${String(transfer.logIndex ?? 0)}:${index}`,
       type: "nft_transfer",
       chainId: this.chainId,
       txHash: normalizeTxHash(transfer.hash),
@@ -399,6 +399,10 @@ function normalizeAddress(value: string): Address {
 
 function normalizeTxHash(value: string): TxHash {
   return value.toLowerCase() as TxHash;
+}
+
+function buildTransferEventKey(transfer: NodeRealTransfer): string {
+  return `${transfer.hash.toLowerCase()}:${transfer.id}`;
 }
 
 function toIsoTimestamp(unixSeconds: number): string {

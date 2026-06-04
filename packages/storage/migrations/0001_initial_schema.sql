@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS analysis_jobs (
 );
 
 CREATE TABLE IF NOT EXISTS normalized_events (
-  id TEXT PRIMARY KEY,
+  id TEXT NOT NULL,
   analysis_job_id TEXT NOT NULL REFERENCES analysis_jobs(id) ON DELETE CASCADE,
   event_type TEXT NOT NULL,
   chain_id INTEGER NOT NULL,
@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS normalized_events (
   amount TEXT,
   metadata JSONB,
   raw_event JSONB NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (analysis_job_id, id)
 );
 
 CREATE TABLE IF NOT EXISTS graph_nodes (

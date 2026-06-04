@@ -13,6 +13,7 @@ describe("storage package", () => {
     expect(STORAGE_MIGRATIONS).toEqual([
       "0001_initial_schema.sql",
       "0002_analysis_job_metadata.sql",
+      "0003_scoped_event_and_job_subjects.sql",
     ]);
   });
 
@@ -47,6 +48,7 @@ describe("storage package", () => {
 
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS analysis_jobs");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS normalized_events");
+    expect(sql).toContain("PRIMARY KEY (analysis_job_id, id)");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS graph_nodes");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS graph_edges");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS findings");

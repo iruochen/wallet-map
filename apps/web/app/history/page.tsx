@@ -1,8 +1,10 @@
 import { AppHeader, readLiveConfigured } from "../../components/layout/app-header";
 import { HistoryJobList } from "../../components/history/history-job-list";
+import { readWalletSession } from "../api/auth/session";
 
-export default function HistoryPage() {
+export default async function HistoryPage() {
   const liveConfigured = readLiveConfigured();
+  const walletSession = await readWalletSession();
 
   return (
     <div className="appShell">
@@ -14,10 +16,13 @@ export default function HistoryPage() {
             <div>
               <span className="panelEyebrow">Analysis history</span>
               <h1>历史分析</h1>
-              <p>查看已保存到 PostgreSQL 的分析任务，点击可回到工作台复盘结果。</p>
+              <p>登录钱包后查看持久化记录；未登录时显示本次会话历史。</p>
             </div>
           </div>
-          <HistoryJobList />
+          <HistoryJobList
+            initialHistoryMode={walletSession ? "wallet" : "session"}
+            initialWalletAddress={walletSession?.address}
+          />
         </section>
       </main>
     </div>

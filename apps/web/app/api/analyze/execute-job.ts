@@ -23,24 +23,26 @@ function mapPipelinePhase(phase: AnalysisPipelinePhase): AnalysisPhaseId {
   return phase;
 }
 
-export function startAnalyzeJob(parsed: ParsedAnalyzeRequest): string {
+export function startAnalyzeJob(parsed: ParsedAnalyzeRequest, subjectId?: string): string {
   const jobId = crypto.randomUUID();
-  void initializeAndExecuteAnalyzeJob(jobId, parsed);
+  void initializeAndExecuteAnalyzeJob(jobId, parsed, subjectId);
   return jobId;
 }
 
 async function initializeAndExecuteAnalyzeJob(
   jobId: string,
   parsed: ParsedAnalyzeRequest,
+  subjectId?: string,
 ): Promise<void> {
   const storage = await getAnalysisStorage();
 
   try {
-    await createAnalyzeJob(jobId);
+    await createAnalyzeJob(jobId, subjectId);
 
     if (storage) {
       await storage.createJob({
         id: jobId,
+        subjectId,
         inputAddresses: parsed.addresses,
         chainIds: parsed.chainIds,
         dataMode: parsed.dataMode,

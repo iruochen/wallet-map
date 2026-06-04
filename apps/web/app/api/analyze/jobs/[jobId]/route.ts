@@ -1,21 +1,26 @@
 import { getAnalysisStorage } from "../../analysis-storage";
 import { getAnalyzeJob } from "../../job-store";
 import { getProgressPercent } from "../../progress";
+import { getCurrentHistorySubject } from "../../../auth/session";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ jobId: string }> },
 ): Promise<Response> {
   const { jobId } = await context.params;
+  const historySubject = await getCurrentHistorySubject();
   const redisJob = await getAnalyzeJob(jobId);
   const storage = await getAnalysisStorage();
-  const persistedJob = storage ? await storage.getJobRecord(jobId).catch(() => undefined) : undefined;
+  const subjectMatches = !redisJob?.subjectId || redisJob.subjectId === historySubject.subjectId;
+  const persistedJob = storage
+    ? await storage.getJobRecord(jobId, historySubject.subjectId).catch(() => undefined)
+    : undefined;
 
-  if (!redisJob && !persistedJob) {
+  if ((!redisJob || !subjectMatches) && !persistedJob) {
     return Response.json({ error: "Analysis job not found." }, { status: 404 });
   }
 
-  if (redisJob) {
+  if (redisJob && subjectMatches) {
     return Response.json({
       jobId,
       status: redisJob.status,

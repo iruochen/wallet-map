@@ -1,5 +1,6 @@
 import { startAnalyzeJob } from "./execute-job";
 import { parseAnalyzeRequest } from "./schema";
+import { getCurrentHistorySubject } from "../auth/session";
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -7,7 +8,8 @@ export async function POST(request: Request): Promise<Response> {
     const parsed = parseAnalyzeRequest(
       typeof body === "object" && body !== null ? body : {},
     );
-    const jobId = startAnalyzeJob(parsed);
+    const historySubject = await getCurrentHistorySubject();
+    const jobId = startAnalyzeJob(parsed, historySubject.subjectId);
 
     return Response.json({ jobId }, { status: 202 });
   } catch (error) {

@@ -16,6 +16,7 @@ Apply in order:
 
 1. `packages/storage/migrations/0001_initial_schema.sql`
 2. `packages/storage/migrations/0002_analysis_job_metadata.sql`
+3. `packages/storage/migrations/0003_scoped_event_and_job_subjects.sql`
 
 Example (local Docker Compose):
 
@@ -23,6 +24,7 @@ Example (local Docker Compose):
 docker-compose up -d
 psql "$DATABASE_URL" -f packages/storage/migrations/0001_initial_schema.sql
 psql "$DATABASE_URL" -f packages/storage/migrations/0002_analysis_job_metadata.sql
+psql "$DATABASE_URL" -f packages/storage/migrations/0003_scoped_event_and_job_subjects.sql
 ```
 
 ## Tables
@@ -38,6 +40,7 @@ Key fields:
 - `progress`: JSON snapshot of the latest pipeline phase (also mirrored in Redis while running).
 - `result_snapshot`: serialized API response for fast replay.
 - `input_addresses`, `chain_ids`, `data_mode`, `chain_name`, `source_label`.
+- `subject_id`: `wallet:<address>` for signed-in users or `session:<id>` for anonymous browser sessions.
 - `watched_address_count`, `event_count`.
 - `score`: serialized relationship score from `runAnalysis`.
 - `error_message`: failure reason when a job cannot complete.
@@ -45,7 +48,7 @@ Key fields:
 
 ### `normalized_events`
 
-Stores normalized chain events used as analysis evidence.
+Stores normalized chain events used as analysis evidence. Event IDs are scoped by `analysis_job_id` so repeated analyses can store the same source event without primary-key collisions.
 
 ### `graph_nodes` / `graph_edges`
 

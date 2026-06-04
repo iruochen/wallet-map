@@ -103,19 +103,19 @@ describe("NodeRealBscAdapter", () => {
 
     expect(events).toHaveLength(5);
     expect(events[0]).toMatchObject({
-      id: "nodereal:56:external:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      id: "nodereal:56:external:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1",
       type: "native_transfer",
       chainId: 56,
       amount: "1000000000000000000",
     });
     expect(events[1]).toMatchObject({
-      id: "nodereal:56:contract:0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      id: "nodereal:56:contract:0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2",
       type: "contract_call",
       methodId: "0xa9059cbb",
       contract: "0x3333333333333333333333333333333333333333",
     });
     expect(events[2]).toMatchObject({
-      id: "nodereal:56:internal:0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:4",
+      id: "nodereal:56:internal:0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:3:4",
       type: "native_transfer",
       amount: "500000000000000000",
       metadata: {
@@ -126,7 +126,7 @@ describe("NodeRealBscAdapter", () => {
       },
     });
     expect(events[3]).toMatchObject({
-      id: "nodereal:56:20:0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:7",
+      id: "nodereal:56:20:0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:4:7",
       type: "token_transfer",
       amount: "1000000000000000000",
       contract: "0x5555555555555555555555555555555555555555",
@@ -137,7 +137,7 @@ describe("NodeRealBscAdapter", () => {
       },
     });
     expect(events[4]).toMatchObject({
-      id: "nodereal:56:721:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:3",
+      id: "nodereal:56:721:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:5:3",
       type: "nft_transfer",
       contract: "0x7777777777777777777777777777777777777777",
       asset: {
@@ -194,5 +194,64 @@ describe("NodeRealBscAdapter", () => {
       params: Array<{ pageKey?: string }>;
     };
     expect(secondBody.params[0]?.pageKey).toBe("next-page");
+  });
+
+  it("keeps NodeReal records distinct when hash and log index repeat", async () => {
+    const repeatedHash = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            pageKey: "",
+            transfers: [
+              {
+                id: 41,
+                category: "20",
+                blockNum: "0x67",
+                from: "0x1111111111111111111111111111111111111111",
+                to: "0x2222222222222222222222222222222222222222",
+                value: "0x1",
+                asset: "USDT",
+                hash: repeatedHash,
+                contractAddress: "0x3333333333333333333333333333333333333333",
+                blockTimeStamp: 1710000180,
+                logIndex: 0,
+              },
+              {
+                id: 42,
+                category: "20",
+                blockNum: "0x67",
+                from: "0x1111111111111111111111111111111111111111",
+                to: "0x4444444444444444444444444444444444444444",
+                value: "0x2",
+                asset: "USDT",
+                hash: repeatedHash,
+                contractAddress: "0x3333333333333333333333333333333333333333",
+                blockTimeStamp: 1710000180,
+                logIndex: 0,
+              },
+            ],
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const adapter = new NodeRealBscAdapter({
+      apiKey: "test-key",
+      fetchImpl: fetchMock,
+      maxPages: 1,
+    });
+
+    const events = await adapter.getEvents({
+      address: "0x1111111111111111111111111111111111111111",
+    });
+
+    expect(events.map((event) => event.id)).toEqual([
+      `nodereal:56:20:${repeatedHash}:41:0`,
+      `nodereal:56:20:${repeatedHash}:42:0`,
+    ]);
   });
 });

@@ -13,6 +13,17 @@ ALTER TABLE analysis_jobs
 CREATE INDEX IF NOT EXISTS idx_analysis_jobs_created_at ON analysis_jobs(created_at DESC);
 `;
 
+const migration0003 = `
+ALTER TABLE normalized_events
+  DROP CONSTRAINT IF EXISTS normalized_events_pkey;
+
+ALTER TABLE normalized_events
+  ADD CONSTRAINT normalized_events_pkey PRIMARY KEY (analysis_job_id, id);
+
+CREATE INDEX IF NOT EXISTS idx_analysis_jobs_subject_created_at
+  ON analysis_jobs(subject_id, created_at DESC);
+`;
+
 let migrationPromise: Promise<void> | undefined;
 
 export async function ensureStorageMigrations(pool: Pool): Promise<void> {
@@ -41,6 +52,7 @@ async function runMigrations(pool: Pool): Promise<void> {
   }
 
   await pool.query(migration0002);
+  await pool.query(migration0003);
 }
 
 export function resetStorageMigrationStateForTests(): void {
