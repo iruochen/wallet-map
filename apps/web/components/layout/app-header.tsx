@@ -1,15 +1,15 @@
 import Link from "next/link";
+import { WalletHeaderControls } from "./wallet-header-controls";
 
 export interface AppHeaderProps {
   subtitle: string;
   activeNav: "workbench" | "history";
-  liveConfigured: boolean;
 }
 
-export function AppHeader({ subtitle, activeNav, liveConfigured }: AppHeaderProps) {
+export function AppHeader({ subtitle, activeNav }: AppHeaderProps) {
   return (
     <header className="appHeader" aria-label="Wallet Map header">
-      <div className="appBrand">
+      <Link className="appBrand" href="/" aria-label="返回工作台首页">
         <span className="appBrandMark" aria-hidden="true">
           WM
         </span>
@@ -17,7 +17,7 @@ export function AppHeader({ subtitle, activeNav, liveConfigured }: AppHeaderProp
           <strong>Wallet Map</strong>
           <span>{subtitle}</span>
         </div>
-      </div>
+      </Link>
       <div className="appHeaderStatus">
         <nav className="appHeaderNav" aria-label="主导航">
           <Link
@@ -33,10 +33,7 @@ export function AppHeader({ subtitle, activeNav, liveConfigured }: AppHeaderProp
             历史分析
           </Link>
         </nav>
-        <span className={`headerChip ${liveConfigured ? "headerChipOk" : "headerChipMuted"}`}>
-          <span className="headerChipDot" aria-hidden="true" />
-          {liveConfigured ? "Live data ready" : "Fixture fallback"}
-        </span>
+        <WalletHeaderControls />
       </div>
     </header>
   );

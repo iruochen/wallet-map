@@ -224,29 +224,12 @@ export class PdfReportExporter {
     drawHeader(doc, safeReport, page, cursor, contentWidth);
     drawVerdictRibbon(doc, safeReport, page, cursor, contentWidth);
     drawMetaCards(doc, safeReport, page, cursor, contentWidth);
-    drawSectionText(doc, "Executive Summary", formatPdfSummary(safeReport), page, cursor, contentWidth);
+    drawExecutiveBrief(doc, safeReport, page, cursor, contentWidth);
     drawScoreCards(doc, safeReport, page, cursor, contentWidth);
     drawGraphBars(doc, safeReport, page, cursor, contentWidth);
     drawSignalHighlights(doc, safeReport.summary?.signalHighlights ?? [], signalGroups, page, cursor, contentWidth);
     drawFindingBars(doc, signalGroups.slice(0, 8), page, cursor, contentWidth);
-
-    if (safeReport.summary?.pairInsights?.length) {
-      drawSectionText(
-        doc,
-        "Wallet Pair Insights",
-        safeReport.summary.pairInsights
-          .slice(0, 6)
-          .map((pair, index) => {
-            const labels = pair.labels.map(formatPdfLabel).join(" <-> ");
-            const reasons = pair.reasons.map(formatPdfLabel).slice(0, 3).join("; ");
-            return `${index + 1}. ${labels}: ${formatStrength(pair.strength)}, score ${pair.score}, confidence ${formatConfidence(pair.confidence)}, ${pair.signalCount} signals.${reasons ? ` Drivers: ${reasons}.` : ""}`;
-          })
-          .join("\n\n"),
-        page,
-        cursor,
-        contentWidth,
-      );
-    }
+    drawPairInsightCards(doc, safeReport.summary?.pairInsights ?? [], page, cursor, contentWidth);
 
     drawEvidenceAppendix(doc, safeReport.findings.slice(0, 16), page, cursor, contentWidth);
     drawMethodologyBox(doc, page, cursor, contentWidth);
@@ -503,37 +486,31 @@ function formatTimestampZh(isoTimestamp: string): string {
   }).format(date);
 }
 
-function formatPdfSummary(report: AnalysisReport): string {
+function buildExecutiveOverview(report: AnalysisReport): {
+  conclusion: string;
+  scope: string;
+  reviewNote: string;
+} {
   const metrics = report.metrics;
   const walletCount = metrics?.walletCount ?? countNodesByKind(report.graph, "wallet");
   const contractCount = metrics?.contractCount ?? countNodesByKind(report.graph, "contract");
   const edgeCount = metrics?.edgeCount ?? report.graph.edges.length;
-  const eventCount = metrics?.eventCount ?? "unknown";
   const watchedCount = metrics?.watchedAddressCount ?? "unknown";
-  const topSignals = summarizeFindings(report.findings)
-    .slice(0, 4)
-    .map(
-      (group) =>
-        `${group.title} x${group.count} (${formatSeverity(group.severity)} risk, ${formatConfidence(group.confidence)} confidence)`,
-    );
-  const scoreDrivers = uniqueFormatted(report.score.reasons).slice(0, 5);
-  const counterEvidence = uniqueFormatted(report.score.counterEvidence).slice(0, 4);
+  const eventCount = metrics?.eventCount ?? "unknown";
+  const topSignal = summarizeFindings(report.findings)[0];
+  const pairCount = report.summary?.pairInsights?.length ?? 0;
 
-  return [
-    report.summary?.headline ? `Conclusion: ${formatPdfLabel(report.summary.headline)}` : undefined,
-    `Verdict: ${formatPdfLabel(formatVerdict(report.summary?.verdict))}.`,
-    `Scope: reviewed ${watchedCount} watched wallets across ${eventCount} on-chain events. Graph contains ${walletCount} wallet nodes, ${contractCount} contract nodes, and ${edgeCount} evidence-backed edges.`,
-    `Score: ${report.score.score}/100 with ${formatConfidence(report.score.confidence)} confidence.`,
-    topSignals.length > 0
-      ? `Primary signals: ${topSignals.join("; ")}.`
-      : "No relationship findings were generated for this run.",
-    scoreDrivers.length > 0 ? `Score drivers: ${scoreDrivers.join("; ")}.` : undefined,
-    counterEvidence.length > 0 ? `Counter evidence: ${counterEvidence.join("; ")}.` : undefined,
-    report.summary?.narrative ? `Narrative: ${formatPdfLabel(report.summary.narrative)}` : undefined,
-    "Reviewer note: treat these as analytical signals. Confirm timing, exchange or bridge behavior, and contract-mediated flows before drawing attribution conclusions.",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  return {
+    conclusion:
+      `This run produced a ${formatStrength(report.summary?.verdict ?? "none").toLowerCase()} verdict with a ${report.score.score}/100 relationship score and ${formatConfidence(report.score.confidence).toLowerCase()} confidence.` +
+      (topSignal ? ` The leading signal family is ${formatPdfLabel(topSignal.title)} (${topSignal.count} hits, ${formatSeverity(topSignal.severity).toLowerCase()} risk).` : " No signal family exceeded the reporting threshold."),
+    scope:
+      `Scope covered ${watchedCount} watched wallets and ${eventCount} on-chain events. The resulting graph contains ${walletCount} wallet nodes, ${contractCount} contract nodes, and ${edgeCount} evidence-backed edges across ${report.meta?.chainName ?? report.scope ?? "the selected chain"}.`,
+    reviewNote:
+      pairCount > 0
+        ? `${pairCount} wallet pair insight${pairCount === 1 ? "" : "s"} should be reviewed against timing, exchange, bridge, and contract-mediated behavior before attribution decisions.`
+        : "Review the evidence appendix before making attribution decisions; absence of a pair insight is not proof of no relationship.",
+  };
 }
 
 function countNodesByKind(graph: RelationshipGraph, kind: string): number {
@@ -690,6 +667,63 @@ function drawMetaCards(doc: jsPDF, report: AnalysisReport, page: PdfPage, cursor
   });
 
   cursor.y += 64;
+}
+
+function drawExecutiveBrief(
+  doc: jsPDF,
+  report: AnalysisReport,
+  page: PdfPage,
+  cursor: PdfCursor,
+  width: number,
+): void {
+  const x = page.margin;
+  const overview = buildExecutiveOverview(report);
+  const drivers = uniqueFormatted(report.score.reasons).slice(0, 3);
+  const summaryLines = [
+    ...splitPdfText(doc, overview.conclusion, width - 190).slice(0, 3),
+    ...splitPdfText(doc, overview.scope, width - 190).slice(0, 2),
+    ...splitPdfText(doc, overview.reviewNote, width - 190).slice(0, 2),
+  ].slice(0, 7);
+  const cardHeight = Math.max(116, 44 + summaryLines.length * 11);
+
+  ensurePageSpace(doc, page, cursor, cardHeight + 18);
+  const y = cursor.y;
+
+  doc.setFillColor(252, 253, 251);
+  doc.setDrawColor(218, 227, 217);
+  doc.roundedRect(x, y, width, cardHeight, 12, 12, "FD");
+  doc.setTextColor(36, 49, 41);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Analyst Brief", x + 16, y + 24);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(76, 91, 81);
+
+  summaryLines.forEach((line, index) => {
+    doc.text(line, x + 16, y + 42 + index * 11);
+  });
+
+  doc.setFillColor(24, 61, 48);
+  doc.roundedRect(x + width - 150, y + 18, 118, 48, 10, 10, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text(`${report.score.score}/100`, x + width - 132, y + 48);
+  doc.setFontSize(8);
+  doc.text("RELATIONSHIP SCORE", x + width - 132, y + 32);
+
+  if (drivers.length > 0) {
+    doc.setTextColor(36, 49, 41);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("Top drivers", x + width - 150, y + 82);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(92, 105, 96);
+    doc.text(truncatePdfText(drivers.join(" | "), 44), x + width - 150, y + 96);
+  }
+
+  cursor.y += cardHeight + 18;
 }
 
 function drawScoreCards(
@@ -910,6 +944,75 @@ function drawFindingBars(
     doc.roundedRect(x + 280, rowY - 2, barWidth, 10, 4, 4, "F");
     doc.setTextColor(36, 49, 41);
     doc.text(String(signal.scoreImpact), x + width - 30, rowY + 6);
+    cursor.y += rowHeight;
+  });
+  cursor.y += 8;
+}
+
+function drawPairInsightCards(
+  doc: jsPDF,
+  pairs: NonNullable<NonNullable<AnalysisReport["summary"]>["pairInsights"]>,
+  page: PdfPage,
+  cursor: PdfCursor,
+  width: number,
+): void {
+  ensurePageSpace(doc, page, cursor, 48);
+  const x = page.margin;
+  doc.setTextColor(36, 49, 41);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Wallet Pair Insights", x, cursor.y);
+  cursor.y += 22;
+
+  if (pairs.length === 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(76, 91, 81);
+    doc.text("No wallet pair insight was generated.", x, cursor.y);
+    cursor.y += 34;
+    return;
+  }
+
+  pairs.slice(0, 6).forEach((pair, index) => {
+    const rowHeight = 78;
+    ensurePageSpace(doc, page, cursor, rowHeight);
+    const rowY = cursor.y;
+    const labels = pair.labels.map(formatPdfLabel).join(" -> ");
+    const reasons = pair.reasons.map(formatPdfLabel).slice(0, 3);
+
+    doc.setFillColor(252, 253, 251);
+    doc.setDrawColor(224, 231, 222);
+    doc.roundedRect(x, rowY - 10, width, rowHeight - 8, 9, 9, "FD");
+    doc.setFillColor(232, 241, 234);
+    doc.roundedRect(x + 12, rowY, 24, 24, 8, 8, "F");
+    doc.setTextColor(31, 61, 44);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(String(index + 1), x + 20, rowY + 16);
+
+    doc.setTextColor(36, 49, 41);
+    doc.setFontSize(9.5);
+    doc.text(truncatePdfText(labels, 70), x + 48, rowY + 8);
+    doc.setTextColor(92, 105, 96);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.text(
+      `Strength ${formatStrength(pair.strength)} | Score ${pair.score} | ${formatConfidence(pair.confidence)} confidence | ${pair.signalCount} signals`,
+      x + 48,
+      rowY + 22,
+    );
+
+    reasons.forEach((reason, reasonIndex) => {
+      const pillX = x + 48 + reasonIndex * 118;
+      doc.setFillColor(246, 248, 244);
+      doc.setDrawColor(218, 227, 217);
+      doc.roundedRect(pillX, rowY + 36, 108, 18, 8, 8, "FD");
+      doc.setTextColor(76, 91, 81);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.text(truncatePdfText(reason, 18), pillX + 8, rowY + 48);
+    });
+
     cursor.y += rowHeight;
   });
   cursor.y += 8;

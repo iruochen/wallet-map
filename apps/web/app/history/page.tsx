@@ -1,14 +1,13 @@
-import { AppHeader, readLiveConfigured } from "../../components/layout/app-header";
+import { AppHeader } from "../../components/layout/app-header";
 import { HistoryJobList } from "../../components/history/history-job-list";
 import { readWalletSession } from "../api/auth/session";
 
 export default async function HistoryPage() {
-  const liveConfigured = readLiveConfigured();
   const walletSession = await readWalletSession();
 
   return (
     <div className="appShell">
-      <AppHeader subtitle="历史分析记录" activeNav="history" liveConfigured={liveConfigured} />
+      <AppHeader subtitle="历史分析记录" activeNav="history" />
 
       <main className="appMain historyPage">
         <section className="historyPanel">

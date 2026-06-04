@@ -1,6 +1,6 @@
 "use client";
 
-import { MarkdownExporter, PdfReportExporter } from "@wallet-map/exporters";
+import { PdfReportExporter } from "@wallet-map/exporters";
 import {
   Activity,
   ClipboardList,
@@ -390,21 +390,6 @@ export function AnalysisWorkbench({
     setAddresses(imported);
   }
 
-  async function downloadMarkdownReport() {
-    if (!result) {
-      return;
-    }
-
-    const report = await new MarkdownExporter().export(buildAnalysisReport(result));
-    const blob = new Blob([report], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `wallet-map-${new Date(result.meta.fetchedAt).toISOString().slice(0, 10)}.md`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  }
-
   async function downloadPdfReport() {
     if (!result) {
       return;
@@ -478,10 +463,6 @@ export function AnalysisWorkbench({
               >
                 <Upload size={15} strokeWidth={2.1} />
                 批量导入
-              </button>
-              <button type="submit" className="primaryButton analysisHeaderSubmit" disabled={isRunning}>
-                {isRunning ? <span className="buttonSpinner" aria-hidden="true" /> : <Play size={15} strokeWidth={2.4} />}
-                {isRunning ? "分析中..." : "生成分析任务"}
               </button>
             </div>
           </div>
@@ -619,20 +600,22 @@ export function AnalysisWorkbench({
               </div>
             </div>
           </div>
-          {isRunning || error ? (
-            <div className="analysisSubmitBar" aria-live="polite">
-              <div className="analysisSubmitMeta">
-                <strong>{chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"} · {addressCount} 地址</strong>
-                {isRunning ? <span aria-live="polite">正在按阶段处理链上数据和标签</span> : null}
-              </div>
-              {error ? (
-                <div className="stateBanner stateBannerError analysisSubmitError" role="alert">
-                  <strong>分析失败</strong>
-                  <span>{error}</span>
-                </div>
-              ) : null}
+          <div className="analysisSubmitBar" aria-live="polite">
+            <div className="analysisSubmitMeta">
+              <strong>{chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"} · {addressCount} 地址</strong>
+              <span>{isRunning ? "正在按阶段处理链上数据和标签" : "确认配置后生成关系分析任务"}</span>
             </div>
-          ) : null}
+            <button type="submit" className="primaryButton primaryButtonCompact" disabled={isRunning}>
+              {isRunning ? <span className="buttonSpinner" aria-hidden="true" /> : <Play size={15} strokeWidth={2.4} />}
+              {isRunning ? "分析中..." : "生成分析任务"}
+            </button>
+            {error ? (
+              <div className="stateBanner stateBannerError analysisSubmitError" role="alert">
+                <strong>分析失败</strong>
+                <span>{error}</span>
+              </div>
+            ) : null}
+          </div>
         </form>
 
         <section className="resultPanel summaryPanel">
@@ -651,10 +634,6 @@ export function AnalysisWorkbench({
             </div>
             {result ? (
               <div className="resultHeaderActions">
-                <button type="button" className="secondaryButton reportButtonInline" onClick={() => void downloadMarkdownReport()}>
-                  <FileText size={15} strokeWidth={2.1} />
-                  MD 报告
-                </button>
                 <button type="button" className="secondaryButton reportButtonInline" onClick={() => void downloadPdfReport()}>
                   <FileText size={15} strokeWidth={2.1} />
                   PDF 报告

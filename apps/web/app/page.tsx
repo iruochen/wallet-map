@@ -13,7 +13,6 @@ export default function HomePage() {
       <AppHeader
         subtitle="钱包关联分析工作台"
         activeNav="workbench"
-        liveConfigured={liveConfigured}
       />
 
       <main className="appMain">

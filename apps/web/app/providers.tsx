@@ -22,7 +22,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={walletConfig} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>{children}</RainbowKitProvider>
+        <RainbowKitProvider modalSize="compact">{children}</RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
