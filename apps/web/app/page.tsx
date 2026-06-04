@@ -1,52 +1,30 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { AnalysisWorkbench } from "../components/analysis/analysis-workbench";
+import { AppHeader, readLiveConfigured } from "../components/layout/app-header";
 import { supportedAnalysisChains } from "./chains";
 
 export default function HomePage() {
-  const liveConfigured = Boolean(
-    process.env.NODEREAL_API_KEY?.trim() ||
-      process.env.NODEREAL_BSC_API_KEY?.trim() ||
-      process.env.ETHERSCAN_API_KEY?.trim() ||
-      process.env.SOLSCAN_API_KEY?.trim(),
-  );
+  const liveConfigured = readLiveConfigured();
   const initialAddresses = readInitialAddresses();
 
   return (
     <div className="appShell">
-      <header className="appHeader" aria-label="Wallet Map header">
-        <div className="appBrand">
-          <span className="appBrandMark" aria-hidden="true">
-            WM
-          </span>
-          <div className="appBrandText">
-            <strong>Wallet Map</strong>
-            <span>钱包关联分析工作台</span>
-          </div>
-        </div>
-        <div className="appHeaderStatus">
-          <nav className="appHeaderNav" aria-label="主导航">
-            <Link className="headerNavLink headerNavLinkActive" href="/">
-              工作台
-            </Link>
-            <Link className="headerNavLink" href="/history">
-              历史分析
-            </Link>
-          </nav>
-          <span className={`headerChip ${liveConfigured ? "headerChipOk" : "headerChipMuted"}`}>
-            <span className="headerChipDot" aria-hidden="true" />
-            {liveConfigured ? "Live data ready" : "Fixture fallback"}
-          </span>
-        </div>
-      </header>
+      <AppHeader
+        subtitle="钱包关联分析工作台"
+        activeNav="workbench"
+        liveConfigured={liveConfigured}
+      />
 
-      <Suspense fallback={<div className="workbenchLoadingFallback">正在加载工作台…</div>}>
-        <AnalysisWorkbench
-          liveConfigured={liveConfigured}
-          supportedChains={supportedAnalysisChains}
-          initialAddresses={initialAddresses}
-        />
-      </Suspense>
+      <main className="appMain">
+        <Suspense fallback={<div className="workbenchLoadingFallback">正在加载工作台…</div>}>
+          <AnalysisWorkbench
+            liveConfigured={liveConfigured}
+            supportedChains={supportedAnalysisChains}
+            initialAddresses={initialAddresses}
+          />
+        </Suspense>
+      </main>
     </div>
   );
 }

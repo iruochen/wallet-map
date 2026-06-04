@@ -10,7 +10,10 @@ const migrationPath = resolve(
 
 describe("storage package", () => {
   it("exports migration metadata", () => {
-    expect(STORAGE_MIGRATIONS).toEqual(["0001_initial_schema.sql"]);
+    expect(STORAGE_MIGRATIONS).toEqual([
+      "0001_initial_schema.sql",
+      "0002_analysis_job_metadata.sql",
+    ]);
   });
 
   it("defines the storage repository contract", () => {

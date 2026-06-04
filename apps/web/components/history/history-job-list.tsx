@@ -71,10 +71,19 @@ export function HistoryJobList() {
   }
 
   if (error) {
+    const needsMigration = error.includes('column "chain_name" does not exist');
+
     return (
       <div className="historyEmpty historyEmptyError">
         <strong>加载失败</strong>
         <p>{error}</p>
+        {needsMigration ? (
+          <p>
+            数据库缺少 M2 migration。重启服务后会自动补齐；若仍失败，请手动执行
+            {" "}
+            <code>packages/storage/migrations/0002_analysis_job_metadata.sql</code>。
+          </p>
+        ) : null}
       </div>
     );
   }

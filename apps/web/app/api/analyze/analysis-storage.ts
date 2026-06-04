@@ -1,22 +1,34 @@
-import { createPostgresAnalysisStorage, type PostgresAnalysisStorage } from "@wallet-map/storage";
+import { createPostgresAnalysisStorage, ensureStorageMigrations } from "@wallet-map/storage";
 import { getPostgresPool } from "../../../lib/server-db";
 
-let analysisStorage: PostgresAnalysisStorage | undefined;
+let analysisStorage: ReturnType<typeof createPostgresAnalysisStorage> | undefined;
+let analysisStorageReady: Promise<ReturnType<typeof createPostgresAnalysisStorage> | undefined> | undefined;
 
-export function getAnalysisStorage(): PostgresAnalysisStorage | undefined {
+export async function getAnalysisStorage() {
+  if (analysisStorage) {
+    return analysisStorage;
+  }
+
+  if (!analysisStorageReady) {
+    analysisStorageReady = initializeAnalysisStorage();
+  }
+
+  return analysisStorageReady;
+}
+
+async function initializeAnalysisStorage() {
   const pool = getPostgresPool();
 
   if (!pool) {
     return undefined;
   }
 
-  if (!analysisStorage) {
-    analysisStorage = createPostgresAnalysisStorage(pool);
-  }
-
+  await ensureStorageMigrations(pool);
+  analysisStorage = createPostgresAnalysisStorage(pool);
   return analysisStorage;
 }
 
 export function resetAnalysisStorageForTests(): void {
   analysisStorage = undefined;
+  analysisStorageReady = undefined;
 }

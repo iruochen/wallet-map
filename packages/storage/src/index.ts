@@ -100,6 +100,7 @@ export interface WalletMapStorage {
 export { createPostgresLabelRepository } from "./postgres-labels";
 export type { PostgresLabelRepositoryOptions } from "./postgres-labels";
 export { createPostgresAnalysisStorage } from "./postgres-analysis";
+export { ensureStorageMigrations, resetStorageMigrationStateForTests } from "./migrate";
 export type {
   AnalysisJobListItem,
   AnalysisJobProgressSnapshot,

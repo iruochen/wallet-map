@@ -33,7 +33,7 @@ async function initializeAndExecuteAnalyzeJob(
   jobId: string,
   parsed: ParsedAnalyzeRequest,
 ): Promise<void> {
-  const storage = getAnalysisStorage();
+  const storage = await getAnalysisStorage();
 
   try {
     await createAnalyzeJob(jobId);
@@ -62,7 +62,7 @@ export async function executeAnalyzeJob(jobId: string, parsed: ParsedAnalyzeRequ
     return;
   }
 
-  const storage = getAnalysisStorage();
+  const storage = await getAnalysisStorage();
 
   await markAnalyzeJobRunning(jobId);
   await storage?.markJobRunning(jobId).catch(() => undefined);
@@ -120,7 +120,7 @@ async function syncJobProgress(
   jobId: string,
   phase: AnalysisPhaseId,
   status: "started" | "completed",
-  storage: ReturnType<typeof getAnalysisStorage>,
+  storage: Awaited<ReturnType<typeof getAnalysisStorage>>,
 ): Promise<void> {
   if (status === "started") {
     await markAnalyzeJobPhaseStarted(jobId, phase);

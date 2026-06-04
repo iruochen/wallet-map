@@ -8,7 +8,7 @@ export async function GET(
 ): Promise<Response> {
   const { jobId } = await context.params;
   const redisJob = await getAnalyzeJob(jobId);
-  const storage = getAnalysisStorage();
+  const storage = await getAnalysisStorage();
   const persistedJob = storage ? await storage.getJobRecord(jobId).catch(() => undefined) : undefined;
 
   if (!redisJob && !persistedJob) {

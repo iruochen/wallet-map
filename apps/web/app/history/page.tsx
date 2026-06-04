@@ -1,30 +1,14 @@
-import Link from "next/link";
+import { AppHeader, readLiveConfigured } from "../../components/layout/app-header";
 import { HistoryJobList } from "../../components/history/history-job-list";
 
 export default function HistoryPage() {
+  const liveConfigured = readLiveConfigured();
+
   return (
     <div className="appShell">
-      <header className="appHeader" aria-label="Wallet Map header">
-        <div className="appBrand">
-          <span className="appBrandMark" aria-hidden="true">
-            WM
-          </span>
-          <div className="appBrandText">
-            <strong>Wallet Map</strong>
-            <span>历史分析记录</span>
-          </div>
-        </div>
-        <nav className="appHeaderNav" aria-label="主导航">
-          <Link className="headerNavLink" href="/">
-            工作台
-          </Link>
-          <Link className="headerNavLink headerNavLinkActive" href="/history">
-            历史分析
-          </Link>
-        </nav>
-      </header>
+      <AppHeader subtitle="历史分析记录" activeNav="history" liveConfigured={liveConfigured} />
 
-      <main className="historyPage">
+      <main className="appMain historyPage">
         <section className="historyPanel">
           <div className="historyPanelHeader">
             <div>

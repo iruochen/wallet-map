@@ -1,7 +1,7 @@
 import { getAnalysisStorage } from "../analysis-storage";
 
 export async function GET(request: Request): Promise<Response> {
-  const storage = getAnalysisStorage();
+  const storage = await getAnalysisStorage();
 
   if (!storage) {
     return Response.json({ jobs: [], storageEnabled: false });
