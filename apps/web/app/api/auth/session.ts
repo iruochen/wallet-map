@@ -22,7 +22,8 @@ export async function createWalletChallenge(): Promise<{ address: string; messag
   const message = [
     `${authDomain} wants you to sign in with your wallet.`,
     "",
-    "This signature only proves wallet ownership. It does not authorize a transaction.",
+    "This signature proves wallet ownership for Wallet Map history.",
+    "It is not tied to any analysis chain and does not authorize a transaction.",
     "",
     `Nonce: ${nonce}`,
     `Issued At: ${issuedAt}`,

@@ -46,6 +46,8 @@ const sampleAddresses = [
   "0xdddddddddddddddddddddddddddddddddddddddd",
 ].join("\n");
 
+const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";
+
 const dataModeOptions = [
   { value: "auto", label: "Auto", description: "自动选择" },
   { value: "fixture", label: "Fixture", description: "本地样本" },
@@ -58,6 +60,44 @@ const dataProviderOptions = [
   { value: "etherscan", label: "Etherscan", description: "强制 Etherscan V2" },
   { value: "solscan", label: "Solscan", description: "Solana 专用" },
 ] as const;
+
+function readActiveAnalysisJobId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.sessionStorage.getItem(activeAnalysisJobStorageKey);
+  } catch {
+    return null;
+  }
+}
+
+function rememberActiveAnalysisJob(jobId: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(activeAnalysisJobStorageKey, jobId);
+  } catch {
+    // Browsers can block storage; analysis still works without resumability.
+  }
+}
+
+function forgetActiveAnalysisJob(jobId: string | null): void {
+  if (typeof window === "undefined" || !jobId) {
+    return;
+  }
+
+  try {
+    if (window.sessionStorage.getItem(activeAnalysisJobStorageKey) === jobId) {
+      window.sessionStorage.removeItem(activeAnalysisJobStorageKey);
+    }
+  } catch {
+    // Ignore blocked storage.
+  }
+}
 
 export function AnalysisWorkbench({
   liveConfigured,
@@ -77,6 +117,7 @@ export function AnalysisWorkbench({
   const [openFindingGroups, setOpenFindingGroups] = useState<Record<string, boolean>>({});
   const [openEdgeGroups, setOpenEdgeGroups] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const restoredJobIdRef = useRef<string | null>(null);
   const searchParams = useSearchParams();
   const evmAggregateChains = useMemo(() => getEvmAggregateChains(), []);
   const effectiveChainIds = useMemo(
@@ -115,12 +156,14 @@ export function AnalysisWorkbench({
 
   useEffect(() => {
     const replayJobId = searchParams.get("job");
+    const activeJobId = replayJobId ?? readActiveAnalysisJobId();
 
-    if (!replayJobId) {
+    if (!activeJobId || restoredJobIdRef.current === activeJobId) {
       return;
     }
 
-    void loadReplayJob(replayJobId);
+    restoredJobIdRef.current = activeJobId;
+    void loadAnalysisJob(activeJobId);
   }, [searchParams]);
 
   const watchedAddressSet = useMemo(() => {
@@ -208,7 +251,7 @@ export function AnalysisWorkbench({
     return Array.from(groups.values()).sort((left, right) => right.edges.length - left.edges.length);
   }, [result]);
 
-  async function loadReplayJob(jobId: string) {
+  async function loadAnalysisJob(jobId: string) {
     setError(null);
 
     try {
@@ -220,14 +263,33 @@ export function AnalysisWorkbench({
       }
 
       const poll = body as AnalysisJobPollResponse;
+      setJobProgress(poll.progress);
 
-      if (poll.status !== "completed" || !poll.result) {
-        throw new Error("This analysis job is not ready for replay yet.");
+      if (poll.status === "completed" && poll.result) {
+        rememberActiveAnalysisJob(jobId);
+        setResult(poll.result);
+        setIsRunning(false);
+        setJobProgress(null);
+        return;
       }
 
-      setResult(poll.result);
+      if (poll.status === "failed") {
+        forgetActiveAnalysisJob(jobId);
+        throw new Error(poll.error ?? "Analysis failed.");
+      }
+
+      const controller = new AbortController();
+      setIsRunning(true);
+      setResult(null);
+      setEvidenceTab("findings");
+      const analysisResult = await pollAnalyzeJob(jobId, controller.signal);
+      rememberActiveAnalysisJob(jobId);
+      setResult(analysisResult);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Failed to load saved analysis.");
+    } finally {
+      setIsRunning(false);
+      setJobProgress(null);
     }
   }
 
@@ -267,6 +329,7 @@ export function AnalysisWorkbench({
     setOpenEdgeGroups({});
 
     const controller = new AbortController();
+    let jobId: string | null = null;
 
     try {
       const response = await fetch("/api/analyze", {
@@ -293,6 +356,10 @@ export function AnalysisWorkbench({
         throw new Error("Analysis job was not created.");
       }
 
+      jobId = body.jobId;
+      restoredJobIdRef.current = body.jobId;
+      rememberActiveAnalysisJob(body.jobId);
+
       const analysisResult = await pollAnalyzeJob(body.jobId, controller.signal);
       setResult(analysisResult);
     } catch (caught) {
@@ -300,6 +367,7 @@ export function AnalysisWorkbench({
         return;
       }
 
+      forgetActiveAnalysisJob(jobId);
       setError(caught instanceof Error ? caught.message : "Analysis failed.");
     } finally {
       setIsRunning(false);
@@ -391,25 +459,31 @@ export function AnalysisWorkbench({
                 {chainId === String(evmAggregateChainId) ? "EVM Aggregate" : selectedChain?.name ?? "Chain"} · {addressCount} addresses
               </p>
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".txt,.csv,.tsv"
-              hidden
-              onChange={(event) => {
-                void importAddressFile(event.target.files?.[0]);
-                event.currentTarget.value = "";
-              }}
-            />
-            <button
-              type="button"
-              className="secondaryButton"
-              disabled={isRunning}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload size={15} strokeWidth={2.1} />
-              批量导入
-            </button>
+            <div className="panelHeaderActions">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.csv,.tsv"
+                hidden
+                onChange={(event) => {
+                  void importAddressFile(event.target.files?.[0]);
+                  event.currentTarget.value = "";
+                }}
+              />
+              <button
+                type="button"
+                className="secondaryButton"
+                disabled={isRunning}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={15} strokeWidth={2.1} />
+                批量导入
+              </button>
+              <button type="submit" className="primaryButton analysisHeaderSubmit" disabled={isRunning}>
+                {isRunning ? <span className="buttonSpinner" aria-hidden="true" /> : <Play size={15} strokeWidth={2.4} />}
+                {isRunning ? "分析中..." : "生成分析任务"}
+              </button>
+            </div>
           </div>
           <div className="fieldGroup">
             <label htmlFor="addresses">钱包地址</label>
@@ -545,22 +619,20 @@ export function AnalysisWorkbench({
               </div>
             </div>
           </div>
-          <div className="analysisSubmitBar">
-            <div className="analysisSubmitMeta">
-              <strong>{chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"} · {addressCount} 地址</strong>
-              {isRunning ? <span aria-live="polite">正在按阶段处理链上数据和标签</span> : null}
-            </div>
-            <button type="submit" className="primaryButton primaryButtonCompact" disabled={isRunning}>
-              {isRunning ? <span className="buttonSpinner" aria-hidden="true" /> : <Play size={15} strokeWidth={2.4} />}
-              {isRunning ? "分析中..." : "生成分析任务"}
-            </button>
-            {error ? (
-              <div className="stateBanner stateBannerError analysisSubmitError" role="alert">
-                <strong>分析失败</strong>
-                <span>{error}</span>
+          {isRunning || error ? (
+            <div className="analysisSubmitBar" aria-live="polite">
+              <div className="analysisSubmitMeta">
+                <strong>{chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"} · {addressCount} 地址</strong>
+                {isRunning ? <span aria-live="polite">正在按阶段处理链上数据和标签</span> : null}
               </div>
-            ) : null}
-          </div>
+              {error ? (
+                <div className="stateBanner stateBannerError analysisSubmitError" role="alert">
+                  <strong>分析失败</strong>
+                  <span>{error}</span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </form>
 
         <section className="resultPanel summaryPanel">

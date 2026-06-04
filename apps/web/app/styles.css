@@ -702,8 +702,17 @@ button:disabled {
 .panelHeader {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+}
+
+.panelHeaderActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .panelEyebrow {
@@ -900,11 +909,10 @@ select {
 
 .analysisSubmitBar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(126px, 0.72fr);
-  align-items: center;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
   margin: 2px 0 0;
-  padding: 8px;
+  padding: 9px 10px;
   border: 1px solid #d5e2d8;
   border-radius: 10px;
   background:
@@ -953,6 +961,15 @@ select {
 .primaryButtonCompact {
   min-height: 40px;
   font-size: 0.82rem;
+}
+
+.analysisHeaderSubmit {
+  width: auto;
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  box-shadow: 0 8px 16px rgba(24, 61, 48, 0.13);
 }
 
 .secondaryButton {
@@ -2860,6 +2877,14 @@ code {
   .panelHeader {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .panelHeaderActions {
+    justify-content: flex-start;
+  }
+
+  .analysisHeaderSubmit {
+    width: 100%;
   }
 
   .analysisSubmitBar {
