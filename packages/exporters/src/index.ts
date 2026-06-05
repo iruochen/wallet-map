@@ -457,6 +457,14 @@ function formatStrength(value: string): string {
   return value;
 }
 
+function formatStrengthPdf(value: string): string {
+  if (value === "strong") return "Strong";
+  if (value === "medium") return "Moderate";
+  if (value === "weak") return "Weak";
+  if (value === "none") return "None";
+  return formatPdfLabel(value);
+}
+
 function formatSeverityZh(value: string): string {
   if (value === "high") return "高";
   if (value === "medium") return "中";
@@ -505,10 +513,10 @@ function buildExecutiveOverview(report: AnalysisReport): {
       `This run produced a ${formatStrength(report.summary?.verdict ?? "none").toLowerCase()} verdict with a ${report.score.score}/100 relationship score and ${formatConfidence(report.score.confidence).toLowerCase()} confidence.` +
       (topSignal ? ` The leading signal family is ${formatPdfLabel(topSignal.title)} (${topSignal.count} hits, ${formatSeverity(topSignal.severity).toLowerCase()} risk).` : " No signal family exceeded the reporting threshold."),
     scope:
-      `Scope covered ${watchedCount} watched wallets and ${eventCount} on-chain events. The resulting graph contains ${walletCount} wallet nodes, ${contractCount} contract nodes, and ${edgeCount} evidence-backed edges across ${report.meta?.chainName ?? report.scope ?? "the selected chain"}.`,
+      `Scope covered ${watchedCount} watched wallets and ${eventCount} on-chain events across ${report.meta?.chainName ?? report.scope ?? "the selected chain"}. Graph: ${walletCount} wallet nodes, ${contractCount} contract nodes, ${edgeCount} evidence edges.`,
     reviewNote:
       pairCount > 0
-        ? `${pairCount} wallet pair insight${pairCount === 1 ? "" : "s"} should be reviewed against timing, exchange, bridge, and contract-mediated behavior before attribution decisions.`
+        ? `${pairCount} wallet pair insight${pairCount === 1 ? "" : "s"} require timing and intermediary-path review.`
         : "Review the evidence appendix before making attribution decisions; absence of a pair insight is not proof of no relationship.",
   };
 }
@@ -679,11 +687,10 @@ function drawExecutiveBrief(
   const x = page.margin;
   const overview = buildExecutiveOverview(report);
   const drivers = uniqueFormatted(report.score.reasons).slice(0, 3);
-  const summaryLines = [
-    ...splitPdfText(doc, overview.conclusion, width - 190).slice(0, 3),
-    ...splitPdfText(doc, overview.scope, width - 190).slice(0, 2),
-    ...splitPdfText(doc, overview.reviewNote, width - 190).slice(0, 2),
-  ].slice(0, 7);
+  const summaryLines = [overview.conclusion, overview.scope, overview.reviewNote]
+    .map((line) => truncatePdfText(formatPdfLabel(line), 96))
+    .flatMap((line) => splitPdfText(doc, line, width - 190).slice(0, 2))
+    .slice(0, 6);
   const cardHeight = Math.max(116, 44 + summaryLines.length * 11);
 
   ensurePageSpace(doc, page, cursor, cardHeight + 18);
@@ -974,7 +981,7 @@ function drawPairInsightCards(
   }
 
   pairs.slice(0, 6).forEach((pair, index) => {
-    const rowHeight = 78;
+    const rowHeight = 88;
     ensurePageSpace(doc, page, cursor, rowHeight);
     const rowY = cursor.y;
     const labels = pair.labels.map(formatPdfLabel).join(" -> ");
@@ -997,20 +1004,20 @@ function drawPairInsightCards(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.text(
-      `Strength ${formatStrength(pair.strength)} | Score ${pair.score} | ${formatConfidence(pair.confidence)} confidence | ${pair.signalCount} signals`,
+      `Strength ${formatStrengthPdf(pair.strength)} | Score ${pair.score} | ${formatConfidence(pair.confidence)} confidence | ${pair.signalCount} signals`,
       x + 48,
       rowY + 22,
     );
 
     reasons.forEach((reason, reasonIndex) => {
-      const pillX = x + 48 + reasonIndex * 118;
+      const pillX = x + 48 + reasonIndex * 120;
       doc.setFillColor(246, 248, 244);
       doc.setDrawColor(218, 227, 217);
-      doc.roundedRect(pillX, rowY + 36, 108, 18, 8, 8, "FD");
+      doc.roundedRect(pillX, rowY + 38, 110, 20, 8, 8, "FD");
       doc.setTextColor(76, 91, 81);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
-      doc.text(truncatePdfText(reason, 18), pillX + 8, rowY + 48);
+      doc.text(truncatePdfText(reason, 18), pillX + 8, rowY + 51);
     });
 
     cursor.y += rowHeight;
@@ -1055,8 +1062,12 @@ function drawEvidenceAppendix(
   }
 
   rows.forEach((row) => {
-    const evidenceLines = splitPdfText(doc, formatPdfLabel(row.evidence), width - 28).slice(0, 2);
-    const rowHeight = 38 + evidenceLines.length * 10;
+    const evidenceLines = splitPdfText(doc, truncatePdfText(formatPdfLabel(row.evidence), 96), width - 28).slice(0, 2);
+    const metaParts = [
+      row.txHash ? `tx ${truncateMiddle(formatPdfLabel(row.txHash), 24)}` : undefined,
+      row.blockNumber ? `block ${row.blockNumber}` : undefined,
+    ].filter(Boolean);
+    const rowHeight = 62 + evidenceLines.length * 10;
     ensurePageSpace(doc, page, cursor, rowHeight);
     const rowY = cursor.y;
 
@@ -1066,22 +1077,17 @@ function drawEvidenceAppendix(
     doc.setTextColor(36, 49, 41);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.8);
-    doc.text(truncatePdfText(formatPdfLabel(row.title), 78), x + 12, rowY + 3);
+    doc.text(truncatePdfText(formatPdfLabel(row.title), 64), x + 12, rowY + 3);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(76, 91, 81);
-    evidenceLines.forEach((line, index) => {
-      doc.text(line, x + 12, rowY + 16 + index * 10);
-    });
-
-    const metaParts = [
-      row.txHash ? `tx ${truncatePdfText(formatPdfLabel(row.txHash), 18)}` : undefined,
-      row.blockNumber ? `block ${row.blockNumber}` : undefined,
-    ].filter(Boolean);
-
     if (metaParts.length > 0) {
-      doc.setTextColor(100, 115, 106);
-      doc.text(metaParts.join(" · "), x + width - 150, rowY + 3);
+      doc.setFontSize(8);
+      doc.text(metaParts.join(" | "), x + 12, rowY + 16);
     }
+    doc.setFontSize(8.8);
+    evidenceLines.forEach((line, index) => {
+      doc.text(line, x + 12, rowY + 30 + index * 10);
+    });
 
     cursor.y += rowHeight;
   });
@@ -1172,7 +1178,13 @@ function translatePdfTerms(value: string): string {
 
 function truncatePdfText(value: string, maxLength: number): string {
   if (value.length <= maxLength) return value;
-  return `${value.slice(0, Math.max(0, maxLength - 1))}...`;
+  return `${value.slice(0, Math.max(0, maxLength - 3))}...`;
+}
+
+function truncateMiddle(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  const sideLength = Math.max(4, Math.floor((maxLength - 3) / 2));
+  return `${value.slice(0, sideLength)}...${value.slice(-sideLength)}`;
 }
 
 function clamp(value: number, min: number, max: number): number {

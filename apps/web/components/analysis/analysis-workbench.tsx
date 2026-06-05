@@ -116,7 +116,14 @@ export function AnalysisWorkbench({
   const [evidenceTab, setEvidenceTab] = useState<"findings" | "edges">("findings");
   const [openFindingGroups, setOpenFindingGroups] = useState<Record<string, boolean>>({});
   const [openEdgeGroups, setOpenEdgeGroups] = useState<Record<string, boolean>>({});
+  const [isInputScrolling, setIsInputScrolling] = useState(false);
+  const [isEvidenceScrolling, setIsEvidenceScrolling] = useState(false);
+  const [isSubmitDockVisible, setIsSubmitDockVisible] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const inputColumnRef = useRef<HTMLElement | null>(null);
+  const inputFormRef = useRef<HTMLFormElement | null>(null);
+  const inputScrollTimerRef = useRef<number | null>(null);
+  const evidenceScrollTimerRef = useRef<number | null>(null);
   const restoredJobIdRef = useRef<string | null>(null);
   const searchParams = useSearchParams();
   const evmAggregateChains = useMemo(() => getEvmAggregateChains(), []);
@@ -165,6 +172,21 @@ export function AnalysisWorkbench({
     restoredJobIdRef.current = activeJobId;
     void loadAnalysisJob(activeJobId);
   }, [searchParams]);
+
+  useEffect(() => {
+    updateSubmitDockVisibility();
+  }, [result, isRunning, error]);
+
+  useEffect(() => {
+    return () => {
+      if (inputScrollTimerRef.current) {
+        window.clearTimeout(inputScrollTimerRef.current);
+      }
+      if (evidenceScrollTimerRef.current) {
+        window.clearTimeout(evidenceScrollTimerRef.current);
+      }
+    };
+  }, []);
 
   const watchedAddressSet = useMemo(() => {
     if (!result) {
@@ -404,6 +426,44 @@ export function AnalysisWorkbench({
     URL.revokeObjectURL(url);
   }
 
+  function updateSubmitDockVisibility() {
+    const inputColumn = inputColumnRef.current;
+    const inputForm = inputFormRef.current;
+
+    if (!inputColumn || !inputForm) {
+      return;
+    }
+
+    const columnRect = inputColumn.getBoundingClientRect();
+    const formRect = inputForm.getBoundingClientRect();
+    setIsSubmitDockVisible(formRect.bottom > columnRect.bottom - 32);
+  }
+
+  function handleInputScroll() {
+    setIsInputScrolling(true);
+    updateSubmitDockVisibility();
+
+    if (inputScrollTimerRef.current) {
+      window.clearTimeout(inputScrollTimerRef.current);
+    }
+
+    inputScrollTimerRef.current = window.setTimeout(() => {
+      setIsInputScrolling(false);
+    }, 700);
+  }
+
+  function handleEvidenceScroll() {
+    setIsEvidenceScrolling(true);
+
+    if (evidenceScrollTimerRef.current) {
+      window.clearTimeout(evidenceScrollTimerRef.current);
+    }
+
+    evidenceScrollTimerRef.current = window.setTimeout(() => {
+      setIsEvidenceScrolling(false);
+    }, 700);
+  }
+
   function isFindingGroupOpen(title: string, index: number) {
     return openFindingGroups[title] ?? index === 0;
   }
@@ -428,13 +488,18 @@ export function AnalysisWorkbench({
 
   return (
     <section className="workbench" aria-label="Wallet Map workbench">
-      <aside className="workbenchColumn workbenchInput">
+      <aside
+        className={`workbenchColumn workbenchInput ${isInputScrolling ? "workbenchInputScrolling" : ""}`}
+        onScroll={handleInputScroll}
+        ref={inputColumnRef}
+      >
         <form
-          className="inputPanel"
+          className={`inputPanel ${isSubmitDockVisible ? "" : "inputPanelDockHidden"}`}
           onSubmit={(event) => {
             event.preventDefault();
             void runAnalysis();
           }}
+          ref={inputFormRef}
         >
           <div className="panelHeader">
             <div>
@@ -600,7 +665,7 @@ export function AnalysisWorkbench({
               </div>
             </div>
           </div>
-          <div className="analysisSubmitBar" aria-live="polite">
+          <div className={`analysisSubmitBar ${isSubmitDockVisible ? "" : "analysisSubmitBarHidden"}`} aria-live="polite">
             <div className="analysisSubmitMeta">
               <strong>{chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"} · {addressCount} 地址</strong>
               <span>{isRunning ? "正在按阶段处理链上数据和标签" : "确认配置后生成关系分析任务"}</span>
@@ -839,7 +904,10 @@ export function AnalysisWorkbench({
             </p>
           </div>
         </header>
-        <div className="workbenchScroll">
+        <div
+          className={`workbenchScroll ${isEvidenceScrolling ? "workbenchScrollScrolling" : ""}`}
+          onScroll={handleEvidenceScroll}
+        >
           <AnalysisEvidencePanel
             result={result}
             isRunning={isRunning}
