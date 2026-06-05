@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock3, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
+import { ExternalLink, History, RefreshCw, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatAbsoluteTime } from "../../app/format";
@@ -88,11 +88,15 @@ export function HistoryJobList({
   const header = (
     <div className="historyToolbar">
       <div className="historyIdentity">
-        <span className={`historyIdentityIcon ${historyMode === "wallet" ? "historyIdentityIconActive" : ""}`}>
+        <span
+          className={`historyIdentityIcon ${
+            historyMode === "wallet" ? "historyIdentityIconActive" : "historyIdentityIconSession"
+          }`}
+        >
           {historyMode === "wallet" ? (
-            <ShieldCheck size={15} aria-hidden="true" />
+            <ShieldCheck size={17} strokeWidth={2.2} aria-hidden="true" />
           ) : (
-            <Clock3 size={15} aria-hidden="true" />
+            <History size={17} strokeWidth={2.2} aria-hidden="true" />
           )}
         </span>
         <div>

@@ -118,10 +118,7 @@ export function AnalysisWorkbench({
   const [openEdgeGroups, setOpenEdgeGroups] = useState<Record<string, boolean>>({});
   const [isInputScrolling, setIsInputScrolling] = useState(false);
   const [isEvidenceScrolling, setIsEvidenceScrolling] = useState(false);
-  const [isSubmitDockVisible, setIsSubmitDockVisible] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const inputColumnRef = useRef<HTMLElement | null>(null);
-  const inputFormRef = useRef<HTMLFormElement | null>(null);
   const inputScrollTimerRef = useRef<number | null>(null);
   const evidenceScrollTimerRef = useRef<number | null>(null);
   const restoredJobIdRef = useRef<string | null>(null);
@@ -145,6 +142,21 @@ export function AnalysisWorkbench({
         : (supportedChains.find((chain) => String(chain.chainId) === chainId) ?? supportedChains[0]),
     [chainId, supportedChains],
   );
+  const inputScopeLabel = useMemo(
+    () => (chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"),
+    [chainId, selectedChain],
+  );
+  const inputScopeSummary = useMemo(
+    () => `${inputScopeLabel} · ${addressCount} addresses`,
+    [addressCount, inputScopeLabel],
+  );
+  const submitScopeSummary = useMemo(
+    () => `${inputScopeLabel} · ${addressCount} 地址`,
+    [addressCount, inputScopeLabel],
+  );
+  const submitStatusHint = isRunning
+    ? "正在按阶段处理链上数据和标签"
+    : "确认配置后生成关系分析任务";
   const modeDescription = useMemo(() => {
     if (dataMode === "live") {
       return liveConfigured
@@ -172,10 +184,6 @@ export function AnalysisWorkbench({
     restoredJobIdRef.current = activeJobId;
     void loadAnalysisJob(activeJobId);
   }, [searchParams]);
-
-  useEffect(() => {
-    updateSubmitDockVisibility();
-  }, [result, isRunning, error]);
 
   useEffect(() => {
     return () => {
@@ -426,22 +434,8 @@ export function AnalysisWorkbench({
     URL.revokeObjectURL(url);
   }
 
-  function updateSubmitDockVisibility() {
-    const inputColumn = inputColumnRef.current;
-    const inputForm = inputFormRef.current;
-
-    if (!inputColumn || !inputForm) {
-      return;
-    }
-
-    const columnRect = inputColumn.getBoundingClientRect();
-    const formRect = inputForm.getBoundingClientRect();
-    setIsSubmitDockVisible(formRect.bottom > columnRect.bottom - 32);
-  }
-
   function handleInputScroll() {
     setIsInputScrolling(true);
-    updateSubmitDockVisibility();
 
     if (inputScrollTimerRef.current) {
       window.clearTimeout(inputScrollTimerRef.current);
@@ -488,25 +482,25 @@ export function AnalysisWorkbench({
 
   return (
     <section className="workbench" aria-label="Wallet Map workbench">
-      <aside
-        className={`workbenchColumn workbenchInput ${isInputScrolling ? "workbenchInputScrolling" : ""}`}
-        onScroll={handleInputScroll}
-        ref={inputColumnRef}
-      >
+      <aside className="workbenchColumn workbenchInput">
+        <div
+          className={`workbenchInputBody ${isInputScrolling ? "workbenchInputScrolling" : ""}`}
+          onScroll={handleInputScroll}
+        >
         <form
-          className={`inputPanel ${isSubmitDockVisible ? "" : "inputPanelDockHidden"}`}
+          id="analysis-input-form"
+          className="inputPanel"
           onSubmit={(event) => {
             event.preventDefault();
             void runAnalysis();
           }}
-          ref={inputFormRef}
         >
           <div className="panelHeader">
             <div>
               <span className="panelEyebrow">Analysis job</span>
               <h2>分析输入</h2>
-              <p>
-                {chainId === String(evmAggregateChainId) ? "EVM Aggregate" : selectedChain?.name ?? "Chain"} · {addressCount} addresses
+              <p className="panelHeaderSummary quickTooltip" data-tooltip={inputScopeSummary}>
+                <span className="panelHeaderSummaryText">{inputScopeSummary}</span>
               </p>
             </div>
             <div className="panelHeaderActions">
@@ -665,22 +659,6 @@ export function AnalysisWorkbench({
               </div>
             </div>
           </div>
-          <div className={`analysisSubmitBar ${isSubmitDockVisible ? "" : "analysisSubmitBarHidden"}`} aria-live="polite">
-            <div className="analysisSubmitMeta">
-              <strong>{chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"} · {addressCount} 地址</strong>
-              <span>{isRunning ? "正在按阶段处理链上数据和标签" : "确认配置后生成关系分析任务"}</span>
-            </div>
-            <button type="submit" className="primaryButton primaryButtonCompact" disabled={isRunning}>
-              {isRunning ? <span className="buttonSpinner" aria-hidden="true" /> : <Play size={15} strokeWidth={2.4} />}
-              {isRunning ? "分析中..." : "生成分析任务"}
-            </button>
-            {error ? (
-              <div className="stateBanner stateBannerError analysisSubmitError" role="alert">
-                <strong>分析失败</strong>
-                <span>{error}</span>
-              </div>
-            ) : null}
-          </div>
         </form>
 
         <section className="resultPanel summaryPanel">
@@ -822,6 +800,35 @@ export function AnalysisWorkbench({
             </div>
           )}
         </section>
+        </div>
+
+        <div className="analysisSubmitDock" aria-live="polite">
+          {error ? (
+            <div className="stateBanner stateBannerError analysisSubmitError" role="alert">
+              <strong>分析失败</strong>
+              <span>{error}</span>
+            </div>
+          ) : null}
+          <div className="analysisSubmitBar">
+            <div className="analysisSubmitMeta">
+              <strong className="quickTooltip" data-tooltip={submitScopeSummary}>
+                <span className="analysisSubmitMetaLine">{submitScopeSummary}</span>
+              </strong>
+              <span className="quickTooltip" data-tooltip={submitStatusHint}>
+                <span className="analysisSubmitMetaLine">{submitStatusHint}</span>
+              </span>
+            </div>
+            <button
+              type="submit"
+              form="analysis-input-form"
+              className="primaryButton primaryButtonCompact analysisSubmitButton"
+              disabled={isRunning}
+            >
+              {isRunning ? <span className="buttonSpinner" aria-hidden="true" /> : <Play size={15} strokeWidth={2.4} />}
+              {isRunning ? "分析中..." : "生成分析任务"}
+            </button>
+          </div>
+        </div>
       </aside>
 
       <section className="workbenchColumn workbenchGraph">
