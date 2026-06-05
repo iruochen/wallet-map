@@ -103,6 +103,7 @@ export function AnalysisWorkbench({
   liveConfigured,
   supportedChains,
   initialAddresses,
+  anonymousAnalysisQuota,
 }: AnalysisWorkbenchProps) {
   const defaultAddresses = initialAddresses?.trim() ? initialAddresses : sampleAddresses;
   const [addresses, setAddresses] = useState(defaultAddresses);
@@ -556,6 +557,14 @@ export function AnalysisWorkbench({
             <strong>{liveConfigured ? "实时数据已就绪" : "当前默认走本地 fixture"}</strong>
             <span>{modeDescription}</span>
           </div>
+          {anonymousAnalysisQuota ? (
+            <div className="stateBanner stateBannerInfo" aria-live="polite">
+              <strong>未登录分析额度</strong>
+              <span>
+                剩余 {anonymousAnalysisQuota.remaining} / {anonymousAnalysisQuota.limit} 次；连接钱包登录后不受此限制。
+              </span>
+            </div>
+          ) : null}
           <div className="controlStack">
             <div className="controlGroup controlCard">
               <div className="controlLabelRow">

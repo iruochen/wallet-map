@@ -158,8 +158,15 @@ export interface AnalysisJobPollResponse {
   result?: AnalysisResponse;
 }
 
+export interface AnonymousAnalysisQuota {
+  limit: number;
+  used: number;
+  remaining: number;
+}
+
 export interface AnalysisWorkbenchProps {
   liveConfigured: boolean;
   supportedChains: SupportedAnalysisChain[];
   initialAddresses?: string;
+  anonymousAnalysisQuota?: AnonymousAnalysisQuota | null;
 }

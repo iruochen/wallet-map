@@ -104,6 +104,20 @@ export async function readWalletSession(): Promise<WalletSession | undefined> {
   return session;
 }
 
+export async function readAnonymousSession(): Promise<{ id: string; subjectId: string } | undefined> {
+  const jar = await cookies();
+  const existing = readSignedCookie<{ id: string }>(jar.get(anonymousCookieName)?.value);
+
+  if (!existing?.id) {
+    return undefined;
+  }
+
+  return {
+    id: existing.id,
+    subjectId: `session:${existing.id}`,
+  };
+}
+
 export async function getCurrentHistorySubject(): Promise<{
   subjectId: string;
   session?: WalletSession;

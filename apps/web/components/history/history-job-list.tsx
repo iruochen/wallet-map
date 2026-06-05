@@ -1,10 +1,11 @@
 "use client";
 
-import { ExternalLink, History, RefreshCw, ShieldCheck } from "lucide-react";
+import { ArrowDownToLine, ExternalLink, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatAbsoluteTime } from "../../app/format";
 import { formatConfidenceLabel } from "../analysis/analysis-formatters";
+import { HistoryIdentityAvatar } from "./history-identity-avatar";
 
 interface HistoryJobItem {
   id: string;
@@ -28,6 +29,8 @@ interface HistoryResponse {
   storageEnabled?: boolean;
   historyMode?: "wallet" | "session";
   walletAddress?: string;
+  anonymousSessionId?: string;
+  sessionSyncCount?: number;
   error?: string;
 }
 
@@ -42,9 +45,15 @@ export function HistoryJobList({
   const [storageEnabled, setStorageEnabled] = useState(true);
   const [historyMode, setHistoryMode] = useState<"wallet" | "session">(initialHistoryMode);
   const [walletAddress, setWalletAddress] = useState<string | undefined>(initialWalletAddress);
+  const [anonymousSessionId, setAnonymousSessionId] = useState<string | undefined>();
+  const [sessionSyncCount, setSessionSyncCount] = useState(0);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isTableScrolling, setIsTableScrolling] = useState(false);
+  const tableScrollTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     void loadJobs({ showSkeleton: true });
@@ -57,6 +66,14 @@ export function HistoryJobList({
 
     window.addEventListener("wallet-map-auth-changed", handleAuthChanged);
     return () => window.removeEventListener("wallet-map-auth-changed", handleAuthChanged);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (tableScrollTimerRef.current) {
+        window.clearTimeout(tableScrollTimerRef.current);
+      }
+    };
   }, []);
 
   async function loadJobs(options: { showSkeleton?: boolean } = {}) {
@@ -77,6 +94,8 @@ export function HistoryJobList({
       setStorageEnabled(body.storageEnabled !== false);
       setHistoryMode(body.historyMode ?? "session");
       setWalletAddress(body.walletAddress);
+      setAnonymousSessionId(body.anonymousSessionId);
+      setSessionSyncCount(body.sessionSyncCount ?? 0);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Failed to load history.");
     } finally {
@@ -85,64 +104,120 @@ export function HistoryJobList({
     }
   }
 
-  const header = (
-    <div className="historyToolbar">
-      <div className="historyIdentity">
-        <span
-          className={`historyIdentityIcon ${
-            historyMode === "wallet" ? "historyIdentityIconActive" : "historyIdentityIconSession"
-          }`}
+  async function syncSessionHistory() {
+    setIsSyncing(true);
+    setSyncMessage(null);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/analyze/jobs/sync-session", { method: "POST" });
+      const body = (await response.json()) as { error?: string; message?: string };
+
+      if (!response.ok) {
+        throw new Error(body.error ?? "Failed to sync session history.");
+      }
+
+      setSyncMessage(body.message ?? "会话记录已同步。");
+      await loadJobs();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Failed to sync session history.");
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  function handleTableScroll() {
+    setIsTableScrolling(true);
+
+    if (tableScrollTimerRef.current) {
+      window.clearTimeout(tableScrollTimerRef.current);
+    }
+
+    tableScrollTimerRef.current = window.setTimeout(() => {
+      setIsTableScrolling(false);
+    }, 700);
+  }
+
+  function renderListBody(content: ReactNode) {
+    return (
+      <div className="historyListBody">
+        {header}
+        <div
+          className={`historyTableScroll ${isTableScrolling ? "historyTableScrolling" : ""}`}
+          onScroll={handleTableScroll}
         >
-          {historyMode === "wallet" ? (
-            <ShieldCheck size={17} strokeWidth={2.2} aria-hidden="true" />
-          ) : (
-            <History size={17} strokeWidth={2.2} aria-hidden="true" />
-          )}
-        </span>
-        <div>
-          <strong>{historyMode === "wallet" ? "钱包历史" : "当前会话历史"}</strong>
-          <span>
-            {historyMode === "wallet" && walletAddress
-              ? formatAddress(walletAddress)
-              : "登录后可跨会话查看历史"}
-          </span>
+          {content}
         </div>
       </div>
-      <div className="historyToolbarActions">
-        <button className="historyIconButton" type="button" onClick={() => void loadJobs()} disabled={isRefreshing} title="刷新历史">
-          <RefreshCw className={isRefreshing ? "historySpinIcon" : ""} size={15} aria-hidden="true" />
-        </button>
-      </div>
-    </div>
-  );
-
-  if (!hasLoaded) {
-    return (
-      <>
-        {header}
-        <HistorySkeleton />
-      </>
     );
   }
 
+  const avatarSeed =
+    historyMode === "wallet" && walletAddress
+      ? walletAddress
+      : anonymousSessionId ?? "wallet-map-session";
+
+  const header = (
+    <>
+      <div className="historyToolbar">
+        <div className="historyIdentity">
+          <HistoryIdentityAvatar
+            variant={historyMode === "wallet" ? "wallet" : "session"}
+            seed={avatarSeed}
+          />
+          <div>
+            <strong>{historyMode === "wallet" ? "钱包历史" : "当前会话历史"}</strong>
+            <span>
+              {historyMode === "wallet" && walletAddress
+                ? formatAddress(walletAddress)
+                : "登录后可跨会话查看历史"}
+            </span>
+          </div>
+        </div>
+        <div className="historyToolbarActions">
+          {historyMode === "wallet" && sessionSyncCount > 0 ? (
+            <button
+              className="historySyncButton"
+              type="button"
+              onClick={() => void syncSessionHistory()}
+              disabled={isSyncing || isRefreshing}
+              title="将未登录时保存在当前浏览器的分析记录同步到钱包"
+            >
+              <ArrowDownToLine className={isSyncing ? "historySpinIcon" : ""} size={15} aria-hidden="true" />
+              同步会话记录 ({sessionSyncCount})
+            </button>
+          ) : null}
+          <button className="historyIconButton" type="button" onClick={() => void loadJobs()} disabled={isRefreshing || isSyncing} title="刷新历史">
+            <RefreshCw className={isRefreshing ? "historySpinIcon" : ""} size={15} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+      {syncMessage ? (
+        <div className="stateBanner stateBannerSuccess historySyncBanner" role="status">
+          <strong>同步完成</strong>
+          <span>{syncMessage}</span>
+        </div>
+      ) : null}
+    </>
+  );
+
+  if (!hasLoaded) {
+    return renderListBody(<HistorySkeleton />);
+  }
+
   if (!storageEnabled) {
-    return (
-      <>
-        {header}
+    return renderListBody(
       <div className="historyEmpty">
         <strong>数据库未配置</strong>
         <p>在 Vercel 或本地配置 `DATABASE_URL` 并执行 migration 后，分析结果会自动保存到这里。</p>
-      </div>
-      </>
+      </div>,
     );
   }
 
   if (error) {
     const needsMigration = error.includes('column "chain_name" does not exist');
 
-    return (
-      <>
-        {header}
+    return renderListBody(
       <div className="historyEmpty historyEmptyError">
         <strong>加载失败</strong>
         <p>{error}</p>
@@ -153,29 +228,23 @@ export function HistoryJobList({
             <code>packages/storage/migrations/0002_analysis_job_metadata.sql</code>。
           </p>
         ) : null}
-      </div>
-      </>
+      </div>,
     );
   }
 
   if (jobs.length === 0) {
-    return (
-      <>
-        {header}
+    return renderListBody(
       <div className="historyEmpty">
         <strong>还没有历史记录</strong>
         <p>{historyMode === "wallet" ? "这个钱包还没有保存过分析记录。" : "完成一次分析后，任务会显示在这里。"}</p>
         <Link className="secondaryButton historyEmptyAction" href="/">
           去运行分析
         </Link>
-      </div>
-      </>
+      </div>,
     );
   }
 
-  return (
-    <>
-      {header}
+  return renderListBody(
     <div className="historyTableWrap">
       <table className="historyTable">
         <thead>
@@ -230,8 +299,7 @@ export function HistoryJobList({
           ))}
         </tbody>
       </table>
-    </div>
-    </>
+    </div>,
   );
 }
 

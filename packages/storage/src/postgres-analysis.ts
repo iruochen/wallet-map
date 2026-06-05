@@ -62,6 +62,8 @@ export interface PostgresAnalysisStorage {
     resultSnapshot?: unknown;
   } | undefined>;
   listJobs(limit?: number, subjectId?: string): Promise<AnalysisJobListItem[]>;
+  countJobs(subjectId?: string): Promise<number>;
+  migrateSubjectJobs(fromSubjectId: string, toSubjectId: string): Promise<number>;
 }
 
 export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStorage {
@@ -73,6 +75,8 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
     saveCompletedRun,
     getJobRecord,
     listJobs,
+    countJobs,
+    migrateSubjectJobs,
   };
 
   async function createJob(input: CreatePersistedAnalysisJobInput): Promise<void> {
@@ -376,6 +380,33 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
       completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : undefined,
       errorMessage: row.error_message ?? undefined,
     }));
+  }
+
+  async function countJobs(subjectId?: string): Promise<number> {
+    const result = await pool.query<{ count: string }>(
+      `
+        SELECT COUNT(*)::text AS count
+        FROM analysis_jobs
+        WHERE ($1::text IS NULL OR subject_id = $1)
+      `,
+      [subjectId ?? null],
+    );
+
+    return Number(result.rows[0]?.count ?? 0);
+  }
+
+  async function migrateSubjectJobs(fromSubjectId: string, toSubjectId: string): Promise<number> {
+    const result = await pool.query<{ id: string }>(
+      `
+        UPDATE analysis_jobs
+        SET subject_id = $2, updated_at = now()
+        WHERE subject_id = $1
+        RETURNING id
+      `,
+      [fromSubjectId, toSubjectId],
+    );
+
+    return result.rowCount ?? result.rows.length;
   }
 }
 
