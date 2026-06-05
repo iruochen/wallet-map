@@ -3,7 +3,7 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { CheckCircle2, LogOut, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAccount, useDisconnect, useSignMessage } from "wagmi";
 
 function formatAddress(address: string): string {
@@ -17,6 +17,42 @@ export function WalletHeaderControls() {
   const { signMessageAsync } = useSignMessage();
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authenticatedAddress, setAuthenticatedAddress] = useState<string | null>(null);
+
+  const loadAuthSession = useCallback(async () => {
+    try {
+      const response = await fetch("/api/auth/session");
+      const body = (await response.json()) as { authenticated?: boolean; address?: string };
+
+      if (body.authenticated && body.address) {
+        setAuthenticatedAddress(body.address.toLowerCase());
+        return;
+      }
+
+      setAuthenticatedAddress(null);
+    } catch {
+      setAuthenticatedAddress(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAuthSession();
+  }, [loadAuthSession]);
+
+  useEffect(() => {
+    function handleAuthChanged() {
+      void loadAuthSession();
+    }
+
+    window.addEventListener("wallet-map-auth-changed", handleAuthChanged);
+    return () => window.removeEventListener("wallet-map-auth-changed", handleAuthChanged);
+  }, [loadAuthSession]);
+
+  const connectedAddress = address?.toLowerCase();
+  const isAuthenticated =
+    Boolean(connectedAddress) &&
+    Boolean(authenticatedAddress) &&
+    connectedAddress === authenticatedAddress;
 
   async function refreshAuthState() {
     window.dispatchEvent(new Event("wallet-map-auth-changed"));
@@ -76,10 +112,17 @@ export function WalletHeaderControls() {
     <div className="walletHeaderControl">
       {isConnected && address ? (
         <>
-          <button className="walletHeaderButton walletHeaderButtonPrimary" type="button" onClick={signIn} disabled={isBusy}>
-            <CheckCircle2 size={15} aria-hidden="true" />
-            {isBusy ? "签名中" : `签名 ${formatAddress(address)}`}
-          </button>
+          {isAuthenticated ? (
+            <span className="headerChip headerChipOk walletHeaderSignedChip">
+              <CheckCircle2 size={14} aria-hidden="true" />
+              已登录 {formatAddress(address)}
+            </span>
+          ) : (
+            <button className="walletHeaderButton walletHeaderButtonPrimary" type="button" onClick={signIn} disabled={isBusy}>
+              <CheckCircle2 size={15} aria-hidden="true" />
+              {isBusy ? "签名中" : `签名 ${formatAddress(address)}`}
+            </button>
+          )}
           <button className="walletHeaderIconButton" type="button" onClick={disconnect} disabled={isBusy} title="断开钱包">
             <LogOut size={15} aria-hidden="true" />
           </button>
