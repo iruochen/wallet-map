@@ -6,26 +6,29 @@ import type {
   GraphEdge,
   GraphNode,
 } from "@wallet-map/core";
+import { BridgeCorrelationAnalyzer } from "./bridge-correlation";
+import {
+  buildEvidence,
+  buildNodeIndex,
+  getWatchedWalletNodeIds,
+  isTransferEdge,
+  isZeroAddressNodeId,
+} from "./helpers";
+import { MultiHopPathAnalyzer } from "./multi-hop-path";
+import { TemporalPatternAnalyzer } from "./temporal-pattern";
 
-const transferEdgeKinds = ["native_transfer", "token_transfer", "nft_transfer"] as const;
+export { BridgeCorrelationAnalyzer } from "./bridge-correlation";
+export { MultiHopPathAnalyzer } from "./multi-hop-path";
+export { TemporalPatternAnalyzer } from "./temporal-pattern";
 
 export class DirectTransferAnalyzer implements Analyzer {
   id = "direct-transfer";
   name = "Direct Transfer Analyzer";
 
   async run(context: AnalysisContext): Promise<Finding[]> {
-    const walletNodeIds = new Set(
-      context.graph.nodes
-        .filter((node) => node.kind === "wallet" && node.tags?.includes("watched"))
-        .map((node) => node.id),
-    );
-
+    const walletNodeIds = getWatchedWalletNodeIds(context.graph.nodes);
     const directEdges = context.graph.edges.filter((edge) => {
-      return (
-        walletNodeIds.has(edge.source) &&
-        walletNodeIds.has(edge.target) &&
-        ["native_transfer", "token_transfer", "nft_transfer"].includes(edge.kind)
-      );
+      return walletNodeIds.has(edge.source) && walletNodeIds.has(edge.target) && isTransferEdge(edge);
     });
 
     return directEdges.map((edge) => ({
@@ -36,17 +39,7 @@ export class DirectTransferAnalyzer implements Analyzer {
       severity: "high",
       confidence: assessDirectTransferConfidence(edge.evidenceEventIds.length),
       scoreImpact: 40,
-      evidence: edge.evidenceEventIds.map((eventId) => {
-        const event = context.events.find((candidate) => candidate.id === eventId);
-
-        return {
-          eventId,
-          txHash: event?.txHash,
-          summary: event
-            ? `${event.type} on chain ${event.chainId} in transaction ${event.txHash}`
-            : `Evidence event ${eventId}`,
-        };
-      }),
+      evidence: buildEvidence(context, [edge]),
       metadata: {
         edgeId: edge.id,
         source: edge.source,
@@ -183,23 +176,10 @@ export function createDefaultAnalyzers(): Analyzer[] {
     new DirectTransferAnalyzer(),
     new SharedCounterpartyAnalyzer(),
     new SameContractInteractionAnalyzer(),
+    new MultiHopPathAnalyzer(),
+    new TemporalPatternAnalyzer(),
+    new BridgeCorrelationAnalyzer(),
   ];
-}
-
-function buildNodeIndex(nodes: GraphNode[]): Map<string, GraphNode> {
-  return new Map(nodes.map((node) => [node.id, node]));
-}
-
-function getWatchedWalletNodeIds(nodes: GraphNode[]): Set<string> {
-  return new Set(
-    nodes
-      .filter((node) => node.kind === "wallet" && node.tags?.includes("watched"))
-      .map((node) => node.id),
-  );
-}
-
-function isTransferEdge(edge: GraphEdge): boolean {
-  return transferEdgeKinds.includes(edge.kind as (typeof transferEdgeKinds)[number]);
 }
 
 function getObservedWalletCounterpartyNodeId(input: {
@@ -213,24 +193,14 @@ function getObservedWalletCounterpartyNodeId(input: {
   const targetIsWatched = watchedWalletNodeIds.has(edge.target);
 
   if (sourceIsWatched && target?.kind === "wallet" && target.tags?.includes("observed")) {
-    if (isZeroAddressNodeId(edge.target)) {
-      return undefined;
-    }
-    return edge.target;
+    return isZeroAddressNodeId(edge.target) ? undefined : edge.target;
   }
 
   if (targetIsWatched && source?.kind === "wallet" && source.tags?.includes("observed")) {
-    if (isZeroAddressNodeId(edge.source)) {
-      return undefined;
-    }
-    return edge.source;
+    return isZeroAddressNodeId(edge.source) ? undefined : edge.source;
   }
 
   return undefined;
-}
-
-function isZeroAddressNodeId(nodeId: string): boolean {
-  return nodeId.endsWith(":0x0000000000000000000000000000000000000000");
 }
 
 function assessDirectTransferConfidence(evidenceCount: number): FindingConfidence {
@@ -276,20 +246,4 @@ function getWatchedWalletNodeIdsForEdges(
   }
 
   return Array.from(nodeIds).sort();
-}
-
-function buildEvidence(context: AnalysisContext, edges: GraphEdge[]): Finding["evidence"] {
-  return edges.flatMap((edge) =>
-    edge.evidenceEventIds.map((eventId) => {
-      const event = context.events.find((candidate) => candidate.id === eventId);
-
-      return {
-        eventId,
-        txHash: event?.txHash,
-        summary: event
-          ? `${event.type} on chain ${event.chainId} in transaction ${event.txHash}`
-          : `Evidence event ${eventId}`,
-      };
-    }),
-  );
 }

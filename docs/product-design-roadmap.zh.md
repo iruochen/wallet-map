@@ -425,8 +425,9 @@ interface SybilExposureScore {
 
 - Shared Funding Source Analyzer。
 - Shared Withdrawal / Deposit Analyzer。
-- Multi-hop Path Analyzer。
-- Temporal Pattern Analyzer。
+- [x] Multi-hop Path Analyzer。
+- [x] Temporal Pattern Analyzer。
+- [x] Bridge Correlation Analyzer。
 - Known Entity Label Provider 初版。
 - 公共实体降权规则。
 
@@ -503,4 +504,3 @@ interface SybilExposureScore {
 ## 12. 下一步建议
 
 M1 的证据闭环、报告导出与图谱联动已基本具备。当前建议继续推进 M2 剩余项：第二 live provider、provider selector、live 并发控制；并验证 Vercel 环境下 Redis job 与 PostgreSQL 持久化的稳定性。完成后进入 M3 高级分析器（共同上游、多跳路径、公共实体降权）。
-

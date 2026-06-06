@@ -60,6 +60,7 @@ Suggested starting weights:
 - Repeated direct transfers: `+10` to `+30`
 - Short multi-hop path: `+25` to `+45`
 - Shared non-public counterparty: `+20` to `+35`
+- Bridge route correlation: `+12` to `+32`
 - Shared public contract interaction: `+3` to `+10`
 - Temporal similarity: `+5` to `+20`
 
@@ -69,6 +70,7 @@ Reduce score when:
 - The contract is extremely popular.
 - The event is old and isolated.
 - The path depends on many hops.
+- A bridge route lacks a destination chain, protocol, or amount similarity.
 - The only overlap is a common token or NFT collection.
 
 ## Analyzer Requirements
@@ -92,4 +94,3 @@ Use careful language:
 - Prefer “需要人工复核” when confidence is low or medium.
 
 Avoid language that sounds like instructions for bypassing third-party review systems.
-
