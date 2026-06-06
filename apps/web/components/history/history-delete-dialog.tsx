@@ -48,9 +48,10 @@ export function HistoryDeleteDialog({
     <div className="historyDialogBackdrop" role="presentation" onClick={isDeleting ? undefined : onCancel}>
       <div
         className="historyDialog"
-        role="dialog"
+        role="alertdialog"
         aria-modal="true"
         aria-labelledby="history-delete-dialog-title"
+        aria-describedby="history-delete-dialog-description"
         onClick={(event) => event.stopPropagation()}
       >
         <button
@@ -70,7 +71,7 @@ export function HistoryDeleteDialog({
         <h2 className="historyDialogTitle" id="history-delete-dialog-title">
           删除这条分析记录？
         </h2>
-        <p className="historyDialogDescription">
+        <p className="historyDialogDescription" id="history-delete-dialog-description">
           删除后会从钱包历史中永久移除这条记录，包括图谱、发现和事件快照，且无法恢复。
         </p>
 

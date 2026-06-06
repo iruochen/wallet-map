@@ -3,7 +3,7 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { CheckCircle2, LogOut, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount, useDisconnect, useSignMessage } from "wagmi";
 import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
 
@@ -16,6 +16,7 @@ export function WalletHeaderControls() {
   const [authLoaded, setAuthLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authenticatedAddress, setAuthenticatedAddress] = useState<string | null>(null);
+  const autoSignAttemptRef = useRef<string | null>(null);
 
   const loadAuthSession = useCallback(async () => {
     try {
@@ -56,13 +57,18 @@ export function WalletHeaderControls() {
     Boolean(connectedAddress) &&
     Boolean(authenticatedAddress) &&
     connectedAddress === authenticatedAddress;
+  const needsWalletSignIn =
+    authLoaded &&
+    isConnected &&
+    Boolean(connectedAddress) &&
+    (!authenticatedAddress || connectedAddress !== authenticatedAddress);
 
-  async function refreshAuthState() {
+  const refreshAuthState = useCallback(async () => {
     window.dispatchEvent(new Event("wallet-map-auth-changed"));
     router.refresh();
-  }
+  }, [router]);
 
-  async function signIn() {
+  const signIn = useCallback(async () => {
     setIsBusy(true);
     setError(null);
 
@@ -71,6 +77,7 @@ export function WalletHeaderControls() {
         throw new Error("请先连接钱包。");
       }
 
+      const normalizedAddress = address.toLowerCase();
       const challengeResponse = await fetch("/api/auth/challenge", { method: "POST" });
       const challenge = (await challengeResponse.json()) as { message?: string; error?: string };
 
@@ -90,17 +97,44 @@ export function WalletHeaderControls() {
         throw new Error(login.error ?? "钱包登录失败。");
       }
 
+      autoSignAttemptRef.current = normalizedAddress;
       await refreshAuthState();
     } catch (caught) {
+      if (address) {
+        autoSignAttemptRef.current = address.toLowerCase();
+      }
       setError(caught instanceof Error ? caught.message : "钱包登录失败。");
     } finally {
       setIsBusy(false);
     }
+  }, [address, isConnected, refreshAuthState, signMessageAsync]);
+
+  useEffect(() => {
+    if (!needsWalletSignIn || isBusy || !connectedAddress) {
+      return;
+    }
+
+    if (autoSignAttemptRef.current === connectedAddress) {
+      return;
+    }
+
+    autoSignAttemptRef.current = connectedAddress;
+    void signIn();
+  }, [connectedAddress, isBusy, needsWalletSignIn, signIn]);
+
+  async function retrySignIn() {
+    if (!connectedAddress) {
+      return;
+    }
+
+    autoSignAttemptRef.current = null;
+    await signIn();
   }
 
   async function disconnect() {
     setIsBusy(true);
     setError(null);
+    autoSignAttemptRef.current = null;
 
     try {
       await fetch("/api/auth/session", { method: "DELETE" });
@@ -153,10 +187,27 @@ export function WalletHeaderControls() {
         </>
       ) : isConnected && address ? (
         <>
-          <button className="walletHeaderButton walletHeaderButtonPrimary" type="button" onClick={signIn} disabled={isBusy}>
-            <CheckCircle2 size={15} aria-hidden="true" />
-            {isBusy ? "签名中" : `签名 ${displayName ?? address}`}
-          </button>
+          {isBusy ? (
+            <span className="headerChip walletHeaderLoadingChip" aria-busy="true">
+              <CheckCircle2 size={14} aria-hidden="true" />
+              等待钱包签名…
+            </span>
+          ) : error ? (
+            <button
+              className="walletHeaderButton walletHeaderButtonPrimary"
+              type="button"
+              onClick={() => void retrySignIn()}
+              disabled={isBusy}
+            >
+              <CheckCircle2 size={15} aria-hidden="true" />
+              重试签名
+            </button>
+          ) : (
+            <span className="headerChip walletHeaderLoadingChip" aria-busy="true">
+              <CheckCircle2 size={14} aria-hidden="true" />
+              准备登录…
+            </span>
+          )}
           <button className="walletHeaderIconButton" type="button" onClick={disconnect} disabled={isBusy} title="断开钱包">
             <LogOut size={15} aria-hidden="true" />
           </button>

@@ -32,19 +32,19 @@ body {
     #eef2ec;
 }
 
-body [data-rk] div[role="dialog"] button {
+body [data-rk] div[role="dialog"]:not(.historyDialog) button {
   justify-content: flex-start !important;
   text-align: left !important;
   transform: none !important;
 }
 
-body [data-rk] div[role="dialog"] {
+body [data-rk] div[role="dialog"]:not(.historyDialog) {
   background: rgba(18, 31, 24, 0.2) !important;
   backdrop-filter: blur(2px) !important;
 }
 
-body [data-rk] div[role="dialog"] button[aria-label*="Close"],
-body [data-rk] div[role="dialog"] button[aria-label*="close"] {
+body [data-rk] div[role="dialog"]:not(.historyDialog) button[aria-label*="Close"],
+body [data-rk] div[role="dialog"]:not(.historyDialog) button[aria-label*="close"] {
   justify-content: center !important;
 }
 
@@ -973,10 +973,11 @@ button:disabled {
   padding: 24px 24px 20px;
   border: 1px solid #e3ebe3;
   border-radius: 18px;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(141, 33, 27, 0.06), transparent 58%),
-    #ffffff;
+  background-color: #ffffff;
+  background-image: radial-gradient(circle at 50% 0%, rgba(141, 33, 27, 0.06), transparent 58%);
+  color: #17211b;
   box-shadow: 0 24px 60px rgba(31, 61, 44, 0.18);
+  backdrop-filter: none;
 }
 
 .historyDialogClose {
@@ -1018,13 +1019,14 @@ button:disabled {
 
 .historyDialogTitle {
   margin: 0;
-  color: var(--text);
+  color: #17211b;
   font-size: 1.08rem;
+  font-weight: 800;
 }
 
 .historyDialogDescription {
   margin: 10px 0 0;
-  color: #64736a;
+  color: #47554d;
   font-size: 0.84rem;
   line-height: 1.55;
 }
