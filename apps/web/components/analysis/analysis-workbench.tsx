@@ -741,6 +741,14 @@ export function AnalysisWorkbench({
                   <FileText size={15} strokeWidth={2.1} />
                   JSON
                 </button>
+                <button
+                  type="button"
+                  className="secondaryButton reportButtonInline"
+                  onClick={() => void downloadReport("csv")}
+                >
+                  <FileText size={15} strokeWidth={2.1} />
+                  CSV
+                </button>
                 <span className="statusPill statusSuccess">Complete</span>
               </div>
             ) : null}

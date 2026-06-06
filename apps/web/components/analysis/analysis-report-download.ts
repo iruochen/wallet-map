@@ -2,7 +2,7 @@ import { JsonExporter, MarkdownExporter, PdfReportExporter } from "@wallet-map/e
 import type { AnalysisResponse } from "./analysis-types";
 import { buildAnalysisReport } from "./analysis-report";
 
-export type ReportDownloadFormat = "pdf" | "markdown" | "json";
+export type ReportDownloadFormat = "pdf" | "markdown" | "json" | "csv";
 
 const reportFormatConfig: Record<
   ReportDownloadFormat,
@@ -22,6 +22,10 @@ const reportFormatConfig: Record<
   json: {
     extension: "json",
     mimeType: "application/json;charset=utf-8",
+  },
+  csv: {
+    extension: "csv",
+    mimeType: "text/csv;charset=utf-8",
   },
 };
 
@@ -43,6 +47,10 @@ export async function buildReportDownloadBlob(
     return new PdfReportExporter().export(report);
   }
 
+  if (format === "csv") {
+    return new Blob([buildEvidenceCsv(result)], { type: config.mimeType });
+  }
+
   const body =
     format === "markdown"
       ? await new MarkdownExporter().export(report)
@@ -60,4 +68,69 @@ export async function downloadAnalysisReport(result: AnalysisResponse, format: R
   anchor.download = buildReportDownloadFilename(result, format);
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+export function buildEvidenceCsv(result: AnalysisResponse): string {
+  const rows = result.findings.flatMap((finding) =>
+    finding.evidence.map((evidence) => {
+      const event = evidence.event;
+
+      return [
+        finding.id,
+        finding.analyzerId,
+        finding.title,
+        finding.severity,
+        finding.confidence,
+        String(finding.scoreImpact),
+        evidence.eventId,
+        evidence.txHash ?? event?.txHash ?? "",
+        event?.chainId !== undefined ? String(event.chainId) : "",
+        event?.blockNumber !== undefined ? String(event.blockNumber) : "",
+        event?.timestamp ?? "",
+        event?.type ?? "",
+        event?.from ?? "",
+        event?.to ?? "",
+        event?.contract ?? "",
+        event?.methodId ?? "",
+        event?.amount ?? "",
+        event?.asset?.symbol ?? "",
+        evidence.summary,
+      ];
+    }),
+  );
+
+  return [
+    [
+      "finding_id",
+      "analyzer_id",
+      "finding_title",
+      "severity",
+      "confidence",
+      "score_impact",
+      "event_id",
+      "tx_hash",
+      "chain_id",
+      "block_number",
+      "timestamp",
+      "event_type",
+      "from",
+      "to",
+      "contract",
+      "method_id",
+      "amount",
+      "asset_symbol",
+      "summary",
+    ],
+    ...rows,
+  ]
+    .map((row) => row.map(escapeCsvCell).join(","))
+    .join("\n");
+}
+
+function escapeCsvCell(value: string): string {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replaceAll('"', '""')}"`;
+  }
+
+  return value;
 }

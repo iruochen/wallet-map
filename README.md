@@ -130,8 +130,9 @@ The adapter currently ingests:
 - ERC721 transfers
 
 Completed runs can be exported from the workbench summary panel as PDF,
-Markdown, or JSON reports. Markdown is intended for human review, JSON for
-secondary analysis, and PDF for shareable audit snapshots.
+Markdown, JSON, or CSV evidence files. Markdown is intended for human review,
+JSON for secondary analysis, CSV for spreadsheet review, and PDF for shareable
+audit snapshots.
 
 ## Project Docs
 

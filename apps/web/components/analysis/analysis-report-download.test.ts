@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AnalysisResponse } from "./analysis-types";
 import {
+  buildEvidenceCsv,
   buildReportDownloadBlob,
   buildReportDownloadFilename,
 } from "./analysis-report-download";
@@ -125,6 +126,7 @@ describe("analysis report downloads", () => {
     expect(buildReportDownloadFilename(response, "pdf")).toBe("wallet-map-2024-01-02.pdf");
     expect(buildReportDownloadFilename(response, "markdown")).toBe("wallet-map-2024-01-02.md");
     expect(buildReportDownloadFilename(response, "json")).toBe("wallet-map-2024-01-02.json");
+    expect(buildReportDownloadFilename(response, "csv")).toBe("wallet-map-2024-01-02.csv");
   });
 
   it("builds Markdown report blobs", async () => {
@@ -143,5 +145,38 @@ describe("analysis report downloads", () => {
     expect(blob.type).toBe("application/json;charset=utf-8");
     expect(parsed.schemaVersion).toBe("1.1");
     expect(parsed.title).toBe("Wallet Map 链上关联分析报告");
+  });
+
+  it("builds CSV evidence blobs", async () => {
+    const blob = await buildReportDownloadBlob(response, "csv");
+    const text = await blob.text();
+
+    expect(blob.type).toBe("text/csv;charset=utf-8");
+    expect(text.split("\n")[0]).toBe(
+      "finding_id,analyzer_id,finding_title,severity,confidence,score_impact,event_id,tx_hash,chain_id,block_number,timestamp,event_type,from,to,contract,method_id,amount,asset_symbol,summary",
+    );
+    expect(text).toContain("finding-1,direct-transfer,Direct transfer found,high,high,40,event-1");
+    expect(text).toContain("0x1111111111111111111111111111111111111111111111111111111111111111");
+  });
+
+  it("escapes CSV cells that contain commas or quotes", () => {
+    const csv = buildEvidenceCsv({
+      ...response,
+      findings: [
+        {
+          ...response.findings[0],
+          title: 'Quoted, finding',
+          evidence: [
+            {
+              ...response.findings[0].evidence[0],
+              summary: 'Wallet "A", sent value',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(csv).toContain('"Quoted, finding"');
+    expect(csv).toContain('"Wallet ""A"", sent value"');
   });
 });
