@@ -13,6 +13,7 @@ export function WalletHeaderControls() {
   const { disconnectAsync } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const [isBusy, setIsBusy] = useState(false);
+  const [authLoaded, setAuthLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authenticatedAddress, setAuthenticatedAddress] = useState<string | null>(null);
 
@@ -29,6 +30,8 @@ export function WalletHeaderControls() {
       setAuthenticatedAddress(null);
     } catch {
       setAuthenticatedAddress(null);
+    } finally {
+      setAuthLoaded(true);
     }
   }, []);
 
@@ -46,8 +49,10 @@ export function WalletHeaderControls() {
   }, [loadAuthSession]);
 
   const connectedAddress = address?.toLowerCase();
-  const { displayName, ensName } = useWalletDisplayName(address);
-  const isAuthenticated =
+  const displayAddress = connectedAddress ?? authenticatedAddress ?? undefined;
+  const { displayName, ensName } = useWalletDisplayName(displayAddress);
+  const hasServerSession = Boolean(authenticatedAddress);
+  const walletMatchesSession =
     Boolean(connectedAddress) &&
     Boolean(authenticatedAddress) &&
     connectedAddress === authenticatedAddress;
@@ -106,24 +111,52 @@ export function WalletHeaderControls() {
     }
   }
 
+  function renderSignedInChip() {
+    return (
+      <span
+        className="headerChip headerChipOk walletHeaderSignedChip"
+        title={ensName && displayAddress ? displayAddress : undefined}
+      >
+        <CheckCircle2 size={14} aria-hidden="true" />
+        已登录 {displayName ?? displayAddress}
+      </span>
+    );
+  }
+
   return (
     <div className="walletHeaderControl">
-      {isConnected && address ? (
+      {!authLoaded ? (
+        <span className="headerChip walletHeaderLoadingChip" aria-busy="true">
+          加载中
+        </span>
+      ) : hasServerSession && (!isConnected || walletMatchesSession) ? (
         <>
-          {isAuthenticated ? (
-            <span
-              className="headerChip headerChipOk walletHeaderSignedChip"
-              title={ensName ? address : undefined}
-            >
-              <CheckCircle2 size={14} aria-hidden="true" />
-              已登录 {displayName ?? address}
-            </span>
-          ) : (
-            <button className="walletHeaderButton walletHeaderButtonPrimary" type="button" onClick={signIn} disabled={isBusy}>
-              <CheckCircle2 size={15} aria-hidden="true" />
-              {isBusy ? "签名中" : `签名 ${displayName ?? address}`}
-            </button>
-          )}
+          {renderSignedInChip()}
+          {!isConnected ? (
+            <ConnectButton.Custom>
+              {({ openConnectModal, mounted }) => (
+                <button
+                  className="walletHeaderButton"
+                  type="button"
+                  onClick={openConnectModal}
+                  disabled={!mounted || isBusy}
+                >
+                  <Wallet size={14} aria-hidden="true" />
+                  重连钱包
+                </button>
+              )}
+            </ConnectButton.Custom>
+          ) : null}
+          <button className="walletHeaderIconButton" type="button" onClick={disconnect} disabled={isBusy} title="退出登录">
+            <LogOut size={15} aria-hidden="true" />
+          </button>
+        </>
+      ) : isConnected && address ? (
+        <>
+          <button className="walletHeaderButton walletHeaderButtonPrimary" type="button" onClick={signIn} disabled={isBusy}>
+            <CheckCircle2 size={15} aria-hidden="true" />
+            {isBusy ? "签名中" : `签名 ${displayName ?? address}`}
+          </button>
           <button className="walletHeaderIconButton" type="button" onClick={disconnect} disabled={isBusy} title="断开钱包">
             <LogOut size={15} aria-hidden="true" />
           </button>

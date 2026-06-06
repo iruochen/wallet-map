@@ -20,7 +20,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <WagmiProvider config={walletConfig} reconnectOnMount={false}>
+    <WagmiProvider config={walletConfig} reconnectOnMount>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider modalSize="compact">{children}</RainbowKitProvider>
       </QueryClientProvider>

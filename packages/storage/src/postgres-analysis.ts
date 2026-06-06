@@ -64,6 +64,7 @@ export interface PostgresAnalysisStorage {
   listJobs(limit?: number, subjectId?: string): Promise<AnalysisJobListItem[]>;
   countJobs(subjectId?: string): Promise<number>;
   migrateSubjectJobs(fromSubjectId: string, toSubjectId: string): Promise<number>;
+  deleteJob(jobId: string, subjectId: string): Promise<boolean>;
 }
 
 export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStorage {
@@ -77,6 +78,7 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
     listJobs,
     countJobs,
     migrateSubjectJobs,
+    deleteJob,
   };
 
   async function createJob(input: CreatePersistedAnalysisJobInput): Promise<void> {
@@ -407,6 +409,19 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
     );
 
     return result.rowCount ?? result.rows.length;
+  }
+
+  async function deleteJob(jobId: string, subjectId: string): Promise<boolean> {
+    const result = await pool.query<{ id: string }>(
+      `
+        DELETE FROM analysis_jobs
+        WHERE id = $1 AND subject_id = $2
+        RETURNING id
+      `,
+      [jobId, subjectId],
+    );
+
+    return (result.rowCount ?? result.rows.length) > 0;
   }
 }
 

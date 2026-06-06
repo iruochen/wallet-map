@@ -1,5 +1,5 @@
 import { getAnalysisStorage } from "../../analysis-storage";
-import { getAnalyzeJob } from "../../job-store";
+import { deleteAnalyzeJob, getAnalyzeJob } from "../../job-store";
 import { getProgressPercent } from "../../progress";
 import { getCurrentHistorySubject } from "../../../auth/session";
 
@@ -39,4 +39,33 @@ export async function GET(
     error: persistedJob!.errorMessage,
     result: persistedJob!.status === "completed" ? persistedJob!.resultSnapshot : undefined,
   });
+}
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ jobId: string }> },
+): Promise<Response> {
+  const { jobId } = await context.params;
+  const historySubject = await getCurrentHistorySubject();
+  const storage = await getAnalysisStorage();
+
+  if (!storage) {
+    return Response.json({ error: "Database storage is not configured." }, { status: 503 });
+  }
+
+  try {
+    const deleted = await storage.deleteJob(jobId, historySubject.subjectId);
+
+    if (!deleted) {
+      return Response.json({ error: "Analysis job not found." }, { status: 404 });
+    }
+
+    await deleteAnalyzeJob(jobId).catch(() => undefined);
+
+    return Response.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to delete analysis job.";
+
+    return Response.json({ error: message }, { status: 500 });
+  }
 }

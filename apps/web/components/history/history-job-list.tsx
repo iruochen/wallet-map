@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowDownToLine, ExternalLink, Play, RefreshCw, ScrollText } from "lucide-react";
+import { ArrowDownToLine, ExternalLink, Play, RefreshCw, ScrollText, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatAbsoluteTime } from "../../app/format";
 import { formatConfidenceLabel } from "../analysis/analysis-formatters";
 import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
+import { HistoryDeleteDialog } from "./history-delete-dialog";
 import { HistoryIdentityAvatar } from "./history-identity-avatar";
 
 const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";
@@ -51,10 +52,14 @@ export function HistoryJobList({
   const [anonymousSessionId, setAnonymousSessionId] = useState<string | undefined>();
   const [sessionSyncCount, setSessionSyncCount] = useState(0);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [pendingDeleteJob, setPendingDeleteJob] = useState<HistoryJobItem | null>(null);
+  const [isListLoading, setIsListLoading] = useState(false);
   const [isTableScrolling, setIsTableScrolling] = useState(false);
   const tableScrollTimerRef = useRef<number | null>(null);
 
@@ -79,11 +84,13 @@ export function HistoryJobList({
     };
   }, []);
 
-  async function loadJobs(options: { showSkeleton?: boolean } = {}) {
-    if (!options.showSkeleton) {
+  async function loadJobs(options: { showSkeleton?: boolean; showListLoading?: boolean } = {}) {
+    if (options.showListLoading) {
+      setIsListLoading(true);
+    } else if (!options.showSkeleton) {
       setIsRefreshing(true);
     }
-    setError(null);
+    setLoadError(null);
 
     try {
       const response = await fetch("/api/analyze/jobs?limit=30");
@@ -100,17 +107,18 @@ export function HistoryJobList({
       setAnonymousSessionId(body.anonymousSessionId);
       setSessionSyncCount(body.sessionSyncCount ?? 0);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Failed to load history.");
+      setLoadError(caught instanceof Error ? caught.message : "Failed to load history.");
     } finally {
       setHasLoaded(true);
       setIsRefreshing(false);
+      setIsListLoading(false);
     }
   }
 
   async function syncSessionHistory() {
     setIsSyncing(true);
     setSyncMessage(null);
-    setError(null);
+    setLoadError(null);
 
     try {
       const response = await fetch("/api/analyze/jobs/sync-session", { method: "POST" });
@@ -123,7 +131,7 @@ export function HistoryJobList({
       setSyncMessage(body.message ?? "会话记录已同步。");
       await loadJobs();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Failed to sync session history.");
+      setLoadError(caught instanceof Error ? caught.message : "Failed to sync session history.");
     } finally {
       setIsSyncing(false);
     }
@@ -141,17 +149,60 @@ export function HistoryJobList({
     }, 700);
   }
 
+  async function confirmDeleteJob() {
+    if (!pendingDeleteJob) {
+      return;
+    }
+
+    const jobId = pendingDeleteJob.id;
+    setDeletingJobId(jobId);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch(`/api/analyze/jobs/${jobId}`, { method: "DELETE" });
+      const body = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(body.error ?? "Failed to delete history record.");
+      }
+
+      setPendingDeleteJob(null);
+      await loadJobs({ showListLoading: true });
+    } catch (caught) {
+      setDeleteError(caught instanceof Error ? caught.message : "Failed to delete history record.");
+    } finally {
+      setDeletingJobId(null);
+    }
+  }
+
   function renderListBody(content: ReactNode) {
     return (
-      <div className="historyListBody">
-        {header}
-        <div
-          className={`historyTableScroll ${isTableScrolling ? "historyTableScrolling" : ""}`}
-          onScroll={handleTableScroll}
-        >
-          {content}
+      <>
+        <div className="historyListBody">
+          {header}
+          <div
+            className={`historyTableScroll ${isTableScrolling ? "historyTableScrolling" : ""}`}
+            onScroll={handleTableScroll}
+          >
+            {content}
+          </div>
         </div>
-      </div>
+        {pendingDeleteJob ? (
+          <HistoryDeleteDialog
+            job={pendingDeleteJob}
+            isDeleting={deletingJobId === pendingDeleteJob.id}
+            onCancel={() => {
+              if (deletingJobId) {
+                return;
+              }
+              setPendingDeleteJob(null);
+              setDeleteError(null);
+            }}
+            deleteError={deleteError}
+            onConfirm={() => void confirmDeleteJob()}
+          />
+        ) : null}
+      </>
     );
   }
 
@@ -224,13 +275,13 @@ export function HistoryJobList({
     );
   }
 
-  if (error) {
-    const needsMigration = error.includes('column "chain_name" does not exist');
+  if (loadError) {
+    const needsMigration = loadError.includes('column "chain_name" does not exist');
 
     return renderListBody(
       <div className="historyEmpty historyEmptyError">
         <strong>加载失败</strong>
-        <p>{error}</p>
+        <p>{loadError}</p>
         {needsMigration ? (
           <p>
             数据库缺少 M2 migration。重启服务后会自动补齐；若仍失败，请手动执行
@@ -255,7 +306,7 @@ export function HistoryJobList({
             : "完成一次分析后，任务会显示在这里。登录钱包后还能跨会话查看。"}
         </p>
         <Link
-          className="primaryButton primaryButtonCompact historyEmptyAction"
+          className="historyEmptyAction"
           href="/?fresh=1"
           onClick={clearStoredAnalysisJob}
         >
@@ -267,7 +318,13 @@ export function HistoryJobList({
   }
 
   return renderListBody(
-    <div className="historyTableWrap">
+    <div className={`historyTableWrap ${isListLoading ? "historyTableWrapLoading" : ""}`}>
+      {isListLoading ? (
+        <div className="historyTableLoadingOverlay" role="status" aria-live="polite">
+          <RefreshCw className="historySpinIcon" size={18} aria-hidden="true" />
+          <span>正在刷新历史记录…</span>
+        </div>
+      ) : null}
       <table className="historyTable">
         <thead>
           <tr>
@@ -276,7 +333,7 @@ export function HistoryJobList({
             <th>地址 / 事件</th>
             <th>评分</th>
             <th>状态</th>
-            <th />
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
@@ -310,12 +367,29 @@ export function HistoryJobList({
                 {job.errorMessage ? <small>{job.errorMessage}</small> : null}
               </td>
               <td>
-                {job.status === "completed" ? (
-                  <Link className="secondaryButton historyOpenButton" href={`/?job=${job.id}`}>
-                    <ExternalLink size={14} aria-hidden="true" />
-                    打开
-                  </Link>
-                ) : null}
+                <div className="historyRowActions">
+                  {job.status === "completed" ? (
+                    <Link className="secondaryButton historyOpenButton" href={`/?job=${job.id}`}>
+                      <ExternalLink size={14} aria-hidden="true" />
+                      打开
+                    </Link>
+                  ) : null}
+                  {historyMode === "wallet" ? (
+                    <button
+                      className="historyDeleteButton"
+                      type="button"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setPendingDeleteJob(job);
+                      }}
+                      disabled={Boolean(deletingJobId) || isRefreshing || isSyncing || isListLoading}
+                      title="删除这条历史记录"
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                      删除
+                    </button>
+                  ) : null}
+                </div>
               </td>
             </tr>
           ))}

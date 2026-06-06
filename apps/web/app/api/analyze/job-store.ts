@@ -150,6 +150,20 @@ export async function markAnalyzeJobFailed(jobId: string, error: string): Promis
   });
 }
 
+export async function deleteAnalyzeJob(jobId: string): Promise<void> {
+  if (useMemoryStore()) {
+    getMemoryJobMap().delete(jobId);
+    return;
+  }
+
+  const redis = await getRedisClient();
+  if (redis) {
+    await redis.del(buildRedisKey(jobId)).catch(() => undefined);
+  }
+
+  getMemoryJobMap().delete(jobId);
+}
+
 export function resetAnalyzeJobStoreForTests(): void {
   getMemoryJobMap().clear();
 }
