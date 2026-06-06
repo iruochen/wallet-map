@@ -1521,6 +1521,30 @@ button:disabled {
   line-height: 1.45;
 }
 
+.addressImportSummary {
+  display: grid;
+  gap: 3px;
+  padding: 9px 12px 10px;
+  border-top: 1px solid #e6eee6;
+  background: #f4faf6;
+}
+
+.addressImportSummary strong,
+.addressImportSummary span {
+  display: block;
+}
+
+.addressImportSummary strong {
+  color: #1f5f3d;
+  font-size: 0.74rem;
+}
+
+.addressImportSummary span {
+  color: #64736a;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
 .inputStatusStack {
   display: grid;
   gap: 8px;

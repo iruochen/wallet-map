@@ -101,6 +101,7 @@ The current MVP runs in fixture mode:
 - Use the sample wallet addresses on the homepage.
 - Submit the analysis form.
 - The app calls `/api/analyze`, builds a relationship graph, runs the default analyzers, and returns findings with evidence.
+- Address import accepts `.txt`, `.csv`, and `.tsv` files, deduplicates EVM addresses, and reports invalid rows before analysis.
 
 Data source modes:
 

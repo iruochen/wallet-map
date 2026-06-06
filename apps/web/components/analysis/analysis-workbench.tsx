@@ -20,6 +20,7 @@ import {
   getEvmAggregateChains,
 } from "../../app/chains";
 import { AnalysisEvidencePanel } from "./analysis-evidence-panel";
+import { parseAddressImport, type AddressImportSummary } from "./address-import";
 import {
   describeFindingGroup,
   formatConfidenceLabel,
@@ -122,6 +123,7 @@ export function AnalysisWorkbench({
   const [openEdgeGroups, setOpenEdgeGroups] = useState<Record<string, boolean>>({});
   const [isInputScrolling, setIsInputScrolling] = useState(false);
   const [isEvidenceScrolling, setIsEvidenceScrolling] = useState(false);
+  const [addressImportSummary, setAddressImportSummary] = useState<AddressImportSummary | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputScrollTimerRef = useRef<number | null>(null);
   const evidenceScrollTimerRef = useRef<number | null>(null);
@@ -433,13 +435,13 @@ export function AnalysisWorkbench({
     }
 
     const text = await file.text();
-    const imported = text
-      .split(/[\s,;\n\r]+/)
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .join("\n");
+    const summary = parseAddressImport(text);
 
-    setAddresses(imported);
+    setAddressImportSummary(summary);
+
+    if (summary.addresses.length > 0) {
+      setAddresses(summary.addresses.join("\n"));
+    }
   }
 
   async function downloadReport(format: ReportDownloadFormat) {
@@ -534,7 +536,10 @@ export function AnalysisWorkbench({
                   type="button"
                   className="ghostButton"
                   disabled={isRunning}
-                  onClick={() => setAddresses(defaultAddresses)}
+                  onClick={() => {
+                    setAddresses(defaultAddresses);
+                    setAddressImportSummary(null);
+                  }}
                 >
                   <ClipboardList size={14} strokeWidth={2.1} />
                   示例
@@ -566,7 +571,10 @@ export function AnalysisWorkbench({
                 name="addresses"
                 className="addressInputTextarea"
                 disabled={isRunning}
-                onChange={(event) => setAddresses(event.target.value)}
+                onChange={(event) => {
+                  setAddresses(event.target.value);
+                  setAddressImportSummary(null);
+                }}
                 placeholder={"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
                 rows={5}
                 spellCheck={false}
@@ -575,6 +583,24 @@ export function AnalysisWorkbench({
               />
             </div>
             <p className="addressInputHint">每行一个地址，或用空格 / CSV 分隔。</p>
+            {addressImportSummary ? (
+              <div className="addressImportSummary" role="status">
+                <strong>
+                  已导入 {addressImportSummary.validCount} 个地址
+                  {addressImportSummary.duplicateCount > 0 ? ` · 跳过 ${addressImportSummary.duplicateCount} 个重复项` : ""}
+                </strong>
+                {addressImportSummary.invalidRows.length > 0 ? (
+                  <span>
+                    {addressImportSummary.invalidRows.length} 行无效：
+                    {" "}
+                    {addressImportSummary.invalidRows.slice(0, 3).map((item) => `第 ${item.row} 行`).join("、")}
+                    {addressImportSummary.invalidRows.length > 3 ? "…" : ""}
+                  </span>
+                ) : (
+                  <span>未发现无效地址。</span>
+                )}
+              </div>
+            ) : null}
           </section>
 
           <div className="inputStatusStack">
