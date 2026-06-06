@@ -423,8 +423,8 @@ interface SybilExposureScore {
 
 交付：
 
-- Shared Funding Source Analyzer。
-- Shared Withdrawal / Deposit Analyzer。
+- [x] Shared Funding Source Analyzer。
+- [x] Shared Withdrawal / Deposit Analyzer。
 - [x] Multi-hop Path Analyzer。
 - [x] Temporal Pattern Analyzer。
 - [x] Bridge Correlation Analyzer。

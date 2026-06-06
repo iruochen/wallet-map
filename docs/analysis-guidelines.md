@@ -59,6 +59,8 @@ Suggested starting weights:
 - Direct transfer: `+40`
 - Repeated direct transfers: `+10` to `+30`
 - Short multi-hop path: `+25` to `+45`
+- Shared funding source: `+30` to `+36`
+- Shared withdrawal destination: `+26` to `+34`
 - Shared non-public counterparty: `+20` to `+35`
 - Bridge route correlation: `+12` to `+32`
 - Shared public contract interaction: `+3` to `+10`

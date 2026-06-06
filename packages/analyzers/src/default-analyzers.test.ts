@@ -7,6 +7,8 @@ describe("createDefaultAnalyzers", () => {
       "direct-transfer",
       "shared-counterparty",
       "same-contract-interaction",
+      "shared-funding-source",
+      "shared-withdrawal-destination",
       "multi-hop-path",
       "temporal-pattern",
       "bridge-correlation",

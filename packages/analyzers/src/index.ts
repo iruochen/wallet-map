@@ -15,10 +15,12 @@ import {
   isZeroAddressNodeId,
 } from "./helpers";
 import { MultiHopPathAnalyzer } from "./multi-hop-path";
+import { SharedFundingSourceAnalyzer, SharedWithdrawalDestinationAnalyzer } from "./shared-flow";
 import { TemporalPatternAnalyzer } from "./temporal-pattern";
 
 export { BridgeCorrelationAnalyzer } from "./bridge-correlation";
 export { MultiHopPathAnalyzer } from "./multi-hop-path";
+export { SharedFundingSourceAnalyzer, SharedWithdrawalDestinationAnalyzer } from "./shared-flow";
 export { TemporalPatternAnalyzer } from "./temporal-pattern";
 
 export class DirectTransferAnalyzer implements Analyzer {
@@ -176,6 +178,8 @@ export function createDefaultAnalyzers(): Analyzer[] {
     new DirectTransferAnalyzer(),
     new SharedCounterpartyAnalyzer(),
     new SameContractInteractionAnalyzer(),
+    new SharedFundingSourceAnalyzer(),
+    new SharedWithdrawalDestinationAnalyzer(),
     new MultiHopPathAnalyzer(),
     new TemporalPatternAnalyzer(),
     new BridgeCorrelationAnalyzer(),
