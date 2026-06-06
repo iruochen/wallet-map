@@ -29,6 +29,7 @@ import {
 } from "./analysis-formatters";
 import { AnalysisProgress } from "./analysis-progress";
 import { buildAnalysisReport } from "./analysis-report";
+import { ExposureScoreDimensions } from "./analysis-score-dimensions";
 import type {
   AnalysisJobPollResponse,
   AnalysisJobProgress,
@@ -746,6 +747,10 @@ export function AnalysisWorkbench({
                   <strong>{result.score.confidence}</strong>
                 </div>
               </div>
+              <ExposureScoreDimensions
+                dimensions={result.score.dimensions}
+                topSignals={result.score.topSignals}
+              />
               {result.meta.fallbackReason ? (
                 <div className="stateBanner stateBannerInfo">
                   <strong>本次用了 fixture 回退</strong>
