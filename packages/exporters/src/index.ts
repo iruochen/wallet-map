@@ -157,6 +157,10 @@ export class MarkdownExporter implements Exporter {
       "",
       formatMetricsTable(safeReport),
       "",
+      "### 多维评分",
+      "",
+      formatScoreDimensionsTable(safeReport),
+      "",
       "---",
       "",
       "## 三、信号概览",
@@ -266,6 +270,20 @@ function formatMetricsTable(report: AnalysisReport): string {
     `| 钱包节点 | ${walletCount} | 关系图谱中的钱包节点 |`,
     `| 合约节点 | ${contractCount} | 关系图谱中的合约节点 |`,
     `| 证据边 | ${edgeCount} | 图谱中的关联边 |`,
+  ].join("\n");
+}
+
+function formatScoreDimensionsTable(report: AnalysisReport): string {
+  const dimensions = report.score.dimensions;
+
+  return [
+    "| 维度 | 评分 | 说明 |",
+    "| --- | ---: | --- |",
+    `| Funding Link | ${dimensions.funding} / 100 | 直接转账、共同资金来源、多跳资金路径 |`,
+    `| Destination Link | ${dimensions.destination} / 100 | 共同下游、交易所/桥/聚合器去向、桥路径 |`,
+    `| Contract Link | ${dimensions.contract} / 100 | 共同合约、共同方法或合约交互序列 |`,
+    `| Time Link | ${dimensions.temporal} / 100 | 时间窗口重合或相似行为节奏 |`,
+    `| Asset Link | ${dimensions.asset} / 100 | Token、NFT、SBT、POAP 或其他资产重合 |`,
   ].join("\n");
 }
 

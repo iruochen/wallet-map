@@ -443,7 +443,7 @@ interface SybilExposureScore {
 
 交付：
 
-- 多维 Exposure Score。
+- [x] 多维 Exposure Score。
 - 一键审计报告。
 - 历史 job 对比。
 - CSV 批量导入增强。

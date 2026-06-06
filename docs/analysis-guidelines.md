@@ -54,6 +54,14 @@ Low confidence:
 
 Scores are not identity claims. They are a prioritization signal for review.
 
+`RelationshipScore` keeps the overall `score`, `confidence`, `reasons`, and `counterEvidence` fields for compatibility, and also exposes multidimensional review scores:
+
+- `funding`: direct transfers, shared funding sources, and multi-hop funding paths.
+- `destination`: shared withdrawals, shared counterparties, and bridge destinations.
+- `contract`: shared contract interaction signals.
+- `temporal`: timing and behavior-window overlap.
+- `asset`: token, NFT, SBT, POAP, or other asset overlap signals.
+
 Suggested starting weights:
 
 - Direct transfer: `+40`

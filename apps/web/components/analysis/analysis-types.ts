@@ -95,6 +95,14 @@ export interface AnalysisResponse {
   score: {
     score: number;
     confidence: "low" | "medium" | "high";
+    dimensions: {
+      funding: number;
+      destination: number;
+      contract: number;
+      temporal: number;
+      asset: number;
+    };
+    topSignals: string[];
     reasons: string[];
     counterEvidence: string[];
   };

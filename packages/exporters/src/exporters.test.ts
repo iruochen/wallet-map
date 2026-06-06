@@ -99,6 +99,14 @@ const report: AnalysisReport = {
   score: {
     score: 40,
     confidence: "high",
+    dimensions: {
+      funding: 40,
+      destination: 0,
+      contract: 0,
+      temporal: 0,
+      asset: 0,
+    },
+    topSignals: ["Direct transfer found"],
     reasons: ["Direct transfer found"],
     counterEvidence: [],
   },
@@ -121,6 +129,7 @@ describe("exporters", () => {
     expect(output).toContain("## 报告信息");
     expect(output).toContain("## 一、结论摘要");
     expect(output).toContain("## 二、核心指标");
+    expect(output).toContain("### 多维评分");
     expect(output).toContain("## 三、信号概览");
     expect(output).toContain("## 四、钱包对关联洞察");
     expect(output).toContain("## 五、关系图谱概览");
