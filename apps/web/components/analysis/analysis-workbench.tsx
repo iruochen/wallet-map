@@ -497,41 +497,12 @@ export function AnalysisWorkbench({
           }}
         >
           <div className="inputPanelHero">
-            <div className="inputPanelHeroMain">
-              <span className="inputPanelIcon" aria-hidden="true">
-                <WalletCards size={16} strokeWidth={2.2} />
-              </span>
-              <div className="inputPanelHeroCopy">
-                <span className="panelEyebrow">Analysis job</span>
-                <div className="inputPanelTitleRow">
-                  <h2>分析输入</h2>
-                  <span className="inputScopeChip">{inputScopeLabel}</span>
-                </div>
-                <p className="panelHeaderSummary quickTooltip" data-tooltip={inputScopeSummary}>
-                  <span className="panelHeaderSummaryText">{addressCount} 个 watched wallet · 配置链与数据源后提交分析</span>
-                </p>
-              </div>
-            </div>
-            <div className="panelHeaderActions">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".txt,.csv,.tsv"
-                hidden
-                onChange={(event) => {
-                  void importAddressFile(event.target.files?.[0]);
-                  event.currentTarget.value = "";
-                }}
-              />
-              <button
-                type="button"
-                className="ghostButton"
-                disabled={isRunning}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload size={14} strokeWidth={2.1} />
-                导入
-              </button>
+            <div className="inputPanelHeroCopy">
+              <span className="panelEyebrow">Analysis job</span>
+              <h2>分析输入</h2>
+              <p className="inputPanelSubtitle">
+                {inputScopeLabel} · {addressCount} 个地址
+              </p>
             </div>
           </div>
 
@@ -541,7 +512,7 @@ export function AnalysisWorkbench({
                 <label id="addresses-label" htmlFor="addresses">
                   钱包地址
                 </label>
-                <span className="addressCountBadge">{addressCount} 地址</span>
+                <span className="addressCountBadge">{addressCount}</span>
               </div>
               <div className="addressInputCardActions">
                 <button
@@ -553,8 +524,27 @@ export function AnalysisWorkbench({
                   <ClipboardList size={14} strokeWidth={2.1} />
                   示例
                 </button>
+                <button
+                  type="button"
+                  className="ghostButton"
+                  disabled={isRunning}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload size={14} strokeWidth={2.1} />
+                  导入
+                </button>
               </div>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.csv,.tsv"
+              hidden
+              onChange={(event) => {
+                void importAddressFile(event.target.files?.[0]);
+                event.currentTarget.value = "";
+              }}
+            />
             <div className="addressInputEditor">
               <textarea
                 id="addresses"
@@ -563,15 +553,13 @@ export function AnalysisWorkbench({
                 disabled={isRunning}
                 onChange={(event) => setAddresses(event.target.value)}
                 placeholder={"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
-                rows={7}
+                rows={5}
                 spellCheck={false}
                 autoComplete="off"
                 value={addresses}
               />
             </div>
-            <p className="addressInputHint">
-              支持换行、空格或 CSV 分隔；EVM ALL 会跨 Ethereum、Arbitrum、Base、Optimism、Polygon、BSC 聚合分析。
-            </p>
+            <p className="addressInputHint">每行一个地址，或用空格 / CSV 分隔。</p>
           </section>
 
           <div className="inputStatusStack">
