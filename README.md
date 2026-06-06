@@ -89,7 +89,9 @@ psql "$DATABASE_URL" -f packages/storage/migrations/0001_initial_schema.sql
 psql "$DATABASE_URL" -f packages/storage/migrations/0002_analysis_job_metadata.sql
 ```
 
-Analysis jobs persist to PostgreSQL; in-flight progress is stored in Redis when `REDIS_URL` is configured. Open `/history` to replay completed runs.
+Analysis jobs persist to PostgreSQL; in-flight progress is stored in Redis when
+`REDIS_URL` is configured. Open `/history` to replay completed runs or compare
+two completed jobs by score, confidence, event count, and source.
 
 ## MVP Flow
 

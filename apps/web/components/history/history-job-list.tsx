@@ -1,42 +1,20 @@
 "use client";
 
-import { ArrowDownToLine, ExternalLink, Play, RefreshCw, ScrollText, Trash2 } from "lucide-react";
+import { ArrowDownToLine, GitCompareArrows, ExternalLink, Play, RefreshCw, ScrollText, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatAbsoluteTime } from "../../app/format";
 import { formatConfidenceLabel } from "../analysis/analysis-formatters";
 import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
+import {
+  buildHistoryComparison,
+  toggleHistoryComparisonSelection,
+} from "./history-comparison";
 import { HistoryDeleteDialog } from "./history-delete-dialog";
 import { HistoryIdentityAvatar } from "./history-identity-avatar";
+import type { HistoryJobItem, HistoryResponse } from "./history-types";
 
 const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";
-
-interface HistoryJobItem {
-  id: string;
-  status: "pending" | "running" | "completed" | "failed";
-  chainName?: string;
-  sourceLabel?: string;
-  dataMode?: string;
-  watchedAddressCount?: number;
-  eventCount?: number;
-  score?: {
-    score: number;
-    confidence: string;
-  };
-  createdAt: string;
-  completedAt?: string;
-  errorMessage?: string;
-}
-
-interface HistoryResponse {
-  jobs?: HistoryJobItem[];
-  storageEnabled?: boolean;
-  historyMode?: "wallet" | "session";
-  walletAddress?: string;
-  anonymousSessionId?: string;
-  sessionSyncCount?: number;
-  error?: string;
-}
 
 export function HistoryJobList({
   initialHistoryMode = "session",
@@ -59,9 +37,14 @@ export function HistoryJobList({
   const [isSyncing, setIsSyncing] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [pendingDeleteJob, setPendingDeleteJob] = useState<HistoryJobItem | null>(null);
+  const [comparisonJobIds, setComparisonJobIds] = useState<string[]>([]);
   const [isListLoading, setIsListLoading] = useState(false);
   const [isTableScrolling, setIsTableScrolling] = useState(false);
   const tableScrollTimerRef = useRef<number | null>(null);
+  const comparison = useMemo(
+    () => buildHistoryComparison(jobs, comparisonJobIds),
+    [jobs, comparisonJobIds],
+  );
 
   useEffect(() => {
     void loadJobs({ showSkeleton: true });
@@ -101,6 +84,7 @@ export function HistoryJobList({
       }
 
       setJobs(body.jobs ?? []);
+      setComparisonJobIds((current) => current.filter((id) => body.jobs?.some((job) => job.id === id) ?? false));
       setStorageEnabled(body.storageEnabled !== false);
       setHistoryMode(body.historyMode ?? "session");
       setWalletAddress(body.walletAddress);
@@ -334,11 +318,12 @@ export function HistoryJobList({
             <th>评分</th>
             <th>状态</th>
             <th>操作</th>
+            <th>对比</th>
           </tr>
         </thead>
         <tbody>
           {jobs.map((job) => (
-            <tr key={job.id}>
+            <tr key={job.id} className={comparisonJobIds.includes(job.id) ? "historyRowSelected" : undefined}>
               <td>
                 <strong>{formatAbsoluteTime(job.completedAt ?? job.createdAt) ?? job.createdAt}</strong>
                 <small>{job.dataMode ?? "auto"}</small>
@@ -391,11 +376,82 @@ export function HistoryJobList({
                   ) : null}
                 </div>
               </td>
+              <td>
+                <button
+                  type="button"
+                  className={`historyCompareButton ${comparisonJobIds.includes(job.id) ? "historyCompareButtonActive" : ""}`}
+                  disabled={job.status !== "completed"}
+                  onClick={() => setComparisonJobIds((current) => toggleHistoryComparisonSelection(current, job))}
+                  title={job.status === "completed" ? "加入历史对比" : "只有已完成的任务可以对比"}
+                >
+                  <GitCompareArrows size={14} aria-hidden="true" />
+                  {comparisonJobIds.includes(job.id) ? "已选" : "选择"}
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+      <HistoryComparisonPanel
+        comparison={comparison}
+        selectedCount={comparisonJobIds.length}
+        onClear={() => setComparisonJobIds([])}
+      />
     </div>,
+  );
+}
+
+function HistoryComparisonPanel({
+  comparison,
+  selectedCount,
+  onClear,
+}: {
+  comparison: ReturnType<typeof buildHistoryComparison>;
+  selectedCount: number;
+  onClear: () => void;
+}) {
+  if (selectedCount === 0) {
+    return null;
+  }
+
+  return (
+    <aside className="historyComparePanel" aria-label="历史任务对比">
+      <div className="historyCompareHeader">
+        <div>
+          <strong>历史任务对比</strong>
+          <span>{comparison ? "按完成时间从早到晚展示差异" : `已选择 ${selectedCount} / 2 个已完成任务`}</span>
+        </div>
+        <button type="button" className="historyCompareClear" onClick={onClear}>
+          清空
+        </button>
+      </div>
+      {comparison ? (
+        <>
+          <div className="historyCompareJobs">
+            <div>
+              <span>Baseline</span>
+              <strong>{formatAbsoluteTime(comparison.first.completedAt ?? comparison.first.createdAt) ?? comparison.first.id}</strong>
+            </div>
+            <div>
+              <span>Compare</span>
+              <strong>{formatAbsoluteTime(comparison.second.completedAt ?? comparison.second.createdAt) ?? comparison.second.id}</strong>
+            </div>
+          </div>
+          <div className="historyCompareMetrics">
+            {comparison.metrics.map((metric) => (
+              <div key={metric.label} className="historyCompareMetric">
+                <span>{metric.label}</span>
+                <strong>{metric.first}</strong>
+                <strong>{metric.second}</strong>
+                <em>{metric.delta ?? "—"}</em>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="historyCompareHint">再选择一个已完成任务即可查看分数、事件量和来源变化。</p>
+      )}
+    </aside>
   );
 }
 

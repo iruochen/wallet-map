@@ -847,6 +847,10 @@ button:disabled {
   background: #fbfdfb;
 }
 
+.historyTable tbody tr.historyRowSelected {
+  background: #f4fbf6;
+}
+
 .historyTable td strong {
   display: block;
   color: #17211b;
@@ -929,6 +933,165 @@ button:disabled {
 
 .historyDeleteButton:disabled {
   opacity: 0.62;
+}
+
+.historyCompareButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #cbd8cd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f4b3b;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.historyCompareButton:hover:not(:disabled) {
+  border-color: #a8c7b1;
+  background: #f3faf5;
+  transform: none;
+}
+
+.historyCompareButtonActive {
+  border-color: #8fbd9c;
+  background: #eaf7ee;
+  color: #1f5f3d;
+}
+
+.historyCompareButton:disabled {
+  opacity: 0.5;
+}
+
+.historyComparePanel {
+  display: grid;
+  gap: 12px;
+  margin: 12px;
+  padding: 14px;
+  border: 1px solid #d8e4d9;
+  border-radius: 10px;
+  background: #fbfdfb;
+}
+
+.historyCompareHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.historyCompareHeader strong,
+.historyCompareHeader span {
+  display: block;
+}
+
+.historyCompareHeader strong {
+  color: #17211b;
+  font-size: 0.9rem;
+}
+
+.historyCompareHeader span {
+  margin-top: 3px;
+  color: #64736a;
+  font-size: 0.74rem;
+}
+
+.historyCompareClear {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #cfd8d1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #405047;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.historyCompareJobs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.historyCompareJobs div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e3ebe3;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.historyCompareJobs span,
+.historyCompareJobs strong {
+  display: block;
+}
+
+.historyCompareJobs span {
+  color: #64736a;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.historyCompareJobs strong {
+  margin-top: 4px;
+  color: #17211b;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.historyCompareMetrics {
+  display: grid;
+  border: 1px solid #e2e9e1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.historyCompareMetric {
+  display: grid;
+  grid-template-columns: 0.8fr 1fr 1fr 0.7fr;
+  gap: 8px;
+  align-items: center;
+  min-height: 36px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e8eee6;
+  background: #ffffff;
+}
+
+.historyCompareMetric:last-child {
+  border-bottom: 0;
+}
+
+.historyCompareMetric span {
+  color: #64736a;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.historyCompareMetric strong {
+  color: #17211b;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.historyCompareMetric em {
+  color: #1f5f3d;
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 800;
+  text-align: right;
+}
+
+.historyCompareHint {
+  margin: 0;
+  color: #64736a;
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
 .historyTableWrapLoading {

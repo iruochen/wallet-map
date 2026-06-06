@@ -446,7 +446,7 @@ interface SybilExposureScore {
 - [x] 多维 Exposure Score。
 - [x] Workbench 摘要区展示 Exposure Score 维度和 top signals。
 - [x] Workbench 一键导出 PDF、Markdown、JSON 审计报告和 CSV evidence。
-- 历史 job 对比。
+- [x] 历史 job 列表支持两次已完成分析的指标对比。
 - CSV 批量导入增强。
 - 本地标签库管理。
 - Pro 版功能边界设计。
