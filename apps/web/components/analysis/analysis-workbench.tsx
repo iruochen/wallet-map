@@ -496,13 +496,21 @@ export function AnalysisWorkbench({
             void runAnalysis();
           }}
         >
-          <div className="panelHeader">
-            <div>
-              <span className="panelEyebrow">Analysis job</span>
-              <h2>分析输入</h2>
-              <p className="panelHeaderSummary quickTooltip" data-tooltip={inputScopeSummary}>
-                <span className="panelHeaderSummaryText">{inputScopeSummary}</span>
-              </p>
+          <div className="inputPanelHero">
+            <div className="inputPanelHeroMain">
+              <span className="inputPanelIcon" aria-hidden="true">
+                <WalletCards size={16} strokeWidth={2.2} />
+              </span>
+              <div className="inputPanelHeroCopy">
+                <span className="panelEyebrow">Analysis job</span>
+                <div className="inputPanelTitleRow">
+                  <h2>分析输入</h2>
+                  <span className="inputScopeChip">{inputScopeLabel}</span>
+                </div>
+                <p className="panelHeaderSummary quickTooltip" data-tooltip={inputScopeSummary}>
+                  <span className="panelHeaderSummaryText">{addressCount} 个 watched wallet · 配置链与数据源后提交分析</span>
+                </p>
+              </div>
             </div>
             <div className="panelHeaderActions">
               <input
@@ -517,54 +525,74 @@ export function AnalysisWorkbench({
               />
               <button
                 type="button"
-                className="secondaryButton"
+                className="ghostButton"
                 disabled={isRunning}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload size={15} strokeWidth={2.1} />
-                批量导入
+                <Upload size={14} strokeWidth={2.1} />
+                导入
               </button>
             </div>
           </div>
-          <div className="fieldGroup">
-            <label htmlFor="addresses">钱包地址</label>
-            <textarea
-              id="addresses"
-              name="addresses"
-              disabled={isRunning}
-              onChange={(event) => setAddresses(event.target.value)}
-              placeholder={"0x...\n0x...\n0x..."}
-              rows={6}
-              value={addresses}
-            />
-            <p>每行、空格或 CSV 分隔一个地址；EVM 聚合会跨主流 L1/L2 同时分析这些 watched wallets。</p>
-          </div>
-          <div className="inlineActionRow">
-            <button
-              type="button"
-              className="secondaryButton"
-              disabled={isRunning}
-              onClick={() => setAddresses(defaultAddresses)}
-            >
-              <ClipboardList size={15} strokeWidth={2.1} />
-              填入示例
-            </button>
-          </div>
-          <div
-            className={`stateBanner ${liveConfigured ? "stateBannerSuccess" : "stateBannerInfo"}`}
-            aria-live="polite"
-          >
-            <strong>{liveConfigured ? "实时数据已就绪" : "当前默认走本地 fixture"}</strong>
-            <span>{modeDescription}</span>
-          </div>
-          {anonymousAnalysisQuota ? (
-            <div className="stateBanner stateBannerInfo" aria-live="polite">
-              <strong>未登录分析额度</strong>
-              <span>
-                剩余 {anonymousAnalysisQuota.remaining} / {anonymousAnalysisQuota.limit} 次；连接钱包登录后不受此限制。
-              </span>
+
+          <section className="addressInputCard" aria-labelledby="addresses-label">
+            <div className="addressInputCardHeader">
+              <div className="addressInputCardTitle">
+                <label id="addresses-label" htmlFor="addresses">
+                  钱包地址
+                </label>
+                <span className="addressCountBadge">{addressCount} 地址</span>
+              </div>
+              <div className="addressInputCardActions">
+                <button
+                  type="button"
+                  className="ghostButton"
+                  disabled={isRunning}
+                  onClick={() => setAddresses(defaultAddresses)}
+                >
+                  <ClipboardList size={14} strokeWidth={2.1} />
+                  示例
+                </button>
+              </div>
             </div>
-          ) : null}
+            <div className="addressInputEditor">
+              <textarea
+                id="addresses"
+                name="addresses"
+                className="addressInputTextarea"
+                disabled={isRunning}
+                onChange={(event) => setAddresses(event.target.value)}
+                placeholder={"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+                rows={7}
+                spellCheck={false}
+                autoComplete="off"
+                value={addresses}
+              />
+            </div>
+            <p className="addressInputHint">
+              支持换行、空格或 CSV 分隔；EVM ALL 会跨 Ethereum、Arbitrum、Base、Optimism、Polygon、BSC 聚合分析。
+            </p>
+          </section>
+
+          <div className="inputStatusStack">
+            <div
+              className={`stateBanner stateBannerCompact ${liveConfigured ? "stateBannerSuccess" : "stateBannerInfo"}`}
+              aria-live="polite"
+            >
+              <strong>{liveConfigured ? "实时数据已就绪" : "当前默认走本地 fixture"}</strong>
+              <span>{modeDescription}</span>
+            </div>
+            {anonymousAnalysisQuota ? (
+              <div className="stateBanner stateBannerCompact stateBannerInfo" aria-live="polite">
+                <strong>未登录分析额度</strong>
+                <span>
+                  剩余 {anonymousAnalysisQuota.remaining} / {anonymousAnalysisQuota.limit} 次；连接钱包登录后不受此限制。
+                </span>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="inputSectionLabel">分析配置</div>
           <div className="controlStack">
             <div className="controlGroup controlCard">
               <div className="controlLabelRow">

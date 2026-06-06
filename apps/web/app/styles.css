@@ -407,12 +407,15 @@ button:disabled {
 .workbenchInput .inputPanel,
 .workbenchInput .summaryPanel {
   display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid #dbe5da;
-  border-radius: 12px;
-  background: var(--surface);
-  box-shadow: 0 8px 24px rgba(31, 61, 44, 0.05);
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #d8e3da;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(251, 253, 250, 0.94) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 10px 28px rgba(31, 61, 44, 0.05);
 }
 
 .workbenchInput .summaryPanel {
@@ -912,6 +915,202 @@ button:disabled {
    Input panel pieces
    ============================================================ */
 
+.inputPanelHero {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.inputPanelHeroMain {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.inputPanelIcon {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d2e0d5;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #ffffff 0%, #eef5ef 100%);
+  color: #2f6a4d;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.inputPanelHeroCopy {
+  min-width: 0;
+}
+
+.inputPanelTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.inputPanelTitleRow h2 {
+  margin: 0;
+  font-size: 1.02rem;
+  letter-spacing: -0.01em;
+}
+
+.inputScopeChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid #c8ddd0;
+  border-radius: 999px;
+  background: #f2faf4;
+  color: #1f5f3d;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.addressInputCard {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #d4dfd5;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.addressInputCardHeader {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e7eee8;
+  background: linear-gradient(180deg, #fbfcfa 0%, #f6faf7 100%);
+}
+
+.addressInputCardTitle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.addressInputCardTitle label {
+  margin: 0;
+  color: #1f3d2c;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.addressCountBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #edf6ef;
+  color: #2a6848;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.addressInputCardActions {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.addressInputEditor {
+  position: relative;
+  padding: 2px;
+  background:
+    linear-gradient(180deg, rgba(248, 251, 248, 0.9) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.addressInputEditor:focus-within {
+  box-shadow: inset 0 0 0 2px rgba(47, 106, 77, 0.12);
+}
+
+.addressInputTextarea {
+  width: 100%;
+  min-height: 148px;
+  margin: 0;
+  padding: 12px 12px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #152018;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.addressInputTextarea::placeholder {
+  color: #9aa89f;
+}
+
+.addressInputTextarea:focus {
+  outline: none;
+  border-color: transparent;
+}
+
+.addressInputHint {
+  margin: 0;
+  padding: 9px 12px 10px;
+  border-top: 1px solid #edf2ed;
+  background: #fafcfa;
+  color: #708078;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.inputStatusStack {
+  display: grid;
+  gap: 8px;
+}
+
+.inputSectionLabel {
+  margin-top: 2px;
+  color: #708078;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ghostButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #3f5f4c;
+  font-size: 0.76rem;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.ghostButton:hover:not(:disabled) {
+  border-color: #d2dfd4;
+  background: #f7fbf8;
+  color: #183d30;
+  transform: none;
+}
+
+.ghostButton:disabled {
+  opacity: 0.55;
+}
+
 .panelHeader {
   display: flex;
   gap: 12px;
@@ -1035,9 +1234,10 @@ select {
 
 .controlCard {
   padding: 12px;
-  border: 1px solid #dce6dd;
-  border-radius: 10px;
-  background: #fbfcfa;
+  border: 1px solid #dde7df;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
 }
 
 .controlLabelRow {
@@ -1348,6 +1548,12 @@ select {
     background 180ms ease,
     border-color 180ms ease,
     color 180ms ease;
+}
+
+.stateBannerCompact {
+  min-height: 0;
+  padding: 9px 11px;
+  border-radius: 10px;
 }
 
 .stateBanner strong {
