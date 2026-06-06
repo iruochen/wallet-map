@@ -75,6 +75,8 @@ Reduce score when:
 - A bridge route lacks a destination chain, protocol, or amount similarity.
 - The only overlap is a common token or NFT collection.
 
+Public entity labels from graph enrichment should lower confidence and score for weak-to-medium signals. This applies to shared counterparties, shared funding or withdrawal nodes, shared contract interactions, and multi-hop intermediaries. The finding should keep the evidence but mark the public-entity adjustment in metadata so UI and reports can explain the lower review priority.
+
 ## Analyzer Requirements
 
 New analyzers should include:

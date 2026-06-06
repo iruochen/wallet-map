@@ -11,6 +11,7 @@ import {
   buildEvidence,
   buildNodeIndex,
   getWatchedWalletNodeIds,
+  isPublicEntityNode,
   isTransferEdge,
   isZeroAddressNodeId,
 } from "./helpers";
@@ -96,23 +97,27 @@ export class SharedCounterpartyAnalyzer implements Analyzer {
       }
 
       const evidence = buildEvidence(context, edges);
+      const counterpartyNode = nodeById.get(counterpartyNodeId);
+      const publicEntity = isPublicEntityNode(counterpartyNode);
 
       findings.push({
         id: `${this.id}:${counterpartyNodeId}`,
         analyzerId: this.id,
         title: "Shared counterparty found",
         description: "Two or more watched wallets have transfer activity with the same observed wallet.",
-        severity: "medium",
+        severity: publicEntity ? "low" : "medium",
         confidence: assessSharedCounterpartyConfidence(
           watchedWalletNodeIdsForCounterparty.length,
           evidence.length,
+          publicEntity,
         ),
-        scoreImpact: 24,
+        scoreImpact: publicEntity ? 8 : 24,
         evidence,
         metadata: {
           counterpartyNodeId,
           watchedWalletNodeIds: watchedWalletNodeIdsForCounterparty,
           edgeIds: edges.map((edge) => edge.id),
+          publicEntity,
         },
       });
     }
@@ -126,6 +131,7 @@ export class SameContractInteractionAnalyzer implements Analyzer {
   name = "Same Contract Interaction Analyzer";
 
   async run(context: AnalysisContext): Promise<Finding[]> {
+    const nodeById = buildNodeIndex(context.graph.nodes);
     const watchedWalletNodeIds = getWatchedWalletNodeIds(context.graph.nodes);
     const interactionEdgesByContract = new Map<string, GraphEdge[]>();
 
@@ -151,6 +157,8 @@ export class SameContractInteractionAnalyzer implements Analyzer {
       }
 
       const evidence = buildEvidence(context, edges);
+      const contractNode = nodeById.get(contractNodeId);
+      const publicEntity = isPublicEntityNode(contractNode);
 
       findings.push({
         id: `${this.id}:${contractNodeId}`,
@@ -158,13 +166,14 @@ export class SameContractInteractionAnalyzer implements Analyzer {
         title: "Same contract interaction found",
         description: "Two or more watched wallets interacted with the same contract.",
         severity: "low",
-        confidence: assessSameContractConfidence(watchedWalletNodeIdsForContract.length, evidence.length),
-        scoreImpact: 16,
+        confidence: assessSameContractConfidence(watchedWalletNodeIdsForContract.length, evidence.length, publicEntity),
+        scoreImpact: publicEntity ? 6 : 16,
         evidence,
         metadata: {
           contractNodeId,
           watchedWalletNodeIds: watchedWalletNodeIdsForContract,
           edgeIds: edges.map((edge) => edge.id),
+          publicEntity,
         },
       });
     }
@@ -214,7 +223,12 @@ function assessDirectTransferConfidence(evidenceCount: number): FindingConfidenc
 function assessSharedCounterpartyConfidence(
   watchedWalletCount: number,
   evidenceCount: number,
+  publicEntity: boolean,
 ): FindingConfidence {
+  if (publicEntity) {
+    return "low";
+  }
+
   if (watchedWalletCount >= 3 && evidenceCount >= 6) {
     return "high";
   }
@@ -225,7 +239,12 @@ function assessSharedCounterpartyConfidence(
 function assessSameContractConfidence(
   watchedWalletCount: number,
   evidenceCount: number,
+  publicEntity: boolean,
 ): FindingConfidence {
+  if (publicEntity) {
+    return "low";
+  }
+
   if (watchedWalletCount >= 3 || evidenceCount >= 6) {
     return "medium";
   }

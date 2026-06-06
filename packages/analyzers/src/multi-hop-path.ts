@@ -13,6 +13,7 @@ import {
   dedupeEdges,
   getEdgeAssetKey,
   getWatchedWalletNodeIds,
+  isPublicEntityNode,
   isTransferEdge,
   isZeroAddressNodeId,
   uniqueSorted,
@@ -61,10 +62,14 @@ export class MultiHopPathAnalyzer implements Analyzer {
 
     return Array.from(pathsByPair.entries())
       .sort(([left], [right]) => left.localeCompare(right))
-      .map(([_pairKey, paths]) => this.buildFinding(context, paths));
+      .map(([_pairKey, paths]) => this.buildFinding(context, nodeById, paths));
   }
 
-  private buildFinding(context: AnalysisContext, paths: PathCandidate[]): Finding {
+  private buildFinding(
+    context: AnalysisContext,
+    nodeById: Map<string, GraphNode>,
+    paths: PathCandidate[],
+  ): Finding {
     const primaryPath = paths[0]!;
     const allEdges = dedupeEdges(paths.flatMap((path) => path.edges));
     const edgeIds = allEdges.map((edge) => edge.id);
@@ -72,15 +77,17 @@ export class MultiHopPathAnalyzer implements Analyzer {
     const shortestPathLength = Math.min(...pathLengths);
     const watchedWalletNodeIds = uniqueSorted([primaryPath.source, primaryPath.target]);
     const intermediateNodeIds = uniqueSorted(paths.flatMap((path) => path.nodeIds.slice(1, -1)));
-    const scoreImpact = assessMultiHopScore(paths);
+    const publicIntermediateNodeIds = intermediateNodeIds.filter((nodeId) => isPublicEntityNode(nodeById.get(nodeId)));
+    const publicEntityPath = publicIntermediateNodeIds.length > 0;
+    const scoreImpact = assessMultiHopScore(paths, publicEntityPath);
 
     return {
       id: `${this.id}:${primaryPath.source}:${primaryPath.target}`,
       analyzerId: this.id,
       title: "Multi-hop transfer path found",
       description: "Watched wallets are connected by a short transfer path through observed wallets. Treat this as a relationship signal for review, not proof of common ownership.",
-      severity: "medium",
-      confidence: assessMultiHopConfidence(paths),
+      severity: publicEntityPath ? "low" : "medium",
+      confidence: assessMultiHopConfidence(paths, publicEntityPath),
       scoreImpact,
       evidence: buildEvidence(context, allEdges),
       metadata: {
@@ -93,12 +100,18 @@ export class MultiHopPathAnalyzer implements Analyzer {
         pathLength: shortestPathLength,
         pathLengths,
         intermediateNodeIds,
+        publicEntityPath,
+        publicIntermediateNodeIds,
       },
     };
   }
 }
 
-function assessMultiHopConfidence(paths: PathCandidate[]): FindingConfidence {
+function assessMultiHopConfidence(paths: PathCandidate[], publicEntityPath: boolean): FindingConfidence {
+  if (publicEntityPath) {
+    return "low";
+  }
+
   const shortestPathLength = Math.min(...paths.map((path) => path.edges.length));
 
   if (shortestPathLength === 2 && paths.length >= 2) {
@@ -112,13 +125,14 @@ function assessMultiHopConfidence(paths: PathCandidate[]): FindingConfidence {
   return "low";
 }
 
-function assessMultiHopScore(paths: PathCandidate[]): number {
+function assessMultiHopScore(paths: PathCandidate[], publicEntityPath: boolean): number {
   const shortestPathLength = Math.min(...paths.map((path) => path.edges.length));
   const base = shortestPathLength === 2 ? 35 : shortestPathLength === 3 ? 28 : 22;
   const pathBonus = Math.min(10, Math.max(0, paths.length - 1) * 5);
   const sharedAssetBonus = paths.some(pathHasRepeatedAsset) ? 5 : 0;
+  const publicEntityPenalty = publicEntityPath ? 18 : 0;
 
-  return clampScore(base + pathBonus + sharedAssetBonus, 20, 45);
+  return clampScore(base + pathBonus + sharedAssetBonus - publicEntityPenalty, 10, 45);
 }
 
 function pathHasRepeatedAsset(path: PathCandidate): boolean {

@@ -10,6 +10,7 @@ import {
   buildEvidence,
   buildNodeIndex,
   getWatchedWalletNodeIds,
+  isPublicEntityNode,
   isTransferEdge,
   isZeroAddressNodeId,
   uniqueSorted,
@@ -109,11 +110,14 @@ function runSharedFlowAnalyzer(
     }
 
     const evidence = buildEvidence(context, edges);
+    const counterpartyNode = nodeById.get(counterpartyNodeId);
+    const publicEntity = isPublicEntityNode(counterpartyNode);
     const metadata: Record<string, unknown> = {
       [config.counterpartyMetadataKey]: counterpartyNodeId,
       watchedWalletNodeIds: watchedWalletNodeIdsForCounterparty,
       edgeIds: edges.map((edge) => edge.id),
       direction: config.direction,
+      publicEntity,
     };
 
     findings.push({
@@ -121,9 +125,14 @@ function runSharedFlowAnalyzer(
       analyzerId: config.analyzerId,
       title: config.title,
       description: config.description,
-      severity: "medium",
-      confidence: assessSharedFlowConfidence(watchedWalletNodeIdsForCounterparty.length, evidence.length),
-      scoreImpact: assessSharedFlowScore(config.scoreImpact, watchedWalletNodeIdsForCounterparty.length, evidence.length),
+      severity: publicEntity ? "low" : "medium",
+      confidence: assessSharedFlowConfidence(watchedWalletNodeIdsForCounterparty.length, evidence.length, publicEntity),
+      scoreImpact: assessSharedFlowScore(
+        config.scoreImpact,
+        watchedWalletNodeIdsForCounterparty.length,
+        evidence.length,
+        publicEntity,
+      ),
       evidence,
       metadata,
     });
@@ -181,7 +190,12 @@ function getWatchedWalletNodeIdsForFlow(
 function assessSharedFlowConfidence(
   watchedWalletCount: number,
   evidenceCount: number,
+  publicEntity: boolean,
 ): FindingConfidence {
+  if (publicEntity) {
+    return "low";
+  }
+
   if (watchedWalletCount >= 3 && evidenceCount >= 6) {
     return "high";
   }
@@ -193,7 +207,12 @@ function assessSharedFlowScore(
   baseScore: number,
   watchedWalletCount: number,
   evidenceCount: number,
+  publicEntity: boolean,
 ): number {
+  if (publicEntity) {
+    return Math.min(12, Math.max(8, Math.floor(baseScore / 3)));
+  }
+
   const walletBonus = watchedWalletCount >= 3 ? 4 : 0;
   const evidenceBonus = evidenceCount >= 6 ? 4 : 0;
 

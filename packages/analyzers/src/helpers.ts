@@ -8,6 +8,16 @@ import type {
 } from "@wallet-map/core";
 
 const transferEdgeKinds = ["native_transfer", "token_transfer", "nft_transfer"] as const;
+const publicEntityCategories = new Set(["cex", "bridge", "dex", "infrastructure", "token"]);
+const publicEntityTags = new Set([
+  "known_entity",
+  "cex",
+  "bridge",
+  "dex",
+  "infrastructure",
+  "hot_wallet",
+  "token",
+]);
 
 export function buildNodeIndex(nodes: GraphNode[]): Map<string, GraphNode> {
   return new Map(nodes.map((node) => [node.id, node]));
@@ -31,6 +41,30 @@ export function isTransferEvent(event: NormalizedEvent): boolean {
 
 export function isZeroAddressNodeId(nodeId: string): boolean {
   return nodeId.endsWith(":0x0000000000000000000000000000000000000000");
+}
+
+export function isPublicEntityNode(node: GraphNode | undefined): boolean {
+  if (!node) {
+    return false;
+  }
+
+  const category = getNodeLabelCategory(node);
+  if (category && publicEntityCategories.has(category)) {
+    return true;
+  }
+
+  return (node.tags ?? []).some((tag) => publicEntityTags.has(tag));
+}
+
+function getNodeLabelCategory(node: GraphNode): string | undefined {
+  const label = node.metadata?.label;
+
+  if (!label || typeof label !== "object" || Array.isArray(label)) {
+    return undefined;
+  }
+
+  const category = (label as Record<string, unknown>).category;
+  return typeof category === "string" ? category : undefined;
 }
 
 export function buildEvidence(context: AnalysisContext, edges: GraphEdge[]): Finding["evidence"] {

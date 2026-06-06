@@ -140,6 +140,46 @@ describe("SharedCounterpartyAnalyzer", () => {
 
     await expect(new SharedCounterpartyAnalyzer().run(context)).resolves.toEqual([]);
   });
+
+  it("downweights shared counterparties labelled as public entities", async () => {
+    const events: NormalizedEvent[] = [
+      {
+        id: "event:1",
+        type: "native_transfer",
+        chainId: 1,
+        txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        blockNumber: 1,
+        timestamp: "2024-01-01T00:00:00.000Z",
+        from: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        to: "0xcccccccccccccccccccccccccccccccccccccccc",
+      },
+      {
+        id: "event:2",
+        type: "native_transfer",
+        chainId: 1,
+        txHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        blockNumber: 2,
+        timestamp: "2024-01-01T00:01:00.000Z",
+        from: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        to: "0xcccccccccccccccccccccccccccccccccccccccc",
+      },
+    ];
+    const context = buildContext(events, [
+      "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    ]);
+    markNodeAsPublicEntity(context, "wallet:1:0xcccccccccccccccccccccccccccccccccccccccc", "cex");
+
+    const findings = await new SharedCounterpartyAnalyzer().run(context);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.severity).toBe("low");
+    expect(findings[0]?.confidence).toBe("low");
+    expect(findings[0]?.scoreImpact).toBe(8);
+    expect(findings[0]?.metadata).toMatchObject({
+      publicEntity: true,
+    });
+  });
 });
 
 function buildContext(
@@ -152,5 +192,22 @@ function buildContext(
       events,
     }),
     events,
+  };
+}
+
+function markNodeAsPublicEntity(context: AnalysisContext, nodeId: string, category: string): void {
+  const node = context.graph.nodes.find((candidate) => candidate.id === nodeId);
+
+  if (!node) {
+    throw new Error(`Missing node ${nodeId}`);
+  }
+
+  node.tags = [...(node.tags ?? []), "known_entity", category];
+  node.metadata = {
+    ...node.metadata,
+    label: {
+      category,
+      source: "test",
+    },
   };
 }

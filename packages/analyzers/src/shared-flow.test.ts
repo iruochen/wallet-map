@@ -81,6 +81,27 @@ describe("SharedFundingSourceAnalyzer", () => {
 
     await expect(new SharedFundingSourceAnalyzer().run(context)).resolves.toEqual([]);
   });
+
+  it("downweights shared funding from a labelled public entity", async () => {
+    const context = buildContext(
+      [
+        transferEvent("1", observedD, watchedA),
+        transferEvent("2", observedD, watchedB),
+      ],
+      [watchedA, watchedB],
+    );
+    markNodeAsPublicEntity(context, `wallet:1:${observedD}`, "cex");
+
+    const findings = await new SharedFundingSourceAnalyzer().run(context);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.severity).toBe("low");
+    expect(findings[0]?.confidence).toBe("low");
+    expect(findings[0]?.scoreImpact).toBe(10);
+    expect(findings[0]?.metadata).toMatchObject({
+      publicEntity: true,
+    });
+  });
 });
 
 describe("SharedWithdrawalDestinationAnalyzer", () => {
@@ -132,6 +153,27 @@ describe("SharedWithdrawalDestinationAnalyzer", () => {
 
     await expect(new SharedWithdrawalDestinationAnalyzer().run(context)).resolves.toEqual([]);
   });
+
+  it("downweights shared withdrawals to a labelled public entity", async () => {
+    const context = buildContext(
+      [
+        transferEvent("1", watchedA, observedD),
+        transferEvent("2", watchedB, observedD),
+      ],
+      [watchedA, watchedB],
+    );
+    markNodeAsPublicEntity(context, `wallet:1:${observedD}`, "cex");
+
+    const findings = await new SharedWithdrawalDestinationAnalyzer().run(context);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.severity).toBe("low");
+    expect(findings[0]?.confidence).toBe("low");
+    expect(findings[0]?.scoreImpact).toBe(8);
+    expect(findings[0]?.metadata).toMatchObject({
+      publicEntity: true,
+    });
+  });
 });
 
 function buildContext(events: NormalizedEvent[], watchedAddresses: Address[]): AnalysisContext {
@@ -141,5 +183,22 @@ function buildContext(events: NormalizedEvent[], watchedAddresses: Address[]): A
       events,
     }),
     events,
+  };
+}
+
+function markNodeAsPublicEntity(context: AnalysisContext, nodeId: string, category: string): void {
+  const node = context.graph.nodes.find((candidate) => candidate.id === nodeId);
+
+  if (!node) {
+    throw new Error(`Missing node ${nodeId}`);
+  }
+
+  node.tags = [...(node.tags ?? []), "known_entity", category];
+  node.metadata = {
+    ...node.metadata,
+    label: {
+      category,
+      source: "test",
+    },
   };
 }

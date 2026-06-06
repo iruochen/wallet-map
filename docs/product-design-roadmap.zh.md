@@ -429,7 +429,7 @@ interface SybilExposureScore {
 - [x] Temporal Pattern Analyzer。
 - [x] Bridge Correlation Analyzer。
 - Known Entity Label Provider 初版。
-- 公共实体降权规则。
+- [x] 公共实体降权规则。
 
 核心指标：
 

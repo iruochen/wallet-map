@@ -50,6 +50,25 @@ describe("MultiHopPathAnalyzer", () => {
     });
   });
 
+  it("downweights transfer paths through labelled public entities", async () => {
+    const context = buildContext(
+      [transferEvent("1", watchedA, observedC, 1), transferEvent("2", observedC, watchedB, 2)],
+      [watchedA, watchedB],
+    );
+    markNodeAsPublicEntity(context, `wallet:1:${observedC}`, "cex");
+
+    const findings = await new MultiHopPathAnalyzer().run(context);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.severity).toBe("low");
+    expect(findings[0]?.confidence).toBe("low");
+    expect(findings[0]?.scoreImpact).toBe(22);
+    expect(findings[0]?.metadata).toMatchObject({
+      publicEntityPath: true,
+      publicIntermediateNodeIds: [`wallet:1:${observedC}`],
+    });
+  });
+
   it("finds a four-hop transfer path", async () => {
     const context = buildContext(
       [
@@ -114,5 +133,22 @@ function buildContext(events: NormalizedEvent[], watchedAddresses: Address[]): A
       events,
     }),
     events,
+  };
+}
+
+function markNodeAsPublicEntity(context: AnalysisContext, nodeId: string, category: string): void {
+  const node = context.graph.nodes.find((candidate) => candidate.id === nodeId);
+
+  if (!node) {
+    throw new Error(`Missing node ${nodeId}`);
+  }
+
+  node.tags = [...(node.tags ?? []), "known_entity", category];
+  node.metadata = {
+    ...node.metadata,
+    label: {
+      category,
+      source: "test",
+    },
   };
 }
