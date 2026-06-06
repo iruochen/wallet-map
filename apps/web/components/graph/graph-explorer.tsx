@@ -36,9 +36,11 @@ import { buildLayoutOptions, fitOverviewViewport, runLayout } from "./graph-layo
 import {
   buildElements,
   buildEdgeLabel,
+  collectGraphChainIds,
   describeEdgeKind,
   describeNodeRole,
   edgePalette,
+  filterGraphByChain,
   formatChainShortName,
   formatNodeRoleLabel,
   hasMultipleChains,
@@ -92,12 +94,31 @@ export function GraphExplorer({
   const overviewViewportRef = useRef<ViewportSnapshot | null>(null);
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [hiddenKinds, setHiddenKinds] = useState<Set<GraphExplorerEdge["kind"]>>(new Set());
+  const [chainFilter, setChainFilter] = useState<number | "all">("all");
   const [showEdgeLabels, setShowEdgeLabels] = useState(true);
   const [layoutReady, setLayoutReady] = useState(false);
 
+  const availableChains = useMemo(
+    () => collectGraphChainIds(nodes, edges, chainId),
+    [nodes, edges, chainId],
+  );
+  const showChainFilter = availableChains.length > 1;
+  const filteredGraph = useMemo(
+    () =>
+      filterGraphByChain({
+        nodes,
+        edges,
+        fallbackChainId: chainId,
+        chainFilter,
+      }),
+    [nodes, edges, chainId, chainFilter],
+  );
+  const visibleNodes = filteredGraph.nodes;
+  const visibleEdges = filteredGraph.edges;
+
   const denseGraph =
-    nodes.length > DENSE_GRAPH_NODE_THRESHOLD || edges.length > DENSE_GRAPH_EDGE_THRESHOLD;
-  const resolvedNodes = useMemo(() => resolveNodes(nodes, edges), [nodes, edges]);
+    visibleNodes.length > DENSE_GRAPH_NODE_THRESHOLD || visibleEdges.length > DENSE_GRAPH_EDGE_THRESHOLD;
+  const resolvedNodes = useMemo(() => resolveNodes(visibleNodes, visibleEdges), [visibleNodes, visibleEdges]);
   const watchedNodeIds = useMemo(
     () => resolvedNodes.filter((node) => node.role === "watched").map((node) => node.id),
     [resolvedNodes],
@@ -112,22 +133,29 @@ export function GraphExplorer({
 
   const edgeKinds = useMemo(() => {
     const set = new Set<GraphExplorerEdge["kind"]>();
-    for (const edge of edges) {
+    for (const edge of visibleEdges) {
       set.add(edge.kind);
     }
     return Array.from(set);
-  }, [edges]);
+  }, [visibleEdges]);
 
   const graphSignature = useMemo(
     () =>
       JSON.stringify({
         chainId,
-        nodeIds: nodes.map((node) => node.id),
-        edgeIds: edges.map((edge) => edge.id),
+        chainFilter,
+        nodeIds: visibleNodes.map((node) => node.id),
+        edgeIds: visibleEdges.map((edge) => edge.id),
         denseGraph,
       }),
-    [chainId, nodes, edges, denseGraph],
+    [chainId, chainFilter, visibleNodes, visibleEdges, denseGraph],
   );
+
+  useEffect(() => {
+    setChainFilter("all");
+    setSelection(null);
+    setHiddenKinds(new Set());
+  }, [chainId, nodes, edges]);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -203,7 +231,7 @@ export function GraphExplorer({
     const elements = buildElements({
       chainId,
       resolvedNodes,
-      edges,
+      edges: visibleEdges,
       showEdgeLabels,
       denseGraph,
     });
@@ -216,16 +244,16 @@ export function GraphExplorer({
       }
     });
 
-    const layout = cy.layout(buildLayoutOptions(cy, resolvedNodes, edges, denseGraph, watchedNodeIds));
+    const layout = cy.layout(buildLayoutOptions(cy, resolvedNodes, visibleEdges, denseGraph, watchedNodeIds));
 
     layout.one("layoutstop", () => {
-      fitOverviewViewport(cy, resolvedNodes.length, edges.length);
+      fitOverviewViewport(cy, resolvedNodes.length, visibleEdges.length);
       overviewViewportRef.current = captureViewport(cy);
       layoutRunningRef.current = false;
       setLayoutReady(true);
     });
     layout.run();
-  }, [graphSignature, chainId, resolvedNodes, edges, denseGraph, watchedNodeIds]);
+  }, [graphSignature, chainId, resolvedNodes, visibleEdges, denseGraph, watchedNodeIds, showEdgeLabels]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -246,13 +274,21 @@ export function GraphExplorer({
     }
 
     cy.edges().forEach((edge) => {
-      const edgeModel = edges.find((entry) => entry.id === edge.id());
+      const edgeModel = visibleEdges.find((entry) => entry.id === edge.id());
       if (!edgeModel) {
         return;
       }
-      edge.data("label", buildEdgeLabel(edgeModel, chainId, showEdgeLabels, hasMultipleChains(resolvedNodes, edges, chainId)));
+      edge.data(
+        "label",
+        buildEdgeLabel(
+          edgeModel,
+          chainId,
+          showEdgeLabels,
+          hasMultipleChains(resolvedNodes, visibleEdges, chainId),
+        ),
+      );
     });
-  }, [showEdgeLabels, edges, chainId, resolvedNodes, graphSignature]);
+  }, [showEdgeLabels, visibleEdges, chainId, resolvedNodes, graphSignature]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -305,7 +341,7 @@ export function GraphExplorer({
     }
     const currentViewport = captureViewport(cy);
     layoutRunningRef.current = true;
-    runLayout(cy, resolvedNodes, edges, denseGraph, watchedNodeIds, {
+    runLayout(cy, resolvedNodes, visibleEdges, denseGraph, watchedNodeIds, {
       fitAfter: false,
       onComplete: () => {
         setViewport(cy, currentViewport);
@@ -313,7 +349,7 @@ export function GraphExplorer({
         setLayoutReady(true);
       },
     });
-  }, [resolvedNodes, edges.length, denseGraph, watchedNodeIds]);
+  }, [resolvedNodes, visibleEdges.length, denseGraph, watchedNodeIds]);
 
   const handleResetView = useCallback(() => {
     const cy = cyRef.current;
@@ -321,10 +357,15 @@ export function GraphExplorer({
       return;
     }
     cy.resize();
-    fitOverviewViewport(cy, resolvedNodes.length, edges.length);
+    fitOverviewViewport(cy, resolvedNodes.length, visibleEdges.length);
     overviewViewportRef.current = captureViewport(cy);
     setSelection(null);
-  }, [resolvedNodes.length, edges.length]);
+  }, [resolvedNodes.length, visibleEdges.length]);
+
+  const handleChainFilterChange = useCallback((nextFilter: number | "all") => {
+    setChainFilter(nextFilter);
+    setSelection(null);
+  }, []);
 
   const handleZoomIn = useCallback(() => {
     const cy = cyRef.current;
@@ -351,11 +392,37 @@ export function GraphExplorer({
     );
   }
 
-  const visibleEdgeCount = edges.filter((edge) => !hiddenKinds.has(edge.kind)).length;
+  const visibleEdgeCount = visibleEdges.filter((edge) => !hiddenKinds.has(edge.kind)).length;
+  const activeChainLabel = chainFilter === "all" ? "ALL" : formatChainShortName(chainFilter);
 
   return (
     <div className="graphExplorer">
       <div className="graphToolbar">
+        {showChainFilter ? (
+          <div className="graphChainFilter" aria-label="链筛选">
+            <span className="graphChainFilterLabel">链筛选</span>
+            <button
+              type="button"
+              className={`graphChipButton ${chainFilter === "all" ? "graphChipButtonOn" : ""}`}
+              onClick={() => handleChainFilterChange("all")}
+              aria-pressed={chainFilter === "all"}
+            >
+              ALL
+            </button>
+            {availableChains.map((availableChainId) => (
+              <button
+                key={availableChainId}
+                type="button"
+                className={`graphChipButton ${chainFilter === availableChainId ? "graphChipButtonOn" : ""}`}
+                onClick={() => handleChainFilterChange(availableChainId)}
+                aria-pressed={chainFilter === availableChainId}
+              >
+                {formatChainShortName(availableChainId)}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="graphToolbarMain">
         <div className="graphLegend" aria-label="Edge kind filter">
           {edgeKinds.map((kind) => {
             const hidden = hiddenKinds.has(kind);
@@ -392,9 +459,11 @@ export function GraphExplorer({
             回到全图
           </button>
           <span className="graphSummary">
-            {nodes.length} 节点 · {visibleEdgeCount}/{totalEdges} 条已命中的关联边
+            {visibleNodes.length} 节点 · {visibleEdgeCount}/{visibleEdges.length} 条边
+            {showChainFilter && chainFilter !== "all" ? ` · ${activeChainLabel}` : ""}
             {truncated ? " · 已截断" : ""}
           </span>
+        </div>
         </div>
       </div>
       <div className="graphCanvasWrap">
@@ -404,6 +473,13 @@ export function GraphExplorer({
           role="region"
           aria-label="Relationship graph canvas"
         />
+        {visibleEdges.length === 0 ? (
+          <div className="graphExplorerEmpty graphExplorerEmptyFiltered">
+            <strong>{activeChainLabel} 暂无关联边</strong>
+            <p>切换到其他链，或选择 ALL 查看完整 EVM 聚合图谱。</p>
+          </div>
+        ) : (
+          <>
         <div className="graphZoomControls" aria-label="Graph zoom controls">
           <button type="button" className="graphZoomButton" onClick={handleZoomIn} title="放大">
             <Plus size={16} strokeWidth={2.2} />
@@ -424,18 +500,23 @@ export function GraphExplorer({
         <SelectionDetail
           selection={selection}
           chainId={chainId}
-          edges={edges}
+          edges={visibleEdges}
           nodeIndex={nodeIndex}
           onClose={() => {
             setSelection(null);
           }}
         />
+          </>
+        )}
       </div>
       <p className="graphFootnote">
         {denseGraph
           ? "大图模式：默认保留标签并按 watched 关联分区铺开，单击节点或边可局部聚焦，点空白处回到全图。"
           : "默认只展示命中分析器的关联子图 · 单击聚焦并查看解释 · 双击跳转 explorer。"}
-        {totalNodes > nodes.length ? ` 当前展示前 ${nodes.length} / ${totalNodes} 节点。` : ""}
+        {totalNodes > visibleNodes.length ? ` 当前展示前 ${visibleNodes.length} / ${totalNodes} 节点。` : ""}
+        {showChainFilter && chainFilter !== "all"
+          ? ` 当前仅显示 ${activeChainLabel} 链上的关联子图。`
+          : ""}
       </p>
     </div>
   );

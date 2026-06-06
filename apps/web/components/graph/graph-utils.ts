@@ -192,17 +192,70 @@ export function hasMultipleChains(
   edges: GraphExplorerEdge[],
   fallbackChainId: number,
 ): boolean {
+  return collectGraphChainIds(nodes, edges, fallbackChainId).length > 1;
+}
+
+export function collectGraphChainIds(
+  nodes: Array<Pick<GraphExplorerNode, "chainId">>,
+  edges: GraphExplorerEdge[],
+  fallbackChainId: number,
+): number[] {
   const chainIds = new Set<number>();
 
   for (const node of nodes) {
-    chainIds.add(node.chainId ?? fallbackChainId);
+    if (node.chainId !== undefined) {
+      chainIds.add(node.chainId);
+      continue;
+    }
+
+    if (fallbackChainId !== 0) {
+      chainIds.add(fallbackChainId);
+    }
   }
 
   for (const edge of edges) {
-    chainIds.add(edge.metadata?.chainId ?? fallbackChainId);
+    chainIds.add(edge.metadata?.chainId ?? (fallbackChainId !== 0 ? fallbackChainId : undefined) ?? 0);
   }
 
-  return chainIds.size > 1;
+  return Array.from(chainIds)
+    .filter((chainId) => chainId > 0)
+    .sort((left, right) => formatChainShortName(left).localeCompare(formatChainShortName(right)));
+}
+
+export function filterGraphByChain(input: {
+  nodes: GraphExplorerNode[];
+  edges: GraphExplorerEdge[];
+  fallbackChainId: number;
+  chainFilter: number | "all";
+}): { nodes: GraphExplorerNode[]; edges: GraphExplorerEdge[] } {
+  const { nodes, edges, fallbackChainId, chainFilter } = input;
+
+  if (chainFilter === "all") {
+    return { nodes, edges };
+  }
+
+  const filteredEdges = edges.filter(
+    (edge) => resolveGraphChainId(edge.metadata?.chainId, fallbackChainId) === chainFilter,
+  );
+  const nodeIds = new Set<string>();
+
+  for (const edge of filteredEdges) {
+    nodeIds.add(edge.source);
+    nodeIds.add(edge.target);
+  }
+
+  return {
+    nodes: nodes.filter((node) => nodeIds.has(node.id)),
+    edges: filteredEdges,
+  };
+}
+
+export function resolveGraphChainId(chainId: number | undefined, fallbackChainId: number): number {
+  if (chainId !== undefined && chainId > 0) {
+    return chainId;
+  }
+
+  return fallbackChainId > 0 ? fallbackChainId : chainId ?? 0;
 }
 
 export function formatChainShortName(chainId: number): string {

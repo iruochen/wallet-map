@@ -2640,16 +2640,50 @@ code {
 }
 
 .graphToolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: grid;
+  gap: 8px;
   padding: 8px 12px;
   border: 1px solid #dce2d8;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(4px);
   box-shadow: 0 8px 24px rgba(31, 61, 44, 0.05);
+}
+
+.graphToolbarMain {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.graphChainFilter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #e7eee8;
+}
+
+.graphChainFilterLabel {
+  color: #64736a;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.graphExplorerEmptyFiltered {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.88);
+  text-align: center;
 }
 
 .graphLegend {
