@@ -24,6 +24,14 @@ export interface ResolveEventsResult {
   warnings?: string[];
 }
 
+type LiveProviderId = "etherscan-v2" | "nodereal" | "solscan";
+
+export interface LiveProviderPlan {
+  chainId: ChainId;
+  provider: LiveProviderId | null;
+  fallbackProvider?: LiveProviderId;
+}
+
 const etherscanV2BaseUrl = "https://api.etherscan.io/v2/api";
 const etherscanApiKeyEnv = "ETHERSCAN_API_KEY";
 const nodeRealApiKeyEnv = "NODEREAL_API_KEY";
@@ -50,7 +58,7 @@ export async function resolveAnalyzeEvents(
   const dataProvider = input.dataProvider ?? "auto";
   const liveAddressConcurrency = parseLiveAddressConcurrency(env[liveAddressConcurrencyEnv]);
   const livePlans = requestedChainIds.map((chainId) =>
-    resolveLiveProvider(chainId, {
+    selectAnalyzeLiveProvider(chainId, {
       dataProvider,
       etherscanApiKey,
       nodeRealApiKey,
@@ -123,13 +131,16 @@ export async function resolveAnalyzeEvents(
           const events = await adapter.getEvents({ address });
           return { events, source: adapter.id };
         } catch (error) {
-          if (
-            input.dataMode === "auto" &&
-            plan.provider === "nodereal" &&
-            etherscanApiKey &&
-            config.ecosystem === "evm"
-          ) {
-            const fallbackAdapter = buildEtherscanAdapter(plan.chainId, config.name, etherscanApiKey, input.fetchImpl);
+          if (input.dataMode === "auto" && plan.fallbackProvider === "etherscan-v2") {
+            const fallbackAdapter = buildAdapter({
+              plan: { chainId: plan.chainId, provider: plan.fallbackProvider },
+              configName: config.name,
+              etherscanApiKey,
+              nodeRealApiKey,
+              nodeRealBscApiKey,
+              solscanApiKey,
+              fetchImpl: input.fetchImpl,
+            });
             const events = await fallbackAdapter.getEvents({ address });
             return { events, source: `${fallbackAdapter.id}:fallback-from-nodereal` };
           }
@@ -170,7 +181,7 @@ export async function resolveAnalyzeEvents(
   };
 }
 
-function resolveLiveProvider(
+export function selectAnalyzeLiveProvider(
   chainId: ChainId,
   input: {
     dataProvider: AnalyzeDataProvider;
@@ -179,7 +190,7 @@ function resolveLiveProvider(
     nodeRealBscApiKey?: string;
     solscanApiKey?: string;
   },
-): { chainId: ChainId; provider: "etherscan-v2" | "nodereal" | "solscan" | null } {
+): LiveProviderPlan {
   const chain = getSupportedAnalysisChain(chainId);
 
   if (chain?.ecosystem === "solana") {
@@ -196,7 +207,16 @@ function resolveLiveProvider(
     nodeRealEndpoints.has(chainId) &&
     (input.dataProvider === "auto" || input.dataProvider === "nodereal")
   ) {
-    return { chainId, provider: "nodereal" };
+    const fallbackProvider =
+      input.dataProvider === "auto" && input.etherscanApiKey && chain?.ecosystem === "evm"
+        ? "etherscan-v2"
+        : undefined;
+
+    return {
+      chainId,
+      provider: "nodereal",
+      ...(fallbackProvider ? { fallbackProvider } : {}),
+    };
   }
 
   if (input.etherscanApiKey && (input.dataProvider === "auto" || input.dataProvider === "etherscan")) {
@@ -207,7 +227,7 @@ function resolveLiveProvider(
 }
 
 function buildAdapter(input: {
-  plan: { chainId: ChainId; provider: "etherscan-v2" | "nodereal" | "solscan" | null };
+  plan: LiveProviderPlan;
   configName: string;
   etherscanApiKey?: string;
   nodeRealApiKey?: string;

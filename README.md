@@ -110,6 +110,10 @@ Provider API keys can stay empty while developing in fixture mode.
 Live mode fetches wallet addresses with a small concurrency guard. Set
 `ANALYZE_LIVE_ADDRESS_CONCURRENCY` in `apps/web/.env.local` to tune this value;
 it defaults to `2` and is capped at `8` to reduce provider rate-limit pressure.
+In `Auto` provider mode, EVM chains use NodeReal first when it supports the
+selected chain and a NodeReal key is configured, with Etherscan V2 as the
+fallback when an Etherscan key is also available. Solana uses Solscan when
+`SOLSCAN_API_KEY` is configured.
 
 With `ETHERSCAN_API_KEY` configured locally, the current live pipeline supports:
 

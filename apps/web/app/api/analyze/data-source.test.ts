@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { mapWithConcurrency, resolveAnalyzeEvents } from "./data-source";
+import { mapWithConcurrency, resolveAnalyzeEvents, selectAnalyzeLiveProvider } from "./data-source";
 
 const addresses = [
   "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -72,6 +72,26 @@ describe("resolveAnalyzeEvents", () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://bsc-mainnet.nodereal.io/v1/nodereal-key");
   });
 
+  it("falls back from NodeReal to Etherscan in auto mode when both providers are configured", async () => {
+    const fetchMock = mockNodeRealFailureThenEtherscanFetch();
+    const result = await resolveAnalyzeEvents({
+      addresses: [addresses[0]],
+      chainId: 56,
+      dataMode: "auto",
+      env: {
+        ETHERSCAN_API_KEY: "etherscan-key",
+        NODEREAL_BSC_API_KEY: "nodereal-key",
+      },
+      fetchImpl: fetchMock,
+    });
+
+    expect(result.mode).toBe("live");
+    expect(result.source).toBe("etherscan-like:56:bsc:fallback-from-nodereal,nodereal:56:bsc");
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://bsc-mainnet.nodereal.io/v1/nodereal-key");
+    expect(calledUrl(fetchMock, "txlist").searchParams.get("chainid")).toBe("56");
+  });
+
   it("mentions both supported keys when BSC live mode is requested without config", async () => {
     await expect(
       resolveAnalyzeEvents({
@@ -81,6 +101,60 @@ describe("resolveAnalyzeEvents", () => {
         env: {},
       }),
     ).rejects.toThrow("NODEREAL_API_KEY, NODEREAL_BSC_API_KEY, or ETHERSCAN_API_KEY is required for live BSC analysis.");
+  });
+});
+
+describe("selectAnalyzeLiveProvider", () => {
+  it("selects NodeReal first in auto mode and records Etherscan fallback", () => {
+    expect(
+      selectAnalyzeLiveProvider(56, {
+        dataProvider: "auto",
+        etherscanApiKey: "etherscan-key",
+        nodeRealApiKey: "nodereal-key",
+      }),
+    ).toEqual({
+      chainId: 56,
+      provider: "nodereal",
+      fallbackProvider: "etherscan-v2",
+    });
+  });
+
+  it("honors explicit Etherscan selection over configured NodeReal", () => {
+    expect(
+      selectAnalyzeLiveProvider(56, {
+        dataProvider: "etherscan",
+        etherscanApiKey: "etherscan-key",
+        nodeRealApiKey: "nodereal-key",
+      }),
+    ).toEqual({
+      chainId: 56,
+      provider: "etherscan-v2",
+    });
+  });
+
+  it("selects Solscan only for Solana when the Solscan key is configured", () => {
+    expect(
+      selectAnalyzeLiveProvider(101, {
+        dataProvider: "auto",
+        etherscanApiKey: "etherscan-key",
+        solscanApiKey: "solscan-key",
+      }),
+    ).toEqual({
+      chainId: 101,
+      provider: "solscan",
+    });
+  });
+
+  it("returns no provider when the requested provider is not configured for the chain", () => {
+    expect(
+      selectAnalyzeLiveProvider(42161, {
+        dataProvider: "nodereal",
+        nodeRealApiKey: "nodereal-key",
+      }),
+    ).toEqual({
+      chainId: 42161,
+      provider: null,
+    });
   });
 });
 
@@ -161,6 +235,40 @@ function mockNodeRealFetch() {
           pageKey: callCount === 1 ? "next-page" : "",
           transfers: [],
         },
+      }),
+      { status: 200 },
+    );
+  });
+}
+
+function mockNodeRealFailureThenEtherscanFetch() {
+  return vi.fn(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
+    const url = String(input);
+
+    if (url.startsWith("https://bsc-mainnet.nodereal.io")) {
+      return new Response(JSON.stringify({ error: "provider unavailable" }), {
+        status: 500,
+        statusText: "Internal Server Error",
+      });
+    }
+
+    const etherscanUrl = new URL(url);
+    const action = etherscanUrl.searchParams.get("action");
+
+    if (
+      action !== "txlist" &&
+      action !== "txlistinternal" &&
+      action !== "tokentx" &&
+      action !== "tokennfttx"
+    ) {
+      throw new Error(`Unexpected action ${action}`);
+    }
+
+    return new Response(
+      JSON.stringify({
+        status: "1",
+        message: "OK",
+        result: [],
       }),
       { status: 200 },
     );

@@ -407,7 +407,7 @@ interface SybilExposureScore {
 - [x] Job persistence 和结果回放（`POST /api/analyze` + `GET /api/analyze/jobs/:id`、历史页 `/history`）。
 - [x] Chainbase/Etherscan 标签写入 PG + Redis，分析时优先读缓存。
 - [ ] Ankr 或 Moralis provider。
-- [ ] Provider selector（统一抽象与自动切换）。
+- [x] Provider selector 初版（按链和配置选择 NodeReal、Etherscan V2、Solscan，并记录 Etherscan fallback）。
 - [x] Live mode 地址级并发控制（`ANALYZE_LIVE_ADDRESS_CONCURRENCY`，默认 2，上限 8）。
 
 核心指标：
