@@ -1,6 +1,5 @@
 "use client";
 
-import { PdfReportExporter } from "@wallet-map/exporters";
 import {
   Activity,
   ClipboardList,
@@ -28,7 +27,10 @@ import {
   formatVerdictLabel,
 } from "./analysis-formatters";
 import { AnalysisProgress } from "./analysis-progress";
-import { buildAnalysisReport } from "./analysis-report";
+import {
+  downloadAnalysisReport,
+  type ReportDownloadFormat,
+} from "./analysis-report-download";
 import { ExposureScoreDimensions } from "./analysis-score-dimensions";
 import type {
   AnalysisJobPollResponse,
@@ -440,18 +442,12 @@ export function AnalysisWorkbench({
     setAddresses(imported);
   }
 
-  async function downloadPdfReport() {
+  async function downloadReport(format: ReportDownloadFormat) {
     if (!result) {
       return;
     }
 
-    const report = await new PdfReportExporter().export(buildAnalysisReport(result));
-    const url = URL.createObjectURL(report);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `wallet-map-${new Date(result.meta.fetchedAt).toISOString().slice(0, 10)}.pdf`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    await downloadAnalysisReport(result, format);
   }
 
   function handleInputScroll() {
@@ -721,9 +717,29 @@ export function AnalysisWorkbench({
             </div>
             {result ? (
               <div className="resultHeaderActions">
-                <button type="button" className="secondaryButton reportButtonInline" onClick={() => void downloadPdfReport()}>
+                <button
+                  type="button"
+                  className="secondaryButton reportButtonInline"
+                  onClick={() => void downloadReport("pdf")}
+                >
                   <FileText size={15} strokeWidth={2.1} />
-                  PDF 报告
+                  PDF
+                </button>
+                <button
+                  type="button"
+                  className="secondaryButton reportButtonInline"
+                  onClick={() => void downloadReport("markdown")}
+                >
+                  <FileText size={15} strokeWidth={2.1} />
+                  Markdown
+                </button>
+                <button
+                  type="button"
+                  className="secondaryButton reportButtonInline"
+                  onClick={() => void downloadReport("json")}
+                >
+                  <FileText size={15} strokeWidth={2.1} />
+                  JSON
                 </button>
                 <span className="statusPill statusSuccess">Complete</span>
               </div>
