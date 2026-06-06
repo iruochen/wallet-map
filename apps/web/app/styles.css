@@ -727,6 +727,15 @@ button:disabled {
   white-space: nowrap;
 }
 
+.historyIdentityAddress {
+  display: block;
+  margin-top: 2px;
+  color: #8a978d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+}
+
 .historyToolbarActions {
   display: inline-flex;
   align-items: center;
@@ -879,20 +888,58 @@ button:disabled {
 }
 
 .historyEmptyAction {
-  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  min-width: 168px;
+  margin-top: 6px;
   text-decoration: none;
 }
 
 .historyEmpty {
-  display: grid;
-  gap: 8px;
-  min-height: 220px;
-  align-content: center;
-  padding: 30px;
-  border: 1px dashed #d5dfd4;
-  border-radius: 12px;
-  background: #f8fbf8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 320px;
+  padding: 52px 36px;
+  border: 1px solid #e3ebe3;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(31, 95, 61, 0.07), transparent 54%),
+    linear-gradient(180deg, #fbfcfa 0%, #f6faf7 100%);
   color: #64736a;
+  text-align: center;
+}
+
+.historyEmptyIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 4px;
+  border: 1px solid #d8e6dc;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #1f5f3d;
+  box-shadow: 0 10px 24px rgba(31, 61, 44, 0.08);
+}
+
+.historyEmptyTitle {
+  color: var(--text);
+  font-size: 1.02rem;
+}
+
+.historyEmptyDescription {
+  max-width: 34ch;
+  margin: 0;
+  color: #64736a;
+  font-size: 0.84rem;
+  line-height: 1.55;
 }
 
 .historyEmptyError {
@@ -3473,7 +3520,7 @@ code {
 
   .historyPanelHeader p,
   .historyIdentity span,
-  .historyEmpty p {
+  .historyEmptyDescription {
     overflow-wrap: anywhere;
     word-break: break-all;
     white-space: normal;

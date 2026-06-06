@@ -176,6 +176,15 @@ export function AnalysisWorkbench({
 
   useEffect(() => {
     const replayJobId = searchParams.get("job");
+    const freshStart = searchParams.get("fresh") === "1";
+
+    if (freshStart) {
+      forgetActiveAnalysisJob(readActiveAnalysisJobId());
+      restoredJobIdRef.current = null;
+      setError(null);
+      return;
+    }
+
     const activeJobId = replayJobId ?? readActiveAnalysisJobId();
 
     if (!activeJobId || restoredJobIdRef.current === activeJobId) {
@@ -183,7 +192,7 @@ export function AnalysisWorkbench({
     }
 
     restoredJobIdRef.current = activeJobId;
-    void loadAnalysisJob(activeJobId);
+    void loadAnalysisJob(activeJobId, Boolean(replayJobId));
   }, [searchParams]);
 
   useEffect(() => {
@@ -282,7 +291,7 @@ export function AnalysisWorkbench({
     return Array.from(groups.values()).sort((left, right) => right.edges.length - left.edges.length);
   }, [result]);
 
-  async function loadAnalysisJob(jobId: string) {
+  async function loadAnalysisJob(jobId: string, explicitReplay = false) {
     setError(null);
 
     try {
@@ -290,6 +299,15 @@ export function AnalysisWorkbench({
       const body = (await response.json()) as AnalysisJobPollResponse | { error?: string };
 
       if (!response.ok) {
+        if (response.status === 404) {
+          forgetActiveAnalysisJob(jobId);
+          restoredJobIdRef.current = null;
+
+          if (!explicitReplay) {
+            return;
+          }
+        }
+
         throw new Error("error" in body && body.error ? body.error : "Failed to load saved analysis.");
       }
 

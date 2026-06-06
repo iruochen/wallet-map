@@ -5,10 +5,7 @@ import { CheckCircle2, LogOut, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAccount, useDisconnect, useSignMessage } from "wagmi";
-
-function formatAddress(address: string): string {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
+import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
 
 export function WalletHeaderControls() {
   const router = useRouter();
@@ -49,6 +46,7 @@ export function WalletHeaderControls() {
   }, [loadAuthSession]);
 
   const connectedAddress = address?.toLowerCase();
+  const { displayName, ensName } = useWalletDisplayName(address);
   const isAuthenticated =
     Boolean(connectedAddress) &&
     Boolean(authenticatedAddress) &&
@@ -113,14 +111,17 @@ export function WalletHeaderControls() {
       {isConnected && address ? (
         <>
           {isAuthenticated ? (
-            <span className="headerChip headerChipOk walletHeaderSignedChip">
+            <span
+              className="headerChip headerChipOk walletHeaderSignedChip"
+              title={ensName ? address : undefined}
+            >
               <CheckCircle2 size={14} aria-hidden="true" />
-              已登录 {formatAddress(address)}
+              已登录 {displayName ?? address}
             </span>
           ) : (
             <button className="walletHeaderButton walletHeaderButtonPrimary" type="button" onClick={signIn} disabled={isBusy}>
               <CheckCircle2 size={15} aria-hidden="true" />
-              {isBusy ? "签名中" : `签名 ${formatAddress(address)}`}
+              {isBusy ? "签名中" : `签名 ${displayName ?? address}`}
             </button>
           )}
           <button className="walletHeaderIconButton" type="button" onClick={disconnect} disabled={isBusy} title="断开钱包">

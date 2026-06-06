@@ -1,11 +1,14 @@
 "use client";
 
-import { ArrowDownToLine, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowDownToLine, ExternalLink, Play, RefreshCw, ScrollText } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatAbsoluteTime } from "../../app/format";
 import { formatConfidenceLabel } from "../analysis/analysis-formatters";
+import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
 import { HistoryIdentityAvatar } from "./history-identity-avatar";
+
+const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";
 
 interface HistoryJobItem {
   id: string;
@@ -156,6 +159,8 @@ export function HistoryJobList({
     historyMode === "wallet" && walletAddress
       ? walletAddress
       : anonymousSessionId ?? "wallet-map-session";
+  const { displayName: walletDisplayName, ensName: walletEnsName, addressLabel: walletAddressLabel } =
+    useWalletDisplayName(historyMode === "wallet" ? walletAddress : undefined);
 
   const header = (
     <>
@@ -167,11 +172,16 @@ export function HistoryJobList({
           />
           <div>
             <strong>{historyMode === "wallet" ? "钱包历史" : "当前会话历史"}</strong>
-            <span>
-              {historyMode === "wallet" && walletAddress
-                ? formatAddress(walletAddress)
-                : "登录后可跨会话查看历史"}
-            </span>
+            {historyMode === "wallet" && walletAddress ? (
+              <>
+                <span title={walletEnsName ? walletAddress : undefined}>{walletDisplayName}</span>
+                {walletEnsName && walletAddressLabel ? (
+                  <small className="historyIdentityAddress">{walletAddressLabel}</small>
+                ) : null}
+              </>
+            ) : (
+              <span>登录后可跨会话查看历史</span>
+            )}
           </div>
         </div>
         <div className="historyToolbarActions">
@@ -235,9 +245,21 @@ export function HistoryJobList({
   if (jobs.length === 0) {
     return renderListBody(
       <div className="historyEmpty">
-        <strong>还没有历史记录</strong>
-        <p>{historyMode === "wallet" ? "这个钱包还没有保存过分析记录。" : "完成一次分析后，任务会显示在这里。"}</p>
-        <Link className="secondaryButton historyEmptyAction" href="/">
+        <div className="historyEmptyIcon" aria-hidden="true">
+          <ScrollText size={24} strokeWidth={1.6} />
+        </div>
+        <strong className="historyEmptyTitle">还没有历史记录</strong>
+        <p className="historyEmptyDescription">
+          {historyMode === "wallet"
+            ? "这个钱包还没有保存过分析记录。完成一次分析后，结果会自动同步到这里。"
+            : "完成一次分析后，任务会显示在这里。登录钱包后还能跨会话查看。"}
+        </p>
+        <Link
+          className="primaryButton primaryButtonCompact historyEmptyAction"
+          href="/?fresh=1"
+          onClick={clearStoredAnalysisJob}
+        >
+          <Play size={15} aria-hidden="true" />
           去运行分析
         </Link>
       </div>,
@@ -318,6 +340,14 @@ function HistorySkeleton() {
   );
 }
 
-function formatAddress(address: string): string {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+function clearStoredAnalysisJob() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.removeItem(activeAnalysisJobStorageKey);
+  } catch {
+    // Ignore blocked storage.
+  }
 }
