@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { collectGraphChainIds, filterGraphByChain } from "./graph-utils";
+import {
+  collectGraphChainIds,
+  collectWatchedWalletOptions,
+  filterGraphByChain,
+  filterGraphByWallet,
+} from "./graph-utils";
 import type { GraphExplorerEdge, GraphExplorerNode } from "./graph-types";
 
 const nodes: GraphExplorerNode[] = [
@@ -46,5 +51,53 @@ describe("filterGraphByChain", () => {
 
     expect(filtered.edges.map((edge) => edge.id)).toEqual(["e2"]);
     expect(filtered.nodes.map((node) => node.id)).toEqual(["w1", "c1"]);
+  });
+});
+
+describe("collectWatchedWalletOptions", () => {
+  it("deduplicates watched wallets by address across node ids", () => {
+    const multiChainNodes: GraphExplorerNode[] = [
+      ...nodes,
+      {
+        id: "w1-arb",
+        kind: "wallet",
+        address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        chainId: 42161,
+        tags: ["watched"],
+      },
+    ];
+
+    expect(collectWatchedWalletOptions(multiChainNodes)).toEqual([
+      {
+        address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        nodeIds: ["w1", "w1-arb"],
+      },
+      {
+        address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        nodeIds: ["w2"],
+      },
+    ]);
+  });
+});
+
+describe("filterGraphByWallet", () => {
+  const watchedWalletOptions = collectWatchedWalletOptions(nodes);
+
+  it("returns the original graph when filter is all", () => {
+    expect(
+      filterGraphByWallet({ nodes, edges, walletFilter: "all", watchedWalletOptions }),
+    ).toEqual({ nodes, edges });
+  });
+
+  it("keeps the ego network for the selected watched wallet", () => {
+    const filtered = filterGraphByWallet({
+      nodes,
+      edges,
+      walletFilter: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      watchedWalletOptions,
+    });
+
+    expect(filtered.edges.map((edge) => edge.id)).toEqual(["e1"]);
+    expect(filtered.nodes.map((node) => node.id)).toEqual(["w1", "w2"]);
   });
 });

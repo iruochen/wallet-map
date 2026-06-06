@@ -250,6 +250,67 @@ export function filterGraphByChain(input: {
   };
 }
 
+export interface WatchedWalletOption {
+  address: string;
+  nodeIds: string[];
+}
+
+export function collectWatchedWalletOptions(nodes: GraphExplorerNode[]): WatchedWalletOption[] {
+  const groups = new Map<string, string[]>();
+
+  for (const node of nodes) {
+    if (node.kind !== "wallet" || !node.tags?.includes("watched") || !node.address) {
+      continue;
+    }
+
+    const key = node.address.toLowerCase();
+    const nodeIds = groups.get(key) ?? [];
+    nodeIds.push(node.id);
+    groups.set(key, nodeIds);
+  }
+
+  return Array.from(groups.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([address, nodeIds]) => ({ address, nodeIds }));
+}
+
+export function filterGraphByWallet(input: {
+  nodes: GraphExplorerNode[];
+  edges: GraphExplorerEdge[];
+  walletFilter: string | "all";
+  watchedWalletOptions: WatchedWalletOption[];
+}): { nodes: GraphExplorerNode[]; edges: GraphExplorerEdge[] } {
+  const { nodes, edges, walletFilter, watchedWalletOptions } = input;
+
+  if (walletFilter === "all") {
+    return { nodes, edges };
+  }
+
+  const option = watchedWalletOptions.find(
+    (entry) => entry.address.toLowerCase() === walletFilter.toLowerCase(),
+  );
+
+  if (!option) {
+    return { nodes: [], edges: [] };
+  }
+
+  const focusNodeIds = new Set(option.nodeIds);
+  const filteredEdges = edges.filter(
+    (edge) => focusNodeIds.has(edge.source) || focusNodeIds.has(edge.target),
+  );
+  const nodeIds = new Set<string>();
+
+  for (const edge of filteredEdges) {
+    nodeIds.add(edge.source);
+    nodeIds.add(edge.target);
+  }
+
+  return {
+    nodes: nodes.filter((node) => nodeIds.has(node.id)),
+    edges: filteredEdges,
+  };
+}
+
 export function resolveGraphChainId(chainId: number | undefined, fallbackChainId: number): number {
   if (chainId !== undefined && chainId > 0) {
     return chainId;

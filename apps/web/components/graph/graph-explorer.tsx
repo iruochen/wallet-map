@@ -37,10 +37,12 @@ import {
   buildElements,
   buildEdgeLabel,
   collectGraphChainIds,
+  collectWatchedWalletOptions,
   describeEdgeKind,
   describeNodeRole,
   edgePalette,
   filterGraphByChain,
+  filterGraphByWallet,
   formatChainShortName,
   formatNodeRoleLabel,
   hasMultipleChains,
@@ -95,24 +97,32 @@ export function GraphExplorer({
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [hiddenKinds, setHiddenKinds] = useState<Set<GraphExplorerEdge["kind"]>>(new Set());
   const [chainFilter, setChainFilter] = useState<number | "all">("all");
+  const [walletFilter, setWalletFilter] = useState<string | "all">("all");
   const [showEdgeLabels, setShowEdgeLabels] = useState(true);
   const [layoutReady, setLayoutReady] = useState(false);
 
+  const watchedWalletOptions = useMemo(() => collectWatchedWalletOptions(nodes), [nodes]);
+  const showWalletFilter = watchedWalletOptions.length > 1;
   const availableChains = useMemo(
     () => collectGraphChainIds(nodes, edges, chainId),
     [nodes, edges, chainId],
   );
   const showChainFilter = availableChains.length > 1;
-  const filteredGraph = useMemo(
-    () =>
-      filterGraphByChain({
-        nodes,
-        edges,
-        fallbackChainId: chainId,
-        chainFilter,
-      }),
-    [nodes, edges, chainId, chainFilter],
-  );
+  const filteredGraph = useMemo(() => {
+    const byChain = filterGraphByChain({
+      nodes,
+      edges,
+      fallbackChainId: chainId,
+      chainFilter,
+    });
+
+    return filterGraphByWallet({
+      nodes: byChain.nodes,
+      edges: byChain.edges,
+      walletFilter,
+      watchedWalletOptions,
+    });
+  }, [nodes, edges, chainId, chainFilter, walletFilter, watchedWalletOptions]);
   const visibleNodes = filteredGraph.nodes;
   const visibleEdges = filteredGraph.edges;
 
@@ -144,15 +154,17 @@ export function GraphExplorer({
       JSON.stringify({
         chainId,
         chainFilter,
+        walletFilter,
         nodeIds: visibleNodes.map((node) => node.id),
         edgeIds: visibleEdges.map((edge) => edge.id),
         denseGraph,
       }),
-    [chainId, chainFilter, visibleNodes, visibleEdges, denseGraph],
+    [chainId, chainFilter, walletFilter, visibleNodes, visibleEdges, denseGraph],
   );
 
   useEffect(() => {
     setChainFilter("all");
+    setWalletFilter("all");
     setSelection(null);
     setHiddenKinds(new Set());
   }, [chainId, nodes, edges]);
@@ -367,6 +379,11 @@ export function GraphExplorer({
     setSelection(null);
   }, []);
 
+  const handleWalletFilterChange = useCallback((nextFilter: string | "all") => {
+    setWalletFilter(nextFilter);
+    setSelection(null);
+  }, []);
+
   const handleZoomIn = useCallback(() => {
     const cy = cyRef.current;
     if (!cy) {
@@ -394,10 +411,49 @@ export function GraphExplorer({
 
   const visibleEdgeCount = visibleEdges.filter((edge) => !hiddenKinds.has(edge.kind)).length;
   const activeChainLabel = chainFilter === "all" ? "ALL" : formatChainShortName(chainFilter);
+  const activeWalletLabel =
+    walletFilter === "all" ? "ALL" : shortenAddress(walletFilter);
+  const filteredEmptyTitle =
+    walletFilter !== "all" && chainFilter !== "all"
+      ? `${activeWalletLabel} 在 ${activeChainLabel} 上暂无关联边`
+      : walletFilter !== "all"
+        ? `${activeWalletLabel} 暂无关联边`
+        : chainFilter !== "all"
+          ? `${activeChainLabel} 暂无关联边`
+          : "当前筛选条件下暂无关联边";
+  const filteredEmptyHint =
+    walletFilter !== "all" || chainFilter !== "all"
+      ? "切换到 ALL 或其他筛选项查看完整关系图谱。"
+      : "切换其他链，或选择 ALL 查看完整 EVM 聚合图谱。";
 
   return (
     <div className="graphExplorer">
       <div className="graphToolbar">
+        {showWalletFilter ? (
+          <div className="graphChainFilter" aria-label="钱包筛选">
+            <span className="graphChainFilterLabel">钱包筛选</span>
+            <button
+              type="button"
+              className={`graphChipButton ${walletFilter === "all" ? "graphChipButtonOn" : ""}`}
+              onClick={() => handleWalletFilterChange("all")}
+              aria-pressed={walletFilter === "all"}
+            >
+              ALL
+            </button>
+            {watchedWalletOptions.map((wallet) => (
+              <button
+                key={wallet.address}
+                type="button"
+                className={`graphChipButton graphWalletFilterButton ${walletFilter.toLowerCase() === wallet.address.toLowerCase() ? "graphChipButtonOn" : ""}`}
+                onClick={() => handleWalletFilterChange(wallet.address)}
+                aria-pressed={walletFilter.toLowerCase() === wallet.address.toLowerCase()}
+                title={wallet.address}
+              >
+                {shortenAddress(wallet.address)}
+              </button>
+            ))}
+          </div>
+        ) : null}
         {showChainFilter ? (
           <div className="graphChainFilter" aria-label="链筛选">
             <span className="graphChainFilterLabel">链筛选</span>
@@ -460,6 +516,7 @@ export function GraphExplorer({
           </button>
           <span className="graphSummary">
             {visibleNodes.length} 节点 · {visibleEdgeCount}/{visibleEdges.length} 条边
+            {showWalletFilter && walletFilter !== "all" ? ` · ${activeWalletLabel}` : ""}
             {showChainFilter && chainFilter !== "all" ? ` · ${activeChainLabel}` : ""}
             {truncated ? " · 已截断" : ""}
           </span>
@@ -475,8 +532,8 @@ export function GraphExplorer({
         />
         {visibleEdges.length === 0 ? (
           <div className="graphExplorerEmpty graphExplorerEmptyFiltered">
-            <strong>{activeChainLabel} 暂无关联边</strong>
-            <p>切换到其他链，或选择 ALL 查看完整 EVM 聚合图谱。</p>
+            <strong>{filteredEmptyTitle}</strong>
+            <p>{filteredEmptyHint}</p>
           </div>
         ) : (
           <>
@@ -516,6 +573,9 @@ export function GraphExplorer({
         {totalNodes > visibleNodes.length ? ` 当前展示前 ${visibleNodes.length} / ${totalNodes} 节点。` : ""}
         {showChainFilter && chainFilter !== "all"
           ? ` 当前仅显示 ${activeChainLabel} 链上的关联子图。`
+          : ""}
+        {showWalletFilter && walletFilter !== "all"
+          ? ` 当前仅显示 ${activeWalletLabel} 的一跳关联子图。`
           : ""}
       </p>
     </div>
