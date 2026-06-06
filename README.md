@@ -107,6 +107,9 @@ Data source modes:
 - `Live`: requires the relevant scan API key and returns a clear error if it is missing.
 
 Provider API keys can stay empty while developing in fixture mode.
+Live mode fetches wallet addresses with a small concurrency guard. Set
+`ANALYZE_LIVE_ADDRESS_CONCURRENCY` in `apps/web/.env.local` to tune this value;
+it defaults to `2` and is capped at `8` to reduce provider rate-limit pressure.
 
 With `ETHERSCAN_API_KEY` configured locally, the current live pipeline supports:
 

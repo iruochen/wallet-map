@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { resolveAnalyzeEvents } from "./data-source";
+import { mapWithConcurrency, resolveAnalyzeEvents } from "./data-source";
 
 const addresses = [
   "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -81,6 +81,26 @@ describe("resolveAnalyzeEvents", () => {
         env: {},
       }),
     ).rejects.toThrow("NODEREAL_API_KEY, NODEREAL_BSC_API_KEY, or ETHERSCAN_API_KEY is required for live BSC analysis.");
+  });
+});
+
+describe("mapWithConcurrency", () => {
+  it("limits active work and preserves result order", async () => {
+    let activeCount = 0;
+    let maxActiveCount = 0;
+
+    const result = await mapWithConcurrency([1, 2, 3, 4, 5], 2, async (value) => {
+      activeCount += 1;
+      maxActiveCount = Math.max(maxActiveCount, activeCount);
+
+      await new Promise((resolve) => setTimeout(resolve, 5));
+
+      activeCount -= 1;
+      return value * 10;
+    });
+
+    expect(result).toEqual([10, 20, 30, 40, 50]);
+    expect(maxActiveCount).toBe(2);
   });
 });
 

@@ -29,6 +29,9 @@ const etherscanApiKeyEnv = "ETHERSCAN_API_KEY";
 const nodeRealApiKeyEnv = "NODEREAL_API_KEY";
 const nodeRealBscApiKeyEnv = "NODEREAL_BSC_API_KEY";
 const solscanApiKeyEnv = "SOLSCAN_API_KEY";
+const liveAddressConcurrencyEnv = "ANALYZE_LIVE_ADDRESS_CONCURRENCY";
+const defaultLiveAddressConcurrency = 2;
+const maxLiveAddressConcurrency = 8;
 
 const nodeRealEndpoints = new Map<ChainId, string>([
   [1, "https://eth-mainnet.nodereal.io/v1/{apiKey}"],
@@ -45,6 +48,7 @@ export async function resolveAnalyzeEvents(
   const nodeRealBscApiKey = env[nodeRealBscApiKeyEnv]?.trim();
   const solscanApiKey = env[solscanApiKeyEnv]?.trim();
   const dataProvider = input.dataProvider ?? "auto";
+  const liveAddressConcurrency = parseLiveAddressConcurrency(env[liveAddressConcurrencyEnv]);
   const livePlans = requestedChainIds.map((chainId) =>
     resolveLiveProvider(chainId, {
       dataProvider,
@@ -111,25 +115,46 @@ export async function resolveAnalyzeEvents(
       fetchImpl: input.fetchImpl,
     });
 
-    for (const address of input.addresses.filter((address) => addressMatchesChain(address, plan.chainId))) {
-      try {
-        const events = await adapter.getEvents({ address });
-        eventsByAddress.push(events);
-      } catch (error) {
-        if (input.dataMode === "auto" && plan.provider === "nodereal" && etherscanApiKey && config.ecosystem === "evm") {
-          const fallbackAdapter = buildEtherscanAdapter(plan.chainId, config.name, etherscanApiKey, input.fetchImpl);
-          const events = await fallbackAdapter.getEvents({ address });
-          eventsByAddress.push(events);
-          sources.add(`${fallbackAdapter.id}:fallback-from-nodereal`);
-          continue;
-        }
+    const addressResults = await mapWithConcurrency(
+      input.addresses.filter((address) => addressMatchesChain(address, plan.chainId)),
+      liveAddressConcurrency,
+      async (address) => {
+        try {
+          const events = await adapter.getEvents({ address });
+          return { events, source: adapter.id };
+        } catch (error) {
+          if (
+            input.dataMode === "auto" &&
+            plan.provider === "nodereal" &&
+            etherscanApiKey &&
+            config.ecosystem === "evm"
+          ) {
+            const fallbackAdapter = buildEtherscanAdapter(plan.chainId, config.name, etherscanApiKey, input.fetchImpl);
+            const events = await fallbackAdapter.getEvents({ address });
+            return { events, source: `${fallbackAdapter.id}:fallback-from-nodereal` };
+          }
 
-        if (allowPartial) {
-          warnings.push(`${config.name} skipped: ${error instanceof Error ? error.message : "provider request failed"}`);
-          continue;
-        }
+          if (allowPartial) {
+            return {
+              events: [],
+              warning: `${config.name} skipped: ${error instanceof Error ? error.message : "provider request failed"}`,
+            };
+          }
 
-        throw error;
+          throw error;
+        }
+      },
+    );
+
+    for (const result of addressResults) {
+      eventsByAddress.push(result.events);
+
+      if (result.source) {
+        sources.add(result.source);
+      }
+
+      if (result.warning) {
+        warnings.push(result.warning);
       }
     }
 
@@ -300,4 +325,40 @@ function addressMatchesChain(address: Address, chainId: ChainId): boolean {
   }
 
   return address.startsWith("0x");
+}
+
+function parseLiveAddressConcurrency(input: string | undefined): number {
+  const parsed = Number(input ?? defaultLiveAddressConcurrency);
+
+  if (!Number.isFinite(parsed)) {
+    return defaultLiveAddressConcurrency;
+  }
+
+  return Math.min(maxLiveAddressConcurrency, Math.max(1, Math.floor(parsed)));
+}
+
+export async function mapWithConcurrency<TInput, TOutput>(
+  items: TInput[],
+  concurrency: number,
+  mapper: (item: TInput, index: number) => Promise<TOutput>,
+): Promise<TOutput[]> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const workerCount = Math.min(items.length, Math.max(1, Math.floor(concurrency)));
+  const results = new Array<TOutput>(items.length);
+  let nextIndex = 0;
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(items[index] as TInput, index);
+      }
+    }),
+  );
+
+  return results;
 }
