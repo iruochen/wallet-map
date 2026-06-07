@@ -38,8 +38,11 @@ const nodeRealApiKeyEnv = "NODEREAL_API_KEY";
 const nodeRealBscApiKeyEnv = "NODEREAL_BSC_API_KEY";
 const solscanApiKeyEnv = "SOLSCAN_API_KEY";
 const liveAddressConcurrencyEnv = "ANALYZE_LIVE_ADDRESS_CONCURRENCY";
+const liveProviderTimeoutEnv = "ANALYZE_LIVE_PROVIDER_TIMEOUT_MS";
 const defaultLiveAddressConcurrency = 2;
 const maxLiveAddressConcurrency = 8;
+const defaultLiveProviderTimeoutMs = 30_000;
+const maxLiveProviderTimeoutMs = 120_000;
 
 const nodeRealEndpoints = new Map<ChainId, string>([
   [1, "https://eth-mainnet.nodereal.io/v1/{apiKey}"],
@@ -57,6 +60,7 @@ export async function resolveAnalyzeEvents(
   const solscanApiKey = env[solscanApiKeyEnv]?.trim();
   const dataProvider = input.dataProvider ?? "auto";
   const liveAddressConcurrency = parseLiveAddressConcurrency(env[liveAddressConcurrencyEnv]);
+  const liveProviderTimeoutMs = parseLiveProviderTimeoutMs(env[liveProviderTimeoutEnv]);
   const livePlans = requestedChainIds.map((chainId) =>
     selectAnalyzeLiveProvider(chainId, {
       dataProvider,
@@ -120,7 +124,7 @@ export async function resolveAnalyzeEvents(
       nodeRealApiKey,
       nodeRealBscApiKey,
       solscanApiKey,
-      fetchImpl: input.fetchImpl,
+      fetchImpl: withProviderTimeout(input.fetchImpl, liveProviderTimeoutMs, config.name),
     });
 
     const addressResults = await mapWithConcurrency(
@@ -143,6 +147,7 @@ export async function resolveAnalyzeEvents(
               nodeRealBscApiKey,
               solscanApiKey,
               fetchImpl: input.fetchImpl,
+              timeoutMs: liveProviderTimeoutMs,
             });
 
             if (fallbackResult) {
@@ -292,6 +297,7 @@ async function fetchFallbackEvents(input: {
   nodeRealBscApiKey?: string;
   solscanApiKey?: string;
   fetchImpl?: typeof fetch;
+  timeoutMs: number;
 }): Promise<{ events: NormalizedEvent[]; source: string } | undefined> {
   if (!input.failedProvider) {
     return undefined;
@@ -304,7 +310,7 @@ async function fetchFallbackEvents(input: {
     nodeRealApiKey: input.nodeRealApiKey,
     nodeRealBscApiKey: input.nodeRealBscApiKey,
     solscanApiKey: input.solscanApiKey,
-    fetchImpl: input.fetchImpl,
+    fetchImpl: withProviderTimeout(input.fetchImpl, input.timeoutMs, input.configName),
   });
   const events = await fallbackAdapter.getEvents({ address: input.address });
 
@@ -316,6 +322,33 @@ async function fetchFallbackEvents(input: {
 
 function formatProviderSourceSlug(provider: LiveProviderId): string {
   return provider === "etherscan-v2" ? "etherscan" : provider;
+}
+
+function withProviderTimeout(
+  fetchImpl: typeof fetch | undefined,
+  timeoutMs: number,
+  chainName: string,
+): typeof fetch {
+  const baseFetch = fetchImpl ?? globalThis.fetch;
+
+  return async (input, init) => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+      return await Promise.race([
+        baseFetch(input, init),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => {
+            reject(new Error(`${chainName} provider request timed out after ${timeoutMs}ms.`));
+          }, timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    }
+  };
 }
 
 function buildEtherscanAdapter(
@@ -408,6 +441,16 @@ function parseLiveAddressConcurrency(input: string | undefined): number {
   }
 
   return Math.min(maxLiveAddressConcurrency, Math.max(1, Math.floor(parsed)));
+}
+
+function parseLiveProviderTimeoutMs(input: string | undefined): number {
+  const parsed = Number(input ?? defaultLiveProviderTimeoutMs);
+
+  if (!Number.isFinite(parsed)) {
+    return defaultLiveProviderTimeoutMs;
+  }
+
+  return Math.min(maxLiveProviderTimeoutMs, Math.max(1, Math.floor(parsed)));
 }
 
 export async function mapWithConcurrency<TInput, TOutput>(

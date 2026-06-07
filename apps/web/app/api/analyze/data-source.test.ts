@@ -92,6 +92,26 @@ describe("resolveAnalyzeEvents", () => {
     expect(calledUrl(fetchMock, "txlist").searchParams.get("chainid")).toBe("56");
   });
 
+  it("falls back when the primary live provider times out", async () => {
+    const fetchMock = mockSlowNodeRealThenEtherscanFetch();
+    const result = await resolveAnalyzeEvents({
+      addresses: [addresses[0]],
+      chainId: 56,
+      dataMode: "auto",
+      env: {
+        ETHERSCAN_API_KEY: "etherscan-key",
+        NODEREAL_BSC_API_KEY: "nodereal-key",
+        ANALYZE_LIVE_PROVIDER_TIMEOUT_MS: "5",
+      },
+      fetchImpl: fetchMock,
+    });
+
+    expect(result.mode).toBe("live");
+    expect(result.source).toBe("etherscan-like:56:bsc:fallback-from-nodereal,nodereal:56:bsc");
+    expect(fetchMock.mock.calls.some(([input]) => String(input).startsWith("https://bsc-mainnet.nodereal.io"))).toBe(true);
+    expect(calledUrl(fetchMock, "txlist").searchParams.get("chainid")).toBe("56");
+  });
+
   it("mentions both supported keys when BSC live mode is requested without config", async () => {
     await expect(
       resolveAnalyzeEvents({
@@ -101,6 +121,23 @@ describe("resolveAnalyzeEvents", () => {
         env: {},
       }),
     ).rejects.toThrow("NODEREAL_API_KEY, NODEREAL_BSC_API_KEY, or ETHERSCAN_API_KEY is required for live BSC analysis.");
+  });
+
+  it("returns a clear error when the only live provider times out", async () => {
+    const fetchMock = mockSlowEtherscanFetch();
+
+    await expect(
+      resolveAnalyzeEvents({
+        addresses: [...addresses],
+        chainId: 1,
+        dataMode: "live",
+        env: {
+          ETHERSCAN_API_KEY: "etherscan-key",
+          ANALYZE_LIVE_PROVIDER_TIMEOUT_MS: "5",
+        },
+        fetchImpl: fetchMock,
+      }),
+    ).rejects.toThrow("Ethereum txlist request failed before a response was received: Ethereum provider request timed out after 5ms.");
   });
 });
 
@@ -323,4 +360,66 @@ function mockEtherscanFailureThenNodeRealFetch() {
 
     throw new Error(`Unexpected URL ${url}`);
   });
+}
+
+function mockSlowNodeRealThenEtherscanFetch() {
+  return vi.fn(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
+    const url = String(input);
+
+    if (url.startsWith("https://bsc-mainnet.nodereal.io")) {
+      await sleep(50);
+
+      return new Response(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            pageKey: "",
+            transfers: [],
+          },
+        }),
+        { status: 200 },
+      );
+    }
+
+    const etherscanUrl = new URL(url);
+    const action = etherscanUrl.searchParams.get("action");
+
+    if (
+      action !== "txlist" &&
+      action !== "txlistinternal" &&
+      action !== "tokentx" &&
+      action !== "tokennfttx"
+    ) {
+      throw new Error(`Unexpected action ${action}`);
+    }
+
+    return new Response(
+      JSON.stringify({
+        status: "1",
+        message: "OK",
+        result: [],
+      }),
+      { status: 200 },
+    );
+  });
+}
+
+function mockSlowEtherscanFetch() {
+  return vi.fn(async (): Promise<Response> => {
+    await sleep(50);
+
+    return new Response(
+      JSON.stringify({
+        status: "1",
+        message: "OK",
+        result: [],
+      }),
+      { status: 200 },
+    );
+  });
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }

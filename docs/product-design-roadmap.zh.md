@@ -305,7 +305,7 @@ interface SybilExposureScore {
 关键任务：
 
 - [x] 为 `/api/analyze` 增加请求大小限制、地址数量限制、错误分层（已落地 tier-based request guard）。
-- 为 live mode 增加并发控制和 provider 超时。
+- [x] 为 live mode 增加并发控制和 provider 超时（地址级并发限制 + `ANALYZE_LIVE_PROVIDER_TIMEOUT_MS`）。
 - 将 graph view model 从 API response 中稳定下来。
 - 补充 public demo fixture。
 - 完善 CI：typecheck、test、lint、build。
@@ -409,6 +409,7 @@ interface SybilExposureScore {
 - [ ] Ankr 或 Moralis provider。
 - [x] Provider selector 初版（按链和配置选择 NodeReal、Etherscan V2、Solscan，并记录 Etherscan fallback）。
 - [x] Live mode 地址级并发控制（`ANALYZE_LIVE_ADDRESS_CONCURRENCY`，默认 2，上限 8）。
+- [x] Live provider HTTP 请求超时（`ANALYZE_LIVE_PROVIDER_TIMEOUT_MS`，默认 30 秒，上限 120 秒，超时后可走已配置 fallback）。
 
 核心指标：
 

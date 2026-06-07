@@ -124,6 +124,10 @@ Provider API keys can stay empty while developing in fixture mode.
 Live mode fetches wallet addresses with a small concurrency guard. Set
 `ANALYZE_LIVE_ADDRESS_CONCURRENCY` in `apps/web/.env.local` to tune this value;
 it defaults to `2` and is capped at `8` to reduce provider rate-limit pressure.
+Each live provider HTTP request also has a timeout guard. Set
+`ANALYZE_LIVE_PROVIDER_TIMEOUT_MS` to tune it; it defaults to `30000` and is
+capped at `120000`. When a primary provider times out, Auto provider mode uses
+the configured fallback provider for supported chains.
 In `Auto` provider mode, EVM chains use NodeReal first when it supports the
 selected chain and a NodeReal key is configured, with Etherscan V2 as the
 fallback when an Etherscan key is also available. Explicit Etherscan selection
