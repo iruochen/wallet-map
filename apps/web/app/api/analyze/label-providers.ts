@@ -1,8 +1,9 @@
 import {
   createChainbaseLabelProvider,
   createEtherscanNametagProvider,
+  createEventAssetLabelProvider,
+  createKnownEntityLabelProvider,
   createPersistingLabelProvider,
-  createStaticLabelProvider,
   type LabelSink,
   type LabelProvider,
 } from "@wallet-map/labels";
@@ -104,7 +105,8 @@ export function createAnalyzeLabelStack(
     );
   }
 
-  providers.push(createStaticLabelProvider());
+  providers.push(createKnownEntityLabelProvider());
+  providers.push(createEventAssetLabelProvider());
 
   return { providers, sinks };
 }

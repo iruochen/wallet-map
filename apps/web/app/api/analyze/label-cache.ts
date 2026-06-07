@@ -96,6 +96,7 @@ function shouldPersistSource(source: string): boolean {
   return (
     source === "chainbase-address-labels" ||
     source === "etherscan-nametag" ||
+    source === "known-entity-labels" ||
     source === "static-label-registry"
   );
 }

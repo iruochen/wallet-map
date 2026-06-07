@@ -73,8 +73,9 @@ export function createPostgresLabelRepository(
             CASE source
               WHEN 'chainbase-address-labels' THEN 0
               WHEN 'etherscan-nametag' THEN 1
-              WHEN 'static-label-registry' THEN 2
-              ELSE 3
+              WHEN 'known-entity-labels' THEN 2
+              WHEN 'static-label-registry' THEN 3
+              ELSE 4
             END,
             updated_at DESC
         `,

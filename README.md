@@ -98,6 +98,12 @@ address labels stored in `known_labels` with the `local-labels` source. These
 records are read by the analysis label stack when `DATABASE_URL` is configured
 and `LABEL_DATABASE_ENABLED` is not set to `false`.
 
+The analysis label stack also includes a built-in `known-entity-labels`
+provider for public services such as exchange hot wallets, bridges, DEX
+contracts, infrastructure, and canonical token contracts. Live Chainbase and
+Etherscan nametag providers can enrich or override those seeds when configured,
+and `normalized-event-asset` labels fill in token symbols from analyzed events.
+
 ## MVP Flow
 
 The current MVP runs in fixture mode:

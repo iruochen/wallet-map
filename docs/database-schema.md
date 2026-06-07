@@ -62,7 +62,7 @@ Stores analyzer output from `runAnalysis`.
 
 Stores public or team-curated labels enriched from Chainbase, Etherscan nametag, static seeds, or the `/labels` local label manager.
 
-Lookup priority in PostgreSQL favors `chainbase-address-labels`, then `etherscan-nametag`, then `static-label-registry`; locally managed records use the `local-labels` source and can be searched or upserted from the web UI when `DATABASE_URL` is configured.
+Lookup priority in PostgreSQL favors `chainbase-address-labels`, then `etherscan-nametag`, then `known-entity-labels`, then the legacy `static-label-registry`; locally managed records use the `local-labels` source and can be searched or upserted from the web UI when `DATABASE_URL` is configured.
 
 ## API Integration
 

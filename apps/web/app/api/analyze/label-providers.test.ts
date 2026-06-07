@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import { createAnalyzeLabelProviders } from "./label-providers";
 
 describe("createAnalyzeLabelProviders", () => {
-  it("uses the static registry by default", () => {
+  it("uses built-in known entity and event asset labels by default", () => {
     const providers = createAnalyzeLabelProviders({});
 
-    expect(providers.map((provider) => provider.id)).toEqual(["static-label-registry"]);
+    expect(providers.map((provider) => provider.id)).toEqual([
+      "known-entity-labels",
+      "normalized-event-asset",
+    ]);
   });
 
   it("adds Chainbase labels when an API key is configured", () => {
@@ -15,7 +18,8 @@ describe("createAnalyzeLabelProviders", () => {
 
     expect(providers.map((provider) => provider.id)).toEqual([
       "chainbase-address-labels",
-      "static-label-registry",
+      "known-entity-labels",
+      "normalized-event-asset",
     ]);
   });
 
@@ -27,7 +31,8 @@ describe("createAnalyzeLabelProviders", () => {
 
     expect(providers.map((provider) => provider.id)).toEqual([
       "etherscan-nametag",
-      "static-label-registry",
+      "known-entity-labels",
+      "normalized-event-asset",
     ]);
   });
 
@@ -42,7 +47,8 @@ describe("createAnalyzeLabelProviders", () => {
       "postgres-known-labels",
       "redis-label-cache",
       "chainbase-address-labels:persisting",
-      "static-label-registry",
+      "known-entity-labels",
+      "normalized-event-asset",
     ]);
   });
 });

@@ -428,7 +428,7 @@ interface SybilExposureScore {
 - [x] Multi-hop Path Analyzer。
 - [x] Temporal Pattern Analyzer。
 - [x] Bridge Correlation Analyzer。
-- Known Entity Label Provider 初版。
+- [x] Known Entity Label Provider 初版：内置 known-entity seed provider，分析栈与 PG/Redis label cache 可复用。
 - [x] 公共实体降权规则。
 
 核心指标：

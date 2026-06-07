@@ -93,6 +93,8 @@ export interface LabelGraphEnricherOptions {
 }
 
 const defaultStaticLabelEntries = staticLabelEntries as NodeLabel[];
+const knownEntityLabelSource = "known-entity-labels";
+const staticLabelRegistrySource = "static-label-registry";
 
 export function createLabelGraphEnricher(
   options: LabelGraphEnricherOptions,
@@ -118,19 +120,19 @@ export async function enrichGraphWithLabels(
   };
 }
 
-export function createStaticLabelProvider(entries: NodeLabel[] = defaultStaticLabelEntries): LabelProvider {
+export function createKnownEntityLabelProvider(entries: NodeLabel[] = defaultStaticLabelEntries): LabelProvider {
   const labelsByKey = new Map<string, NodeLabel>();
 
   for (const entry of entries) {
     labelsByKey.set(buildLabelKey(entry.chainId, entry.address, entry.nodeKind), {
       ...entry,
       address: entry.address.toLowerCase(),
-      source: entry.source ?? "static-label-registry",
+      source: entry.source ?? knownEntityLabelSource,
     });
   }
 
   return {
-    id: "static-label-registry",
+    id: knownEntityLabelSource,
     async findLabels(input) {
       const labels: NodeLabel[] = [];
 
@@ -142,15 +144,42 @@ export function createStaticLabelProvider(entries: NodeLabel[] = defaultStaticLa
         }
       }
 
-      for (const label of buildTokenLabelsFromEvents(input.events)) {
-        const key = buildLabelKey(label.chainId, label.address, label.nodeKind);
-
-        if (!labelsByKey.has(key)) {
-          labels.push(label);
-        }
-      }
-
       return labels;
+    },
+  };
+}
+
+export function createEventAssetLabelProvider(): LabelProvider {
+  return {
+    id: "normalized-event-asset",
+    async findLabels(input) {
+      return buildTokenLabelsFromEvents(input.events);
+    },
+  };
+}
+
+export function createStaticLabelProvider(entries: NodeLabel[] = defaultStaticLabelEntries): LabelProvider {
+  const knownEntityProvider = createKnownEntityLabelProvider(
+    entries.map((entry) => ({
+      ...entry,
+      source: entry.source ?? staticLabelRegistrySource,
+    })),
+  );
+  const eventAssetProvider = createEventAssetLabelProvider();
+
+  return {
+    id: staticLabelRegistrySource,
+    async findLabels(input) {
+      const knownEntityLabels = await knownEntityProvider.findLabels(input);
+      const knownKeys = new Set(
+        knownEntityLabels.map((label) => buildLabelKey(label.chainId, label.address, label.nodeKind)),
+      );
+      const eventAssetLabels = (await eventAssetProvider.findLabels(input)).filter((label) => {
+        const key = buildLabelKey(label.chainId, label.address, label.nodeKind);
+        return !knownKeys.has(key);
+      });
+
+      return [...knownEntityLabels, ...eventAssetLabels];
     },
   };
 }

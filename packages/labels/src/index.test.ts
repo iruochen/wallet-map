@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   createChainbaseLabelProvider,
   createEtherscanNametagProvider,
+  createEventAssetLabelProvider,
+  createKnownEntityLabelProvider,
   createLabelGraphEnricher,
   createPersistingLabelProvider,
   createStaticLabelProvider,
@@ -61,7 +63,7 @@ describe("label enrichment", () => {
   });
 
   it("labels wallet nodes through a provider before analysis consumers read the graph", async () => {
-    const provider = createStaticLabelProvider([
+    const provider = createKnownEntityLabelProvider([
       {
         nodeKind: "wallet",
         chainId: 56,
@@ -93,7 +95,7 @@ describe("label enrichment", () => {
     expect(node.metadata?.label).toEqual({
       entity: "Example Exchange",
       category: "cex",
-      source: "static-label-registry",
+      source: "known-entity-labels",
       updatedAt: undefined,
     });
   });
@@ -118,6 +120,70 @@ describe("label enrichment", () => {
         tags: expect.arrayContaining(["token", "stablecoin"]),
       }),
     );
+  });
+
+  it("labels default known entity seed entries with the dedicated source", async () => {
+    const graph: RelationshipGraph = {
+      nodes: [
+        {
+          id: "wallet:56:0x631fc1ea2270e98fbd9d92658ece0f5a269aa161",
+          kind: "wallet",
+          address: "0x631fc1ea2270e98fbd9d92658ece0f5a269aa161",
+          chainId: 56,
+          tags: ["observed"],
+        },
+      ],
+      edges: [],
+    };
+    const enriched = await enrichGraphWithLabels(graph, [], [createKnownEntityLabelProvider()]);
+
+    expect(enriched.nodes[0]).toEqual(
+      expect.objectContaining({
+        label: "Binance Hot Wallet",
+        tags: expect.arrayContaining(["known_entity", "cex", "binance", "hot_wallet"]),
+        metadata: {
+          label: {
+            entity: "Binance",
+            category: "cex",
+            source: "known-entity-labels",
+            updatedAt: undefined,
+          },
+        },
+      }),
+    );
+  });
+
+  it("keeps event asset labels separate from known entity labels", async () => {
+    const provider = createEventAssetLabelProvider();
+    const labels = await provider.findLabels({
+      nodes: [],
+      events: [
+        {
+          id: "event:1",
+          type: "token_transfer",
+          chainId: 56,
+          txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+          blockNumber: 1,
+          timestamp: "2024-01-01T00:00:00.000Z",
+          from: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          asset: {
+            kind: "erc20",
+            chainId: 56,
+            symbol: "MOCK",
+            contract: "0xcccccccccccccccccccccccccccccccccccccccc",
+          },
+        },
+      ],
+    });
+
+    expect(labels).toEqual([
+      expect.objectContaining({
+        source: "normalized-event-asset",
+        label: "MOCK",
+        category: "token",
+      }),
+    ]);
   });
 
   it("maps Etherscan nametag metadata into node labels", async () => {

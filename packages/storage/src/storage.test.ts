@@ -55,4 +55,13 @@ describe("storage package", () => {
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS findings");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS known_labels");
   });
+
+  it("documents known entity label source priority in the repository query", async () => {
+    const source = await readFile(resolve(import.meta.dirname, "./postgres-labels.ts"), "utf8");
+
+    expect(source).toContain("WHEN 'chainbase-address-labels' THEN 0");
+    expect(source).toContain("WHEN 'etherscan-nametag' THEN 1");
+    expect(source).toContain("WHEN 'known-entity-labels' THEN 2");
+    expect(source).toContain("WHEN 'static-label-registry' THEN 3");
+  });
 });
