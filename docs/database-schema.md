@@ -60,9 +60,9 @@ Stores analyzer output from `runAnalysis`.
 
 ### `known_labels`
 
-Stores public or team-curated labels enriched from Chainbase, Etherscan nametag, or static seeds.
+Stores public or team-curated labels enriched from Chainbase, Etherscan nametag, static seeds, or the `/labels` local label manager.
 
-Lookup priority in PostgreSQL favors `chainbase-address-labels`, then `etherscan-nametag`, then `static-label-registry`.
+Lookup priority in PostgreSQL favors `chainbase-address-labels`, then `etherscan-nametag`, then `static-label-registry`; locally managed records use the `local-labels` source and can be searched or upserted from the web UI when `DATABASE_URL` is configured.
 
 ## API Integration
 
@@ -71,6 +71,8 @@ Lookup priority in PostgreSQL favors `chainbase-address-labels`, then `etherscan
 | `POST /api/analyze` | Creates Redis job + PostgreSQL `analysis_jobs` row |
 | `GET /api/analyze/jobs/:id` | Reads Redis first, falls back to PostgreSQL snapshot |
 | `GET /api/analyze/jobs` | Lists recent jobs from PostgreSQL |
+| `GET /api/labels` | Lists records from PostgreSQL `known_labels` |
+| `POST /api/labels` | Upserts a `local-labels` record into PostgreSQL `known_labels` |
 
 ## Environment
 

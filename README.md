@@ -93,6 +93,11 @@ Analysis jobs persist to PostgreSQL; in-flight progress is stored in Redis when
 `REDIS_URL` is configured. Open `/history` to replay completed runs or compare
 two completed jobs by score, confidence, event count, and source.
 
+Known labels also use PostgreSQL. Open `/labels` to add or update local
+address labels stored in `known_labels` with the `local-labels` source. These
+records are read by the analysis label stack when `DATABASE_URL` is configured
+and `LABEL_DATABASE_ENABLED` is not set to `false`.
+
 ## MVP Flow
 
 The current MVP runs in fixture mode:

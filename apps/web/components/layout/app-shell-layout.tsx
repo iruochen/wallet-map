@@ -12,11 +12,20 @@ const shellConfig = {
     subtitle: "历史分析记录",
     activeNav: "history" as const,
   },
+  "/labels": {
+    subtitle: "本地标签库管理",
+    activeNav: "labels" as const,
+  },
 };
 
 export function AppShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const config = pathname === "/history" ? shellConfig["/history"] : shellConfig["/"];
+  const config =
+    pathname === "/history"
+      ? shellConfig["/history"]
+      : pathname === "/labels"
+        ? shellConfig["/labels"]
+        : shellConfig["/"];
 
   return (
     <div className="appShell">

@@ -3,7 +3,7 @@ import { WalletHeaderControls } from "./wallet-header-controls";
 
 export interface AppHeaderProps {
   subtitle: string;
-  activeNav: "workbench" | "history";
+  activeNav: "workbench" | "history" | "labels";
 }
 
 export function AppHeader({ subtitle, activeNav }: AppHeaderProps) {
@@ -31,6 +31,12 @@ export function AppHeader({ subtitle, activeNav }: AppHeaderProps) {
             href="/history"
           >
             历史分析
+          </Link>
+          <Link
+            className={`headerNavLink ${activeNav === "labels" ? "headerNavLinkActive" : ""}`}
+            href="/labels"
+          >
+            标签库
           </Link>
         </nav>
         <WalletHeaderControls />

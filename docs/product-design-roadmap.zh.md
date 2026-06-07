@@ -448,7 +448,7 @@ interface SybilExposureScore {
 - [x] Workbench 一键导出 PDF、Markdown、JSON 审计报告和 CSV evidence。
 - [x] 历史 job 列表支持两次已完成分析的指标对比。
 - [x] CSV 批量导入增强（去重、无效行反馈、导入摘要）。
-- 本地标签库管理。
+- [x] 本地标签库管理。
 - Pro 版功能边界设计。
 
 核心指标：

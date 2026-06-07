@@ -5,6 +5,7 @@ import type {
   GraphNode,
 } from "@wallet-map/core";
 import type {
+  KnownLabelListInput,
   KnownLabelRecord,
   LabelLookupInput,
   LabelRepository,
@@ -86,6 +87,59 @@ export function createPostgresLabelRepository(
 
       return result.rows.map(mapKnownLabelRow);
     },
+    async listKnownLabels(input = {}) {
+      const filters: string[] = [];
+      const values: Array<number | string> = [];
+      const limit = normalizeListLimit(input.limit);
+
+      if (input.chainId !== undefined) {
+        values.push(input.chainId);
+        filters.push(`chain_id = $${values.length}`);
+      }
+
+      if (input.source?.trim()) {
+        values.push(input.source.trim());
+        filters.push(`source = $${values.length}`);
+      }
+
+      if (input.query?.trim()) {
+        values.push(`%${input.query.trim().toLowerCase()}%`);
+        filters.push(`(
+          lower(address) LIKE $${values.length}
+          OR lower(label) LIKE $${values.length}
+          OR lower(COALESCE(entity, '')) LIKE $${values.length}
+          OR lower(source) LIKE $${values.length}
+        )`);
+      }
+
+      values.push(limit);
+
+      const result = await pool.query<KnownLabelRow>(
+        `
+          SELECT
+            id,
+            node_kind,
+            chain_id,
+            address,
+            label,
+            entity,
+            category,
+            tags,
+            source,
+            confidence,
+            first_seen_at,
+            last_seen_at,
+            metadata
+          FROM known_labels
+          ${filters.length ? `WHERE ${filters.join(" AND ")}` : ""}
+          ORDER BY updated_at DESC, label ASC
+          LIMIT $${values.length}
+        `,
+        values,
+      );
+
+      return result.rows.map(mapKnownLabelRow);
+    },
     async upsertKnownLabels(labels) {
       for (const label of labels) {
         await pool.query(
@@ -147,6 +201,18 @@ export function toLabelLookupInput(nodes: GraphNode[], chainId: ChainId): LabelL
       .map((node) => node.address?.toLowerCase() as Address),
     nodeKinds: Array.from(new Set(nodes.map((node) => node.kind))),
   };
+}
+
+function normalizeListLimit(limit: KnownLabelListInput["limit"]): number {
+  if (limit === undefined) {
+    return 100;
+  }
+
+  if (!Number.isFinite(limit)) {
+    return 100;
+  }
+
+  return Math.min(250, Math.max(1, Math.trunc(limit)));
 }
 
 function mapKnownLabelRow(row: KnownLabelRow): KnownLabelRecord {

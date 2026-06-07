@@ -74,6 +74,13 @@ export interface LabelLookupInput {
   nodeKinds?: Array<GraphNode["kind"]>;
 }
 
+export interface KnownLabelListInput {
+  chainId?: ChainId;
+  source?: string;
+  query?: string;
+  limit?: number;
+}
+
 export interface AnalysisJobRepository {
   create(input: CreateAnalysisJobInput): Promise<AnalysisJobRecord>;
   findById(jobId: string): Promise<AnalysisJobRecord | undefined>;
@@ -89,6 +96,7 @@ export interface AnalysisRunRepository {
 
 export interface LabelRepository {
   findKnownLabels(input: LabelLookupInput): Promise<KnownLabelRecord[]>;
+  listKnownLabels(input?: KnownLabelListInput): Promise<KnownLabelRecord[]>;
   upsertKnownLabels(labels: KnownLabelRecord[]): Promise<void>;
 }
 
