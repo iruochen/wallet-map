@@ -306,7 +306,7 @@ interface SybilExposureScore {
 
 - [x] 为 `/api/analyze` 增加请求大小限制、地址数量限制、错误分层（已落地 tier-based request guard）。
 - [x] 为 live mode 增加并发控制和 provider 超时（地址级并发限制 + `ANALYZE_LIVE_PROVIDER_TIMEOUT_MS`）。
-- 将 graph view model 从 API response 中稳定下来。
+- [x] 将 graph view model 从 API response 中稳定下来（新增 `graphView` v1.0，前端图谱优先消费该字段，旧 `graph` 保留兼容导出/历史结果）。
 - 补充 public demo fixture。
 - 完善 CI：typecheck、test、lint、build。
 

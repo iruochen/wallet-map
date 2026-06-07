@@ -3,6 +3,7 @@ import {
   buildPresentationGraph,
   buildPresentationSummary,
 } from "./presentation";
+import { buildGraphViewModel } from "./graph-view";
 import type { ParsedAnalyzeRequest } from "./schema";
 import type { ResolveEventsResult } from "./data-source";
 
@@ -18,6 +19,14 @@ export function buildAnalyzeResponse(
   const eventsById = new Map(resolved.events.map((event) => [event.id, event]));
   const presentationGraph = buildPresentationGraph(result.graph, result.findings);
   const presentationSummary = buildPresentationSummary(result.findings, result.graph);
+  const graphNodes = presentationGraph.graph.nodes.slice(0, graphNodePreviewLimit);
+  const graphEdges = presentationGraph.graph.edges.slice(0, graphEdgePreviewLimit).map((edge) => ({
+    ...edge,
+    metadata: enrichEdgeMetadata(edge.metadata, edge.evidenceEventIds, eventsById),
+  }));
+  const nodesTruncated = presentationGraph.graph.nodes.length > graphNodePreviewLimit;
+  const edgesTruncated = presentationGraph.graph.edges.length > graphEdgePreviewLimit;
+  const fetchedAt = new Date().toISOString();
 
   return {
     mode: resolved.mode,
@@ -39,19 +48,27 @@ export function buildAnalyzeResponse(
       graphContractCount: presentationGraph.graph.nodes.filter((node) => node.kind === "contract").length,
       fallbackReason: resolved.fallbackReason,
       warnings: resolved.warnings ?? [],
-      fetchedAt: new Date().toISOString(),
+      fetchedAt,
     },
     summary: presentationSummary,
+    graphView: buildGraphViewModel({
+      defaultChainId: parsed.chainId,
+      totalNodes: presentationGraph.graph.nodes.length,
+      totalEdges: presentationGraph.graph.edges.length,
+      nodesTruncated,
+      edgesTruncated,
+      nodes: graphNodes,
+      edges: graphEdges,
+      findings: result.findings,
+      generatedAt: fetchedAt,
+    }),
     graph: {
       totalNodes: presentationGraph.graph.nodes.length,
       totalEdges: presentationGraph.graph.edges.length,
-      nodesTruncated: presentationGraph.graph.nodes.length > graphNodePreviewLimit,
-      edgesTruncated: presentationGraph.graph.edges.length > graphEdgePreviewLimit,
-      nodes: presentationGraph.graph.nodes.slice(0, graphNodePreviewLimit),
-      edges: presentationGraph.graph.edges.slice(0, graphEdgePreviewLimit).map((edge) => ({
-        ...edge,
-        metadata: enrichEdgeMetadata(edge.metadata, edge.evidenceEventIds, eventsById),
-      })),
+      nodesTruncated,
+      edgesTruncated,
+      nodes: graphNodes,
+      edges: graphEdges,
     },
     findings: result.findings.map((finding) => ({
       ...finding,

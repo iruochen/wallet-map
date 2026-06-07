@@ -20,8 +20,34 @@ describe("executeAnalyzeJob", () => {
     });
 
     const job = await getAnalyzeJob(jobId);
+    const result = job?.result as
+      | {
+          graph?: {
+            totalNodes: number;
+            totalEdges: number;
+          };
+          graphView?: {
+            schemaVersion: string;
+            totalNodes: number;
+            totalEdges: number;
+            summary: {
+              nodeCount: number;
+              edgeCount: number;
+            };
+          };
+        }
+      | undefined;
+
     expect(job?.status).toBe("completed");
     expect(job?.progress.completedPhases).toEqual(["fetch", "graph", "labels", "analysis"]);
-    expect(job?.result).toBeTruthy();
+    expect(result?.graphView).toMatchObject({
+      schemaVersion: "1.0",
+      totalNodes: result?.graph?.totalNodes,
+      totalEdges: result?.graph?.totalEdges,
+      summary: {
+        nodeCount: result?.graph?.totalNodes,
+        edgeCount: result?.graph?.totalEdges,
+      },
+    });
   });
 });

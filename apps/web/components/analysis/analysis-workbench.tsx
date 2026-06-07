@@ -230,10 +230,12 @@ export function AnalysisWorkbench({
       return null;
     }
 
+    const graphView = result.graphView ?? result.graph;
+
     return {
       wallets: result.meta.graphWalletCount,
       contracts: result.meta.graphContractCount,
-      edges: result.graph.totalEdges,
+      edges: graphView.totalEdges,
     };
   }, [result]);
 
@@ -938,7 +940,7 @@ export function AnalysisWorkbench({
             <h2>关系图谱</h2>
             <p>
               {result
-                ? `${result.meta.graphWalletCount} wallets · ${result.meta.graphContractCount} contracts · ${result.graph.totalEdges} 条关联边`
+                ? `${result.meta.graphWalletCount} wallets · ${result.meta.graphContractCount} contracts · ${(result.graphView ?? result.graph).totalEdges} 条关联边`
                 : "仅展示命中分析器的关联子图 · 点击节点查看解释"}
             </p>
           </div>
@@ -953,14 +955,14 @@ export function AnalysisWorkbench({
                 variant="hero"
               />
             </div>
-          ) : result && result.graph.totalEdges > 0 ? (
+          ) : result && (result.graphView ?? result.graph).totalEdges > 0 ? (
             <GraphExplorer
-              chainId={result.meta.chainId}
-              nodes={result.graph.nodes}
-              edges={result.graph.edges}
-              totalNodes={result.graph.totalNodes}
-              totalEdges={result.graph.totalEdges}
-              truncated={result.graph.nodesTruncated || result.graph.edgesTruncated}
+              chainId={result.graphView?.defaultChainId ?? result.meta.chainId}
+              nodes={(result.graphView ?? result.graph).nodes}
+              edges={(result.graphView ?? result.graph).edges}
+              totalNodes={(result.graphView ?? result.graph).totalNodes}
+              totalEdges={(result.graphView ?? result.graph).totalEdges}
+              truncated={(result.graphView ?? result.graph).nodesTruncated || (result.graphView ?? result.graph).edgesTruncated}
             />
           ) : (
             <div className="graphPlaceholder">

@@ -74,6 +74,60 @@ export interface GraphEdge {
   };
 }
 
+export interface GraphViewNode extends GraphNode {
+  role: "watched" | "observed" | "contract" | "entity";
+  label: string;
+  shortLabel: string;
+  degree: number;
+  tags: string[];
+  metrics: {
+    degree: number;
+    incomingCount: number;
+    outgoingCount: number;
+    findingCount: number;
+  };
+  visual: {
+    size: number;
+    colorToken: "wallet-watched" | "wallet-observed" | "contract" | "entity";
+    icon: "wallet" | "contract" | "entity";
+  };
+}
+
+export interface GraphViewEdge extends GraphEdge {
+  weight: number;
+  direction: "directed" | "undirected";
+  label: string;
+  findingIds: string[];
+  metrics: {
+    eventCount: number;
+  };
+}
+
+export interface GraphViewModel {
+  schemaVersion: "1.0";
+  generatedAt: string;
+  summary: {
+    nodeCount: number;
+    edgeCount: number;
+    visibleNodeCount: number;
+    visibleEdgeCount: number;
+    truncated: boolean;
+  };
+  totalNodes: number;
+  totalEdges: number;
+  nodesTruncated: boolean;
+  edgesTruncated: boolean;
+  defaultChainId: number;
+  availableChainIds: number[];
+  walletFilters: Array<{
+    address: string;
+    nodeIds: string[];
+    label: string;
+  }>;
+  nodes: GraphViewNode[];
+  edges: GraphViewEdge[];
+}
+
 export interface AnalysisResponse {
   mode: "fixture" | "live";
   source: string;
@@ -135,6 +189,7 @@ export interface AnalysisResponse {
     nodes: GraphNode[];
     edges: GraphEdge[];
   };
+  graphView?: GraphViewModel;
   findings: Array<{
     id: string;
     analyzerId: string;
