@@ -20,6 +20,7 @@ import {
   getEvmAggregateChains,
 } from "../../app/chains";
 import { AnalysisEvidencePanel } from "./analysis-evidence-panel";
+import { PlanBoundary } from "./plan-boundary";
 import { parseAddressImport, type AddressImportSummary } from "./address-import";
 import {
   describeFindingGroup,
@@ -108,6 +109,7 @@ export function AnalysisWorkbench({
   supportedChains,
   initialAddresses,
   anonymousAnalysisQuota,
+  productPlan,
 }: AnalysisWorkbenchProps) {
   const defaultAddresses = initialAddresses?.trim() ? initialAddresses : sampleAddresses;
   const [addresses, setAddresses] = useState(defaultAddresses);
@@ -604,6 +606,7 @@ export function AnalysisWorkbench({
           </section>
 
           <div className="inputStatusStack">
+            <PlanBoundary plan={productPlan} />
             <div
               className={`stateBanner stateBannerCompact ${liveConfigured ? "stateBannerSuccess" : "stateBannerInfo"}`}
               aria-live="polite"

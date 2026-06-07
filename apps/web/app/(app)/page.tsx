@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { readAnonymousAnalysisQuota } from "../api/analyze/analysis-quota-guard";
 import { getCurrentHistorySubject } from "../api/auth/session";
+import { buildProductPlanSnapshot } from "../pro-plan";
 import { AnalysisWorkbench } from "../../components/analysis/analysis-workbench";
 import { readLiveConfigured } from "../../components/layout/app-header";
 import { supportedAnalysisChains } from "../chains";
@@ -13,6 +14,10 @@ export default async function HomePage() {
     historySubject.subjectId,
     historySubject.mode,
   );
+  const productPlan = buildProductPlanSnapshot({
+    authenticated: historySubject.mode === "wallet",
+    anonymousAnalysisQuota,
+  });
 
   return (
     <Suspense fallback={<WorkbenchLoadingFallback />}>
@@ -21,6 +26,7 @@ export default async function HomePage() {
         supportedChains={supportedAnalysisChains}
         initialAddresses={initialAddresses}
         anonymousAnalysisQuota={anonymousAnalysisQuota}
+        productPlan={productPlan}
       />
     </Suspense>
   );

@@ -142,6 +142,23 @@ Markdown, JSON, or CSV evidence files. Markdown is intended for human review,
 JSON for secondary analysis, CSV for spreadsheet review, and PDF for shareable
 audit snapshots.
 
+## Product Tiers
+
+The workbench now exposes a typed product boundary so capacity, history, export,
+provider, and label behavior can be gated consistently as Wallet Map moves
+toward a professional edition:
+
+- `Anonymous`: session-scoped trial with optional anonymous analysis limits.
+- `Free`: signed-in personal workspace with wallet-scoped history replay.
+- `Pro`: larger async batches, extended history, multi-provider depth, report
+  templates, and private label sets.
+- `Team`: shared review, label governance, managed retention, and deployment
+  controls.
+
+The current UI shows the active plan boundary beside analysis setup. The model
+lives in `apps/web/app/pro-plan.ts` so future API guards, billing hooks, and
+route-level affordances can share the same capability definitions.
+
 ## Project Docs
 
 - [Architecture Map](docs/architecture-map.md)

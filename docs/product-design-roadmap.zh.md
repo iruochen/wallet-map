@@ -449,7 +449,7 @@ interface SybilExposureScore {
 - [x] 历史 job 列表支持两次已完成分析的指标对比。
 - [x] CSV 批量导入增强（去重、无效行反馈、导入摘要）。
 - [x] 本地标签库管理。
-- Pro 版功能边界设计。
+- [x] Pro 版功能边界设计：已抽象 Anonymous / Free / Pro / Team typed capability model，并在 Workbench 显示当前 plan 边界。
 
 核心指标：
 

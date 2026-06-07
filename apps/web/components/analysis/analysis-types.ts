@@ -1,4 +1,5 @@
 import type { SupportedAnalysisChain } from "../../app/chains";
+import type { ProductPlanSnapshot } from "../../app/pro-plan";
 
 export interface EvidenceEvent {
   type: string;
@@ -177,4 +178,5 @@ export interface AnalysisWorkbenchProps {
   supportedChains: SupportedAnalysisChain[];
   initialAddresses?: string;
   anonymousAnalysisQuota?: AnonymousAnalysisQuota | null;
+  productPlan: ProductPlanSnapshot;
 }
