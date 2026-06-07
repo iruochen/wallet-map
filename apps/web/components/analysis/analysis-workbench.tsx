@@ -62,7 +62,7 @@ const dataModeOptions = [
 const dataProviderOptions = [
   { value: "auto", label: "Auto", description: "优先 NodeReal" },
   { value: "nodereal", label: "NodeReal", description: "强制 NodeReal" },
-  { value: "etherscan", label: "Etherscan", description: "强制 Etherscan V2" },
+  { value: "etherscan", label: "Etherscan", description: "优先 Etherscan V2" },
   { value: "solscan", label: "Solscan", description: "Solana 专用" },
 ] as const;
 

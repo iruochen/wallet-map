@@ -119,7 +119,7 @@ describe("selectAnalyzeLiveProvider", () => {
     });
   });
 
-  it("honors explicit Etherscan selection over configured NodeReal", () => {
+  it("uses Etherscan first with NodeReal fallback when explicitly selected", () => {
     expect(
       selectAnalyzeLiveProvider(56, {
         dataProvider: "etherscan",
@@ -129,7 +129,28 @@ describe("selectAnalyzeLiveProvider", () => {
     ).toEqual({
       chainId: 56,
       provider: "etherscan-v2",
+      fallbackProvider: "nodereal",
     });
+  });
+
+  it("falls back from Etherscan to NodeReal when explicit Etherscan requests fail", async () => {
+    const fetchMock = mockEtherscanFailureThenNodeRealFetch();
+    const result = await resolveAnalyzeEvents({
+      addresses: [addresses[0]],
+      chainId: 56,
+      dataMode: "live",
+      dataProvider: "etherscan",
+      env: {
+        ETHERSCAN_API_KEY: "etherscan-key",
+        NODEREAL_BSC_API_KEY: "nodereal-key",
+      },
+      fetchImpl: fetchMock,
+    });
+
+    expect(result.mode).toBe("live");
+    expect(result.source).toBe("nodereal:56:bsc:fallback-from-etherscan,etherscan-like:56:bsc");
+    expect(new URL(String(fetchMock.mock.calls[0]?.[0])).searchParams.get("action")).toBe("txlist");
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === "https://bsc-mainnet.nodereal.io/v1/nodereal-key")).toBe(true);
   });
 
   it("selects Solscan only for Solana when the Solscan key is configured", () => {
@@ -272,5 +293,34 @@ function mockNodeRealFailureThenEtherscanFetch() {
       }),
       { status: 200 },
     );
+  });
+}
+
+function mockEtherscanFailureThenNodeRealFetch() {
+  return vi.fn(async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Promise<Response> => {
+    const url = String(input);
+
+    if (url.startsWith("https://api.etherscan.io")) {
+      return new Response(JSON.stringify({ status: "0", message: "NOTOK", result: "rate limit" }));
+    }
+
+    if (url.startsWith("https://bsc-mainnet.nodereal.io")) {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
+      expect(body.method).toBe("nr_getTransactionByAddress");
+
+      return new Response(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            pageKey: "",
+            transfers: [],
+          },
+        }),
+        { status: 200 },
+      );
+    }
+
+    throw new Error(`Unexpected URL ${url}`);
   });
 }

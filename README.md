@@ -126,7 +126,9 @@ Live mode fetches wallet addresses with a small concurrency guard. Set
 it defaults to `2` and is capped at `8` to reduce provider rate-limit pressure.
 In `Auto` provider mode, EVM chains use NodeReal first when it supports the
 selected chain and a NodeReal key is configured, with Etherscan V2 as the
-fallback when an Etherscan key is also available. Solana uses Solscan when
+fallback when an Etherscan key is also available. Explicit Etherscan selection
+still uses Etherscan V2 first, but can fall back to NodeReal on supported EVM
+chains when a NodeReal key is configured. Solana uses Solscan when
 `SOLSCAN_API_KEY` is configured.
 
 With `ETHERSCAN_API_KEY` configured locally, the current live pipeline supports:

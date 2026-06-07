@@ -131,9 +131,12 @@ export async function resolveAnalyzeEvents(
           const events = await adapter.getEvents({ address });
           return { events, source: adapter.id };
         } catch (error) {
-          if (input.dataMode === "auto" && plan.fallbackProvider === "etherscan-v2") {
-            const fallbackAdapter = buildAdapter({
-              plan: { chainId: plan.chainId, provider: plan.fallbackProvider },
+          if (plan.fallbackProvider) {
+            const fallbackResult = await fetchFallbackEvents({
+              address,
+              failedProvider: plan.provider,
+              fallbackProvider: plan.fallbackProvider,
+              chainId: plan.chainId,
               configName: config.name,
               etherscanApiKey,
               nodeRealApiKey,
@@ -141,8 +144,10 @@ export async function resolveAnalyzeEvents(
               solscanApiKey,
               fetchImpl: input.fetchImpl,
             });
-            const events = await fallbackAdapter.getEvents({ address });
-            return { events, source: `${fallbackAdapter.id}:fallback-from-nodereal` };
+
+            if (fallbackResult) {
+              return fallbackResult;
+            }
           }
 
           if (allowPartial) {
@@ -220,7 +225,18 @@ export function selectAnalyzeLiveProvider(
   }
 
   if (input.etherscanApiKey && (input.dataProvider === "auto" || input.dataProvider === "etherscan")) {
-    return { chainId, provider: "etherscan-v2" };
+    const fallbackProvider =
+      input.nodeRealApiKey &&
+      nodeRealEndpoints.has(chainId) &&
+      chain?.ecosystem === "evm"
+        ? "nodereal"
+        : undefined;
+
+    return {
+      chainId,
+      provider: "etherscan-v2",
+      ...(fallbackProvider ? { fallbackProvider } : {}),
+    };
   }
 
   return { chainId, provider: null };
@@ -263,6 +279,43 @@ function buildAdapter(input: {
   }
 
   return buildEtherscanAdapter(input.plan.chainId, input.configName, input.etherscanApiKey, input.fetchImpl);
+}
+
+async function fetchFallbackEvents(input: {
+  address: Address;
+  failedProvider: LiveProviderId | null;
+  fallbackProvider: LiveProviderId;
+  chainId: ChainId;
+  configName: string;
+  etherscanApiKey?: string;
+  nodeRealApiKey?: string;
+  nodeRealBscApiKey?: string;
+  solscanApiKey?: string;
+  fetchImpl?: typeof fetch;
+}): Promise<{ events: NormalizedEvent[]; source: string } | undefined> {
+  if (!input.failedProvider) {
+    return undefined;
+  }
+
+  const fallbackAdapter = buildAdapter({
+    plan: { chainId: input.chainId, provider: input.fallbackProvider },
+    configName: input.configName,
+    etherscanApiKey: input.etherscanApiKey,
+    nodeRealApiKey: input.nodeRealApiKey,
+    nodeRealBscApiKey: input.nodeRealBscApiKey,
+    solscanApiKey: input.solscanApiKey,
+    fetchImpl: input.fetchImpl,
+  });
+  const events = await fallbackAdapter.getEvents({ address: input.address });
+
+  return {
+    events,
+    source: `${fallbackAdapter.id}:fallback-from-${formatProviderSourceSlug(input.failedProvider)}`,
+  };
+}
+
+function formatProviderSourceSlug(provider: LiveProviderId): string {
+  return provider === "etherscan-v2" ? "etherscan" : provider;
 }
 
 function buildEtherscanAdapter(

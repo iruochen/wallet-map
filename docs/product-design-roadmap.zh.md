@@ -415,7 +415,7 @@ interface SybilExposureScore {
 - [x] 已分析任务可在历史页复盘。
 - [x] job、events、graph、findings 均可持久化。
 - [ ] 已分析地址组二次打开明显加速（依赖缓存命中率验证）。
-- [ ] Etherscan 失败时可切到备用 provider。
+- [x] Etherscan 失败时可切到备用 provider（Etherscan 优先时支持 NodeReal fallback，NodeReal 优先时支持 Etherscan fallback）。
 
 ### M3：高级分析器
 
