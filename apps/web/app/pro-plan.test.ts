@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildProductPlanSnapshot,
+  formatAddressCapacityError,
   formatPlanCapabilitySummary,
   getNextProductPlan,
+  getProductPlanLimits,
   productPlanCatalog,
 } from "./pro-plan";
 
@@ -39,5 +41,19 @@ describe("formatPlanCapabilitySummary", () => {
   it("summarizes included capabilities", () => {
     expect(formatPlanCapabilitySummary(productPlanCatalog.pro)).toContain("Address capacity");
     expect(formatPlanCapabilitySummary(productPlanCatalog.pro)).toContain("Team labels");
+  });
+});
+
+describe("product plan limits", () => {
+  it("keeps address capacity aligned with the tier ladder", () => {
+    expect(getProductPlanLimits("anonymous").maxAddresses).toBeLessThan(getProductPlanLimits("free").maxAddresses);
+    expect(getProductPlanLimits("free").maxAddresses).toBeLessThan(getProductPlanLimits("pro").maxAddresses);
+    expect(getProductPlanLimits("pro").maxAddresses).toBeLessThan(getProductPlanLimits("team").maxAddresses);
+  });
+
+  it("formats address capacity errors with tier context", () => {
+    expect(formatAddressCapacityError("anonymous", 12)).toContain("Anonymous");
+    expect(formatAddressCapacityError("anonymous", 12)).toContain("10");
+    expect(formatAddressCapacityError("anonymous", 12)).toContain("12");
   });
 });

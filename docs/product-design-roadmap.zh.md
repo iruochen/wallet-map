@@ -304,7 +304,7 @@ interface SybilExposureScore {
 
 关键任务：
 
-- 为 `/api/analyze` 增加请求大小限制、地址数量限制、错误分层。
+- [x] 为 `/api/analyze` 增加请求大小限制、地址数量限制、错误分层（已落地 tier-based request guard）。
 - 为 live mode 增加并发控制和 provider 超时。
 - 将 graph view model 从 API response 中稳定下来。
 - 补充 public demo fixture。
@@ -352,9 +352,9 @@ interface SybilExposureScore {
 
 可选方向：
 
-- Free：5-10 地址、fixture/CSV、本地报告。
-- Pro：100+ 地址、live provider、多维评分、历史 job、批量导出。
-- Team：共享标签库、审计模板、私有部署、团队报告。
+- Free：25 地址、fixture/CSV、本地报告。
+- Pro：100 地址、live provider、多维评分、历史 job、批量导出。
+- Team：200 地址、共享标签库、审计模板、私有部署、团队报告。
 
 商业化功能应以“效率、容量、可复盘、团队协作”为卖点，而不是承诺规避任何第三方审查。
 

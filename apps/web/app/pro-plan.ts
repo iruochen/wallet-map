@@ -15,6 +15,11 @@ export interface ProductPlanSnapshot {
   capabilities: ProductPlanCapability[];
 }
 
+export interface ProductPlanLimits {
+  maxAddresses: number;
+  maxRequestBytes: number;
+}
+
 interface BuildProductPlanInput {
   authenticated: boolean;
   anonymousAnalysisQuota?: {
@@ -26,6 +31,25 @@ interface BuildProductPlanInput {
 
 const planOrder: ProductPlanTier[] = ["anonymous", "free", "pro", "team"];
 
+export const productPlanLimits: Record<ProductPlanTier, ProductPlanLimits> = {
+  anonymous: {
+    maxAddresses: 10,
+    maxRequestBytes: 64 * 1024,
+  },
+  free: {
+    maxAddresses: 25,
+    maxRequestBytes: 128 * 1024,
+  },
+  pro: {
+    maxAddresses: 100,
+    maxRequestBytes: 512 * 1024,
+  },
+  team: {
+    maxAddresses: 200,
+    maxRequestBytes: 1024 * 1024,
+  },
+};
+
 export const productPlanCatalog: Record<ProductPlanTier, ProductPlanSnapshot> = {
   anonymous: {
     tier: "anonymous",
@@ -33,7 +57,7 @@ export const productPlanCatalog: Record<ProductPlanTier, ProductPlanSnapshot> = 
     summary: "Session-scoped trial with limited history.",
     upgradeHint: "Connect wallet for durable history; Pro expands capacity, exports, and provider depth.",
     capabilities: [
-      { id: "address-capacity", label: "Address capacity", value: "Small fixture/live runs", included: true },
+      { id: "address-capacity", label: "Address capacity", value: "Up to 10 addresses", included: true },
       { id: "history-retention", label: "History", value: "Browser session", included: true },
       { id: "exports", label: "Exports", value: "Basic report formats", included: true },
       { id: "providers", label: "Live providers", value: "Configured local keys", included: false },
@@ -46,7 +70,7 @@ export const productPlanCatalog: Record<ProductPlanTier, ProductPlanSnapshot> = 
     summary: "Signed-in personal workspace for repeat audits.",
     upgradeHint: "Pro unlocks larger batches, longer history, deeper live providers, and report templates.",
     capabilities: [
-      { id: "address-capacity", label: "Address capacity", value: "Standard wallet groups", included: true },
+      { id: "address-capacity", label: "Address capacity", value: "Up to 25 addresses", included: true },
       { id: "history-retention", label: "History", value: "Wallet-scoped replay", included: true },
       { id: "exports", label: "Exports", value: "PDF, Markdown, JSON, CSV", included: true },
       { id: "providers", label: "Live providers", value: "Single configured provider path", included: true },
@@ -59,7 +83,7 @@ export const productPlanCatalog: Record<ProductPlanTier, ProductPlanSnapshot> = 
     summary: "High-capacity investigations with deeper analysis.",
     upgradeHint: "Team adds shared labels, review workflows, and private deployment boundaries.",
     capabilities: [
-      { id: "address-capacity", label: "Address capacity", value: "Large async batches", included: true },
+      { id: "address-capacity", label: "Address capacity", value: "Up to 100 addresses", included: true },
       { id: "history-retention", label: "History", value: "Extended job archive", included: true },
       { id: "exports", label: "Exports", value: "Report templates and evidence packs", included: true },
       { id: "providers", label: "Live providers", value: "Multi-provider fallback", included: true },
@@ -72,7 +96,7 @@ export const productPlanCatalog: Record<ProductPlanTier, ProductPlanSnapshot> = 
     summary: "Collaborative review and deployment control.",
     upgradeHint: "Designed for shared review, managed retention, and audit operations.",
     capabilities: [
-      { id: "address-capacity", label: "Address capacity", value: "Managed team limits", included: true },
+      { id: "address-capacity", label: "Address capacity", value: "Up to 200 addresses", included: true },
       { id: "history-retention", label: "History", value: "Shared retention policy", included: true },
       { id: "exports", label: "Exports", value: "Review-ready report workspace", included: true },
       { id: "providers", label: "Live providers", value: "Managed provider pool", included: true },
@@ -106,6 +130,15 @@ export function formatPlanCapabilitySummary(plan: ProductPlanSnapshot): string {
     .map((capability) => capability.label);
 
   return enabled.length > 0 ? enabled.join(" · ") : "No enabled capabilities";
+}
+
+export function getProductPlanLimits(tier: ProductPlanTier): ProductPlanLimits {
+  return { ...productPlanLimits[tier] };
+}
+
+export function formatAddressCapacityError(tier: ProductPlanTier, requestedCount: number): string {
+  const limits = getProductPlanLimits(tier);
+  return `${productPlanCatalog[tier].name} plan supports up to ${limits.maxAddresses} addresses per analysis; received ${requestedCount}.`;
 }
 
 function clonePlan(plan: ProductPlanSnapshot): ProductPlanSnapshot {

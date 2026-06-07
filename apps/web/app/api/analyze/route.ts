@@ -1,15 +1,23 @@
 import { assertAnonymousAnalysisAllowed } from "./analysis-quota-guard";
 import { startAnalyzeJob } from "./execute-job";
+import {
+  assertAnalyzeRequestCapacity,
+  readAnalyzeRequestBody,
+} from "./request-guard";
 import { parseAnalyzeRequest } from "./schema";
 import { getCurrentHistorySubject } from "../auth/session";
+import { getProductPlanLimits, type ProductPlanTier } from "../../pro-plan";
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const body = (await request.json()) as unknown;
+    const historySubject = await getCurrentHistorySubject();
+    const tier: ProductPlanTier = historySubject.mode === "wallet" ? "free" : "anonymous";
+    const body = await readAnalyzeRequestBody(request, getProductPlanLimits(tier).maxRequestBytes);
     const parsed = parseAnalyzeRequest(
       typeof body === "object" && body !== null ? body : {},
     );
-    const historySubject = await getCurrentHistorySubject();
+
+    assertAnalyzeRequestCapacity(parsed, tier);
 
     if (historySubject.mode === "session") {
       await assertAnonymousAnalysisAllowed(historySubject.subjectId);

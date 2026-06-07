@@ -156,16 +156,18 @@ The workbench now exposes a typed product boundary so capacity, history, export,
 provider, and label behavior can be gated consistently as Wallet Map moves
 toward a professional edition:
 
-- `Anonymous`: session-scoped trial with optional anonymous analysis limits.
-- `Free`: signed-in personal workspace with wallet-scoped history replay.
-- `Pro`: larger async batches, extended history, multi-provider depth, report
-  templates, and private label sets.
-- `Team`: shared review, label governance, managed retention, and deployment
-  controls.
+- `Anonymous`: session-scoped trial with optional anonymous analysis limits,
+  capped at 10 addresses per analysis request.
+- `Free`: signed-in personal workspace with wallet-scoped history replay,
+  capped at 25 addresses per analysis request.
+- `Pro`: larger async batches up to 100 addresses, extended history,
+  multi-provider depth, report templates, and private label sets.
+- `Team`: shared review, label governance, managed retention, deployment
+  controls, and up to 200 addresses per analysis request.
 
 The current UI shows the active plan boundary beside analysis setup. The model
-lives in `apps/web/app/pro-plan.ts` so future API guards, billing hooks, and
-route-level affordances can share the same capability definitions.
+lives in `apps/web/app/pro-plan.ts` and `/api/analyze` enforces the matching
+address-count and request-size limits before creating a job.
 
 ## Project Docs
 
