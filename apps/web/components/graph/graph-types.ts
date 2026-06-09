@@ -4,6 +4,7 @@ export interface GraphExplorerNode {
   address?: string;
   chainId?: number;
   label?: string;
+  shortLabel?: string;
   tags?: string[];
 }
 

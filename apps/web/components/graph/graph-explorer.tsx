@@ -605,6 +605,8 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
     if (!node) {
       return null;
     }
+    const labelTitle = node.label && node.label !== node.shortLabel ? node.label : undefined;
+
     return (
       <div className="graphDetailCard" role="status">
         <div className="graphDetailHeader">
@@ -628,7 +630,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
             {node.label ? (
               <div>
                 <dt>标签</dt>
-                <dd>{node.label}</dd>
+                <dd title={labelTitle}>{node.shortLabel}</dd>
               </div>
             ) : null}
           </dl>

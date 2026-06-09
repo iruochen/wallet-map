@@ -85,7 +85,7 @@ export function resolveNodes(
 
   return nodes.map((node) => {
     const role = resolveNodeRole(node);
-    const fallbackLabel = node.label ?? (node.address ? shortenAddress(node.address) : node.id);
+    const fallbackLabel = resolveNodeDisplayLabel(node);
     return {
       ...node,
       role,
@@ -93,6 +93,18 @@ export function resolveNodes(
       shortLabel: fallbackLabel,
     };
   });
+}
+
+function resolveNodeDisplayLabel(node: GraphExplorerNode): string {
+  if (node.shortLabel) {
+    return node.shortLabel;
+  }
+
+  if (node.address && (!node.label || node.label.toLowerCase() === node.address.toLowerCase())) {
+    return shortenAddress(node.address);
+  }
+
+  return node.label ?? (node.address ? shortenAddress(node.address) : node.id);
 }
 
 export function describeNodeRole(role: ResolvedNode["role"]): string {
