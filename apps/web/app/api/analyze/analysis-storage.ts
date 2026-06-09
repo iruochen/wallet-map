@@ -23,9 +23,14 @@ async function initializeAnalysisStorage() {
     return undefined;
   }
 
-  await ensureStorageMigrations(pool);
-  analysisStorage = createPostgresAnalysisStorage(pool);
-  return analysisStorage;
+  try {
+    await ensureStorageMigrations(pool);
+    analysisStorage = createPostgresAnalysisStorage(pool);
+    return analysisStorage;
+  } catch {
+    analysisStorageReady = undefined;
+    return undefined;
+  }
 }
 
 export function resetAnalysisStorageForTests(): void {

@@ -5,11 +5,12 @@ import { CheckCircle2, LogOut, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount, useDisconnect, useSignMessage } from "wagmi";
+import { readJsonResponse } from "../api/read-json-response";
 import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
 
 export function WalletHeaderControls() {
   const router = useRouter();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, status: walletStatus } = useAccount();
   const { disconnectAsync } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const [isBusy, setIsBusy] = useState(false);
@@ -21,7 +22,7 @@ export function WalletHeaderControls() {
   const loadAuthSession = useCallback(async () => {
     try {
       const response = await fetch("/api/auth/session");
-      const body = (await response.json()) as { authenticated?: boolean; address?: string };
+      const body = await readJsonResponse<{ authenticated?: boolean; address?: string }>(response);
 
       if (body.authenticated && body.address) {
         setAuthenticatedAddress(body.address.toLowerCase());
@@ -53,6 +54,7 @@ export function WalletHeaderControls() {
   const displayAddress = connectedAddress ?? authenticatedAddress ?? undefined;
   const { displayName, ensName } = useWalletDisplayName(displayAddress);
   const hasServerSession = Boolean(authenticatedAddress);
+  const isWalletRestoring = walletStatus === "connecting" || walletStatus === "reconnecting";
   const walletMatchesSession =
     Boolean(connectedAddress) &&
     Boolean(authenticatedAddress) &&
@@ -79,7 +81,7 @@ export function WalletHeaderControls() {
 
       const normalizedAddress = address.toLowerCase();
       const challengeResponse = await fetch("/api/auth/challenge", { method: "POST" });
-      const challenge = (await challengeResponse.json()) as { message?: string; error?: string };
+      const challenge = await readJsonResponse<{ message?: string; error?: string }>(challengeResponse);
 
       if (!challengeResponse.ok || !challenge.message) {
         throw new Error(challenge.error ?? "无法创建登录挑战。");
@@ -91,7 +93,7 @@ export function WalletHeaderControls() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ address, message: challenge.message, signature }),
       });
-      const login = (await loginResponse.json()) as { error?: string };
+      const login = await readJsonResponse<{ error?: string }>(loginResponse);
 
       if (!loginResponse.ok) {
         throw new Error(login.error ?? "钱包登录失败。");
@@ -160,6 +162,10 @@ export function WalletHeaderControls() {
   return (
     <div className="walletHeaderControl">
       {!authLoaded ? (
+        <span className="headerChip walletHeaderLoadingChip" aria-busy="true">
+          加载中
+        </span>
+      ) : hasServerSession && isWalletRestoring ? (
         <span className="headerChip walletHeaderLoadingChip" aria-busy="true">
           加载中
         </span>

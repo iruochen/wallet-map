@@ -19,8 +19,8 @@ import {
   evmAggregateChainId,
   getEvmAggregateChains,
 } from "../../app/chains";
+import { readJsonResponse } from "../api/read-json-response";
 import { AnalysisEvidencePanel } from "./analysis-evidence-panel";
-import { PlanBoundary } from "./plan-boundary";
 import { parseAddressImport, type AddressImportSummary } from "./address-import";
 import {
   describeFindingGroup,
@@ -165,6 +165,10 @@ export function AnalysisWorkbench({
   const submitStatusHint = isRunning
     ? "正在按阶段处理链上数据和标签"
     : "确认配置后生成关系分析任务";
+  const planAddressCapacity = useMemo(
+    () => productPlan.capabilities.find((capability) => capability.id === "address-capacity")?.value,
+    [productPlan],
+  );
   const modeDescription = useMemo(() => {
     if (dataMode === "live") {
       return liveConfigured
@@ -305,7 +309,7 @@ export function AnalysisWorkbench({
 
     try {
       const response = await fetch(`/api/analyze/jobs/${jobId}`);
-      const body = (await response.json()) as AnalysisJobPollResponse | { error?: string };
+      const body = await readJsonResponse<AnalysisJobPollResponse | { error?: string }>(response);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -354,7 +358,7 @@ export function AnalysisWorkbench({
   async function pollAnalyzeJob(jobId: string, signal: AbortSignal): Promise<AnalysisResponse> {
     while (!signal.aborted) {
       const response = await fetch(`/api/analyze/jobs/${jobId}`, { signal });
-      const body = (await response.json()) as AnalysisJobPollResponse | { error?: string };
+      const body = await readJsonResponse<AnalysisJobPollResponse | { error?: string }>(response);
 
       if (!response.ok) {
         throw new Error("error" in body && body.error ? body.error : "Failed to poll analysis job.");
@@ -404,7 +408,7 @@ export function AnalysisWorkbench({
         }),
         signal: controller.signal,
       });
-      const body = (await response.json()) as AnalysisJobStartResponse | { error?: string };
+      const body = await readJsonResponse<AnalysisJobStartResponse | { error?: string }>(response);
 
       if (!response.ok) {
         throw new Error("error" in body && body.error ? body.error : "Analysis failed.");
@@ -608,7 +612,10 @@ export function AnalysisWorkbench({
           </section>
 
           <div className="inputStatusStack">
-            <PlanBoundary plan={productPlan} />
+            <div className="stateBanner stateBannerCompact stateBannerInfo" aria-live="polite">
+              <strong>{productPlan.name} 工作区</strong>
+              <span>{planAddressCapacity ?? productPlan.summary}</span>
+            </div>
             <div
               className={`stateBanner stateBannerCompact ${liveConfigured ? "stateBannerSuccess" : "stateBannerInfo"}`}
               aria-live="polite"

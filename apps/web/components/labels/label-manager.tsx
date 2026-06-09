@@ -2,6 +2,7 @@
 
 import { RefreshCw, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { readJsonResponse } from "../api/read-json-response";
 
 interface KnownLabelRecord {
   id: string;
@@ -87,7 +88,7 @@ export function LabelManager({ initialLabels, initialStorageEnabled }: {
       }
 
       const response = await fetch(`/api/labels?${params.toString()}`);
-      const body = (await response.json()) as LabelResponse;
+      const body = await readJsonResponse<LabelResponse>(response);
 
       if (!response.ok) {
         throw new Error(body.error ?? "Failed to load labels.");
@@ -118,7 +119,7 @@ export function LabelManager({ initialLabels, initialStorageEnabled }: {
           tags: form.tags,
         }),
       });
-      const body = (await response.json()) as LabelResponse & { label?: KnownLabelRecord };
+      const body = await readJsonResponse<LabelResponse & { label?: KnownLabelRecord }>(response);
 
       if (!response.ok) {
         throw new Error(body.error ?? "Failed to save label.");

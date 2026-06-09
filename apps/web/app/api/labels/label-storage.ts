@@ -27,9 +27,14 @@ async function initializeLabelRepository() {
     return undefined;
   }
 
-  await ensureStorageMigrations(pool);
-  labelRepository = createPostgresLabelRepository({ pool });
-  return labelRepository;
+  try {
+    await ensureStorageMigrations(pool);
+    labelRepository = createPostgresLabelRepository({ pool });
+    return labelRepository;
+  } catch {
+    labelRepositoryReady = undefined;
+    return undefined;
+  }
 }
 
 export function resetLabelRepositoryForTests(): void {
