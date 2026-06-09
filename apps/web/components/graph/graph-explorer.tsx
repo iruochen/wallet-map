@@ -176,7 +176,6 @@ export function GraphExplorer({
 
     const cy = cytoscape({
       container: containerRef.current,
-      wheelSensitivity: 0.18,
       minZoom: 0.08,
       maxZoom: 4,
       boxSelectionEnabled: false,

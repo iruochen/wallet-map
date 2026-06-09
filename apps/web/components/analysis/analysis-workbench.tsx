@@ -31,7 +31,6 @@ import {
 import { AnalysisProgress } from "./analysis-progress";
 import {
   downloadAnalysisReport,
-  type ReportDownloadFormat,
 } from "./analysis-report-download";
 import { ExposureScoreDimensions } from "./analysis-score-dimensions";
 import type {
@@ -109,7 +108,6 @@ export function AnalysisWorkbench({
   supportedChains,
   initialAddresses,
   anonymousAnalysisQuota,
-  productPlan,
 }: AnalysisWorkbenchProps) {
   const defaultAddresses = initialAddresses?.trim() ? initialAddresses : sampleAddresses;
   const [addresses, setAddresses] = useState(defaultAddresses);
@@ -165,10 +163,6 @@ export function AnalysisWorkbench({
   const submitStatusHint = isRunning
     ? "正在按阶段处理链上数据和标签"
     : "确认配置后生成关系分析任务";
-  const planAddressCapacity = useMemo(
-    () => productPlan.capabilities.find((capability) => capability.id === "address-capacity")?.value,
-    [productPlan],
-  );
   const modeDescription = useMemo(() => {
     if (dataMode === "live") {
       return liveConfigured
@@ -452,12 +446,12 @@ export function AnalysisWorkbench({
     }
   }
 
-  async function downloadReport(format: ReportDownloadFormat) {
+  async function downloadReport() {
     if (!result) {
       return;
     }
 
-    await downloadAnalysisReport(result, format);
+    await downloadAnalysisReport(result, "pdf");
   }
 
   function handleInputScroll() {
@@ -612,10 +606,6 @@ export function AnalysisWorkbench({
           </section>
 
           <div className="inputStatusStack">
-            <div className="stateBanner stateBannerCompact stateBannerInfo" aria-live="polite">
-              <strong>{productPlan.name} 工作区</strong>
-              <span>{planAddressCapacity ?? productPlan.summary}</span>
-            </div>
             <div
               className={`stateBanner stateBannerCompact ${liveConfigured ? "stateBannerSuccess" : "stateBannerInfo"}`}
               aria-live="polite"
@@ -758,34 +748,10 @@ export function AnalysisWorkbench({
                 <button
                   type="button"
                   className="secondaryButton reportButtonInline"
-                  onClick={() => void downloadReport("pdf")}
+                  onClick={() => void downloadReport()}
                 >
                   <FileText size={15} strokeWidth={2.1} />
                   PDF
-                </button>
-                <button
-                  type="button"
-                  className="secondaryButton reportButtonInline"
-                  onClick={() => void downloadReport("markdown")}
-                >
-                  <FileText size={15} strokeWidth={2.1} />
-                  Markdown
-                </button>
-                <button
-                  type="button"
-                  className="secondaryButton reportButtonInline"
-                  onClick={() => void downloadReport("json")}
-                >
-                  <FileText size={15} strokeWidth={2.1} />
-                  JSON
-                </button>
-                <button
-                  type="button"
-                  className="secondaryButton reportButtonInline"
-                  onClick={() => void downloadReport("csv")}
-                >
-                  <FileText size={15} strokeWidth={2.1} />
-                  CSV
                 </button>
                 <span className="statusPill statusSuccess">Complete</span>
               </div>

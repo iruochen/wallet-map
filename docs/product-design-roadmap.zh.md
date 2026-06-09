@@ -307,7 +307,7 @@ interface SybilExposureScore {
 - [x] 为 `/api/analyze` 增加请求大小限制、地址数量限制、错误分层（已落地 tier-based request guard）。
 - [x] 为 live mode 增加并发控制和 provider 超时（地址级并发限制 + `ANALYZE_LIVE_PROVIDER_TIMEOUT_MS`）。
 - [x] 将 graph view model 从 API response 中稳定下来（新增 `graphView` v1.0，前端图谱优先消费该字段，旧 `graph` 保留兼容导出/历史结果）。
-- 补充 public demo fixture。
+- [x] 补充 public demo fixture（`fixtures/sample-events.json` 现在是合成公开演示集，覆盖 direct transfer、shared funding、shared withdrawal、same contract、multi-hop、temporal pattern、bridge correlation，且不依赖任何私密配置）。
 - 完善 CI：typecheck、test、lint、build。
 
 ### 7.2 阶段 B：数据源替换与缓存

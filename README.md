@@ -106,13 +106,18 @@ and `normalized-event-asset` labels fill in token symbols from analyzed events.
 
 ## MVP Flow
 
-The current MVP runs in fixture mode:
+The current MVP can run fully in fixture mode without private configuration:
 
 - Open the workbench with `pnpm dev`.
 - Use the sample wallet addresses on the homepage.
 - Submit the analysis form.
 - The app calls `/api/analyze`, builds a relationship graph, runs the default analyzers, and returns findings with evidence.
 - Address import accepts `.txt`, `.csv`, and `.tsv` files, deduplicates EVM addresses, and reports invalid rows before analysis.
+
+`fixtures/sample-events.json` is a synthetic public demo dataset. It intentionally
+uses placeholder addresses and covers direct transfers, shared funding,
+shared withdrawal destinations, same-contract interactions, multi-hop transfer
+paths, temporal patterns, and bridge correlation signals.
 
 Data source modes:
 

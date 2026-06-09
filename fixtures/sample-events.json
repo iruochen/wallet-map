@@ -1,27 +1,11 @@
 [
   {
-    "id": "eth:0x111:0",
+    "id": "demo:eth:funding:a:0",
     "type": "native_transfer",
     "chainId": 1,
     "txHash": "0x1111111111111111111111111111111111111111111111111111111111111111",
     "blockNumber": 19000000,
     "timestamp": "2024-01-01T00:00:00.000Z",
-    "from": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "to": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "asset": {
-      "kind": "native",
-      "chainId": 1,
-      "symbol": "ETH"
-    },
-    "amount": "10000000000000000"
-  },
-  {
-    "id": "eth:0x222:0",
-    "type": "native_transfer",
-    "chainId": 1,
-    "txHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
-    "blockNumber": 19000012,
-    "timestamp": "2024-01-01T00:03:00.000Z",
     "from": "0xcccccccccccccccccccccccccccccccccccccccc",
     "to": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "asset": {
@@ -32,12 +16,12 @@
     "amount": "25000000000000000"
   },
   {
-    "id": "eth:0x333:0",
+    "id": "demo:eth:funding:b:0",
     "type": "native_transfer",
     "chainId": 1,
-    "txHash": "0x3333333333333333333333333333333333333333333333333333333333333333",
-    "blockNumber": 19000025,
-    "timestamp": "2024-01-01T00:06:00.000Z",
+    "txHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+    "blockNumber": 19000012,
+    "timestamp": "2024-01-01T00:03:00.000Z",
     "from": "0xcccccccccccccccccccccccccccccccccccccccc",
     "to": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "asset": {
@@ -48,78 +32,260 @@
     "amount": "24000000000000000"
   },
   {
-    "id": "eth:0x444:0",
-    "type": "token_transfer",
+    "id": "demo:eth:funding:d:0",
+    "type": "native_transfer",
     "chainId": 1,
-    "txHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
-    "blockNumber": 19000100,
-    "timestamp": "2024-01-01T00:20:00.000Z",
-    "from": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "txHash": "0x3333333333333333333333333333333333333333333333333333333333333333",
+    "blockNumber": 19000024,
+    "timestamp": "2024-01-01T00:06:00.000Z",
+    "from": "0xcccccccccccccccccccccccccccccccccccccccc",
     "to": "0xdddddddddddddddddddddddddddddddddddddddd",
-    "contract": "0xffffffffffffffffffffffffffffffffffffffff",
     "asset": {
-      "kind": "erc20",
+      "kind": "native",
       "chainId": 1,
-      "symbol": "USDC",
-      "contract": "0xffffffffffffffffffffffffffffffffffffffff"
+      "symbol": "ETH"
     },
-    "amount": "15000000",
-    "metadata": {
-      "tokenDecimal": "6"
-    }
+    "amount": "24500000000000000"
   },
   {
-    "id": "eth:0x555:0",
+    "id": "demo:eth:direct:a-b:0",
+    "type": "native_transfer",
+    "chainId": 1,
+    "txHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
+    "blockNumber": 19000060,
+    "timestamp": "2024-01-01T00:15:00.000Z",
+    "from": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "to": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "asset": {
+      "kind": "native",
+      "chainId": 1,
+      "symbol": "ETH"
+    },
+    "amount": "10000000000000000"
+  },
+  {
+    "id": "demo:eth:path:a-f:0",
     "type": "token_transfer",
     "chainId": 1,
     "txHash": "0x5555555555555555555555555555555555555555555555555555555555555555",
-    "blockNumber": 19000110,
-    "timestamp": "2024-01-01T00:23:00.000Z",
-    "from": "0xdddddddddddddddddddddddddddddddddddddddd",
-    "to": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-    "contract": "0xffffffffffffffffffffffffffffffffffffffff",
+    "blockNumber": 19000100,
+    "timestamp": "2024-01-01T00:25:00.000Z",
+    "from": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "to": "0xffffffffffffffffffffffffffffffffffffffff",
+    "contract": "0x8888888888888888888888888888888888888888",
     "asset": {
       "kind": "erc20",
       "chainId": 1,
       "symbol": "USDC",
-      "contract": "0xffffffffffffffffffffffffffffffffffffffff"
+      "contract": "0x8888888888888888888888888888888888888888"
     },
-    "amount": "14950000",
+    "amount": "12000000",
     "metadata": {
       "tokenDecimal": "6"
     }
   },
   {
-    "id": "eth:0x666:0",
-    "type": "contract_call",
+    "id": "demo:eth:path:f-b:0",
+    "type": "token_transfer",
     "chainId": 1,
     "txHash": "0x6666666666666666666666666666666666666666666666666666666666666666",
+    "blockNumber": 19000108,
+    "timestamp": "2024-01-01T00:27:00.000Z",
+    "from": "0xffffffffffffffffffffffffffffffffffffffff",
+    "to": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "contract": "0x8888888888888888888888888888888888888888",
+    "asset": {
+      "kind": "erc20",
+      "chainId": 1,
+      "symbol": "USDC",
+      "contract": "0x8888888888888888888888888888888888888888"
+    },
+    "amount": "11950000",
+    "metadata": {
+      "tokenDecimal": "6"
+    }
+  },
+  {
+    "id": "demo:eth:path:d-f:0",
+    "type": "token_transfer",
+    "chainId": 1,
+    "txHash": "0x7777777777777777777777777777777777777777777777777777777777777777",
+    "blockNumber": 19000116,
+    "timestamp": "2024-01-01T00:29:00.000Z",
+    "from": "0xdddddddddddddddddddddddddddddddddddddddd",
+    "to": "0xffffffffffffffffffffffffffffffffffffffff",
+    "contract": "0x8888888888888888888888888888888888888888",
+    "asset": {
+      "kind": "erc20",
+      "chainId": 1,
+      "symbol": "USDC",
+      "contract": "0x8888888888888888888888888888888888888888"
+    },
+    "amount": "8000000",
+    "metadata": {
+      "tokenDecimal": "6"
+    }
+  },
+  {
+    "id": "demo:eth:withdrawal:a:0",
+    "type": "token_transfer",
+    "chainId": 1,
+    "txHash": "0x8888888888888888888888888888888888888888888888888888888888888888",
     "blockNumber": 19000200,
-    "timestamp": "2024-01-01T01:00:00.000Z",
+    "timestamp": "2024-01-01T00:45:00.000Z",
+    "from": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "to": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "contract": "0x8888888888888888888888888888888888888888",
+    "asset": {
+      "kind": "erc20",
+      "chainId": 1,
+      "symbol": "USDC",
+      "contract": "0x8888888888888888888888888888888888888888"
+    },
+    "amount": "5000000",
+    "metadata": {
+      "tokenDecimal": "6"
+    }
+  },
+  {
+    "id": "demo:eth:withdrawal:b:0",
+    "type": "token_transfer",
+    "chainId": 1,
+    "txHash": "0x9999999999999999999999999999999999999999999999999999999999999999",
+    "blockNumber": 19000208,
+    "timestamp": "2024-01-01T00:47:00.000Z",
+    "from": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "to": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "contract": "0x8888888888888888888888888888888888888888",
+    "asset": {
+      "kind": "erc20",
+      "chainId": 1,
+      "symbol": "USDC",
+      "contract": "0x8888888888888888888888888888888888888888"
+    },
+    "amount": "5000000",
+    "metadata": {
+      "tokenDecimal": "6"
+    }
+  },
+  {
+    "id": "demo:eth:withdrawal:d:0",
+    "type": "token_transfer",
+    "chainId": 1,
+    "txHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "blockNumber": 19000216,
+    "timestamp": "2024-01-01T00:49:00.000Z",
+    "from": "0xdddddddddddddddddddddddddddddddddddddddd",
+    "to": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "contract": "0x8888888888888888888888888888888888888888",
+    "asset": {
+      "kind": "erc20",
+      "chainId": 1,
+      "symbol": "USDC",
+      "contract": "0x8888888888888888888888888888888888888888"
+    },
+    "amount": "5000000",
+    "metadata": {
+      "tokenDecimal": "6"
+    }
+  },
+  {
+    "id": "demo:eth:contract:a:0",
+    "type": "contract_call",
+    "chainId": 1,
+    "txHash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "blockNumber": 19000300,
+    "timestamp": "2024-01-01T01:10:00.000Z",
     "from": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "contract": "0x9999999999999999999999999999999999999999",
     "methodId": "0xa9059cbb"
   },
   {
-    "id": "eth:0x777:0",
+    "id": "demo:eth:contract:b:0",
     "type": "contract_call",
     "chainId": 1,
-    "txHash": "0x7777777777777777777777777777777777777777777777777777777777777777",
-    "blockNumber": 19000208,
-    "timestamp": "2024-01-01T01:02:00.000Z",
+    "txHash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "blockNumber": 19000308,
+    "timestamp": "2024-01-01T01:12:00.000Z",
     "from": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "contract": "0x9999999999999999999999999999999999999999",
     "methodId": "0xa9059cbb"
   },
   {
-    "id": "eth:0x888:0",
+    "id": "demo:eth:contract:d:0",
     "type": "contract_call",
     "chainId": 1,
-    "txHash": "0x8888888888888888888888888888888888888888888888888888888888888888",
-    "blockNumber": 19000216,
-    "timestamp": "2024-01-01T01:05:00.000Z",
+    "txHash": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "blockNumber": 19000316,
+    "timestamp": "2024-01-01T01:14:00.000Z",
     "from": "0xdddddddddddddddddddddddddddddddddddddddd",
     "contract": "0x9999999999999999999999999999999999999999",
     "methodId": "0xa9059cbb"
+  },
+  {
+    "id": "demo:eth:bridge:a:0",
+    "type": "bridge",
+    "chainId": 1,
+    "txHash": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "blockNumber": 19000400,
+    "timestamp": "2024-01-01T01:30:00.000Z",
+    "from": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "contract": "0x7777777777777777777777777777777777777777",
+    "asset": {
+      "kind": "erc20",
+      "chainId": 1,
+      "symbol": "USDC",
+      "contract": "0x8888888888888888888888888888888888888888"
+    },
+    "amount": "10000000",
+    "metadata": {
+      "destinationChainId": 42161,
+      "protocol": "demo-bridge",
+      "tokenDecimal": "6"
+    }
+  },
+  {
+    "id": "demo:eth:bridge:b:0",
+    "type": "bridge",
+    "chainId": 1,
+    "txHash": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "blockNumber": 19000412,
+    "timestamp": "2024-01-01T01:33:00.000Z",
+    "from": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "contract": "0x7777777777777777777777777777777777777777",
+    "asset": {
+      "kind": "erc20",
+      "chainId": 1,
+      "symbol": "USDC",
+      "contract": "0x8888888888888888888888888888888888888888"
+    },
+    "amount": "10020000",
+    "metadata": {
+      "destinationChainId": 42161,
+      "protocol": "demo-bridge",
+      "tokenDecimal": "6"
+    }
+  },
+  {
+    "id": "demo:eth:bridge:d:0",
+    "type": "bridge",
+    "chainId": 1,
+    "txHash": "0x1212121212121212121212121212121212121212121212121212121212121212",
+    "blockNumber": 19000424,
+    "timestamp": "2024-01-01T01:36:00.000Z",
+    "from": "0xdddddddddddddddddddddddddddddddddddddddd",
+    "contract": "0x7777777777777777777777777777777777777777",
+    "asset": {
+      "kind": "erc20",
+      "chainId": 1,
+      "symbol": "USDC",
+      "contract": "0x8888888888888888888888888888888888888888"
+    },
+    "amount": "9900000",
+    "metadata": {
+      "destinationChainId": 42161,
+      "protocol": "demo-bridge",
+      "tokenDecimal": "6"
+    }
   }
 ]

@@ -12,6 +12,7 @@ describe("executeAnalyzeJob", () => {
       addresses: [
         "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "0xdddddddddddddddddddddddddddddddddddddddd",
       ],
       chainId: 1,
       chainIds: [1],
@@ -35,8 +36,12 @@ describe("executeAnalyzeJob", () => {
               edgeCount: number;
             };
           };
+          findings?: Array<{
+            analyzerId: string;
+          }>;
         }
       | undefined;
+    const analyzerIds = Array.from(new Set(result?.findings?.map((finding) => finding.analyzerId)));
 
     expect(job?.status).toBe("completed");
     expect(job?.progress.completedPhases).toEqual(["fetch", "graph", "labels", "analysis"]);
@@ -49,5 +54,14 @@ describe("executeAnalyzeJob", () => {
         edgeCount: result?.graph?.totalEdges,
       },
     });
+    expect(analyzerIds).toEqual(expect.arrayContaining([
+      "direct-transfer",
+      "shared-funding-source",
+      "shared-withdrawal-destination",
+      "same-contract-interaction",
+      "multi-hop-path",
+      "temporal-pattern",
+      "bridge-correlation",
+    ]));
   });
 });

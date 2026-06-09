@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default async function LabelsPage() {
   const repository = await getLabelRepository();
   const labels = repository
-    ? await repository.listKnownLabels({ limit: 100 }).catch(() => [])
+    ? await repository.listKnownLabels({ chainId: 1, limit: 100 }).catch(() => [])
     : [];
 
   return (
