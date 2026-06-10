@@ -34,6 +34,11 @@ Before committing, pushing, creating a repository, or deploying this project, al
 - Configure production secrets through the deployment provider environment variable UI or CLI, not through committed files.
 - Keep the app deployable without local-only defaults; production should receive keys from Vercel environment variables.
 
+## Implementation Choices
+
+- Before building complex capabilities from scratch, such as PDF export, report generation, chart rendering, file parsing, authentication flows, or data visualization, first check whether the project already has a suitable dependency or whether a mature package or established approach fits the need.
+- Prefer integrating well-maintained libraries and proven patterns when they reduce risk, improve compatibility, or avoid bespoke logic. Build custom code only when existing options do not meet the project requirements, licensing, security, bundle-size, or user-experience constraints.
+
 ## Module Boundaries and File Size
 
 - Keep UI files focused. If a React component grows past roughly 350 lines, split pure types, formatting helpers, data shaping, subcomponents, and styles into nearby modules before adding more behavior.
