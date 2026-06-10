@@ -688,9 +688,10 @@ button:disabled {
   display: flex;
   flex: 1;
   flex-direction: column;
+  height: calc(100vh - var(--header-height));
   min-height: 0;
   overflow: hidden;
-  padding: 14px var(--page-gutter) 16px;
+  padding: 12px var(--page-gutter);
 }
 
 .historyPanel {
@@ -701,7 +702,7 @@ button:disabled {
   max-width: 1180px;
   min-height: 0;
   margin: 0 auto;
-  padding: 18px 18px 16px;
+  padding: 14px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background:
@@ -725,7 +726,7 @@ button:disabled {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   min-height: 0;
 }
 
@@ -747,7 +748,7 @@ button:disabled {
   gap: 10px 14px;
   align-items: center;
   margin-bottom: 0;
-  padding: 12px;
+  padding: 10px 12px;
   border: 1px solid #dfe7df;
   border-radius: 10px;
   background: #fbfcfa;
@@ -755,9 +756,9 @@ button:disabled {
 
 .historyTableScroll {
   flex: 1;
-  min-height: clamp(360px, calc(100vh - var(--header-height) - 250px), 640px);
+  min-height: 0;
   overflow: hidden auto;
-  padding-bottom: 6px;
+  padding-bottom: 0;
   overscroll-behavior: contain;
   scrollbar-gutter: stable both-edges;
 }
@@ -855,10 +856,10 @@ button:disabled {
 
 .historyFilterBar {
   display: grid;
-  grid-template-columns: minmax(130px, 160px) minmax(220px, 1fr) minmax(88px, 110px) auto;
+  grid-template-columns: minmax(130px, 160px) minmax(220px, 1fr) minmax(88px, 110px);
   gap: 10px;
   align-items: end;
-  padding: 12px;
+  padding: 10px 12px;
   border: 1px solid #e3ebe3;
   border-radius: 10px;
   background: #ffffff;
@@ -910,6 +911,9 @@ button:disabled {
 }
 
 .historyTableFooter {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   padding: 12px 14px;
   border-top: 1px solid #e7ece4;
   background: #fbfdfb;
@@ -977,14 +981,13 @@ button:disabled {
    ============================================================ */
 
 .labelPage.historyPage {
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
 }
 
 .labelPage .historyPanel {
-  flex: 0 0 auto;
-  min-height: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .labelPagePanel {
@@ -993,19 +996,26 @@ button:disabled {
 
 .labelPageBody {
   display: flex;
+  flex: 1;
   flex-direction: column;
+  min-height: 0;
   min-width: 0;
 }
 
 .labelManager {
+  display: flex;
+  flex: 1;
+  min-height: 0;
   min-width: 0;
 }
 
 .labelWorkspace {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px;
+  gap: 10px;
+  min-height: 0;
+  padding: 14px;
   border: 1px solid #dfe7df;
   border-radius: 14px;
   background:
@@ -1018,6 +1028,7 @@ button:disabled {
 
 .labelWorkspaceTop {
   display: flex;
+  flex-shrink: 0;
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
@@ -1026,13 +1037,6 @@ button:disabled {
 .labelWorkspaceIntro h2 {
   margin: 0;
   font-size: 1.05rem;
-}
-
-.labelWorkspaceIntro p {
-  margin: 6px 0 0;
-  color: #64736a;
-  font-size: 0.82rem;
-  line-height: 1.5;
 }
 
 .labelWorkspaceActions {
@@ -1091,6 +1095,7 @@ button:disabled {
 
 .labelMetricStrip {
   display: flex;
+  flex-shrink: 0;
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -1144,10 +1149,11 @@ button:disabled {
 
 .labelFilterBar {
   display: grid;
+  flex-shrink: 0;
   grid-template-columns: minmax(140px, 180px) minmax(140px, 180px) minmax(0, 1fr) auto;
   gap: 10px;
   align-items: end;
-  padding: 12px;
+  padding: 10px 12px;
   border: 1px solid #e5ece3;
   border-radius: 12px;
   background: #ffffff;
@@ -1222,16 +1228,19 @@ button:disabled {
 
 .labelListPanel {
   position: relative;
+  flex: 1;
+  min-height: 0;
   min-width: 0;
 }
 
 .labelResultBar {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 10px 12px;
+  padding: 8px 12px;
   border: 1px solid #e5ece3;
   border-radius: 12px;
   background: #ffffff;
@@ -1267,8 +1276,10 @@ button:disabled {
 
 .labelRecordList {
   position: relative;
+  height: 100%;
+  min-height: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
   border: 1px solid #dfe7df;
   border-radius: 12px;
   background: #ffffff;
@@ -1295,6 +1306,9 @@ button:disabled {
 }
 
 .labelRecordHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: grid;
   grid-template-columns: minmax(150px, 1.05fr) 150px 64px 96px minmax(220px, 1.45fr) 70px;
   gap: 12px;
@@ -1482,6 +1496,7 @@ button:disabled {
 
 .labelListFooter {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   gap: 12px;

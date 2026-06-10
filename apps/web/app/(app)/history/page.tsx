@@ -7,13 +7,6 @@ export default async function HistoryPage() {
   return (
     <div className="historyPage">
       <section className="historyPanel">
-        <div className="historyPanelHeader">
-          <div>
-            <span className="panelEyebrow">Analysis history</span>
-            <h1>历史分析</h1>
-            <p>登录钱包后查看持久化记录；未登录时显示本次会话历史。</p>
-          </div>
-        </div>
         <HistoryJobList
           initialHistoryMode={walletSession ? "wallet" : "session"}
           initialWalletAddress={walletSession?.address}

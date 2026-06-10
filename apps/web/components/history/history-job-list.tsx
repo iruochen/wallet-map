@@ -315,16 +315,6 @@ export function HistoryJobList({
             ))}
           </select>
         </label>
-        <HistoryPagination
-          page={page}
-          totalPages={totalPages}
-          disabled={isRefreshing || isListLoading}
-          onPrevious={() => setPage((current) => Math.max(1, current - 1))}
-          onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
-        />
-      </div>
-      <div className="historyResultBar">
-        <span>{total === 0 ? "暂无匹配记录" : `第 ${rangeStart}-${rangeEnd} 条，共 ${total} 条`}</span>
       </div>
       {syncMessage ? (
         <div className="stateBanner stateBannerSuccess historySyncBanner" role="status">

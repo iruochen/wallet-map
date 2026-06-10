@@ -12,13 +12,6 @@ export default async function LabelsPage() {
   return (
     <div className="historyPage labelPage">
       <section className="historyPanel labelPagePanel">
-        <div className="historyPanelHeader">
-          <div>
-            <span className="panelEyebrow">标签运营</span>
-            <h1>本地标签库</h1>
-            <p>查看分析沉淀的地址标签，并通过弹窗快速维护团队本地标签。</p>
-          </div>
-        </div>
         <div className="labelPageBody">
           <LabelManager
             initialLabels={initialList?.items ?? []}

@@ -186,7 +186,6 @@ export function LabelManager({
           <div className="labelWorkspaceTop">
             <div className="labelWorkspaceIntro">
               <h2 id="label-list-title">标签库</h2>
-              <p>浏览分析写入的已知标签，管理团队自定义地址标签。</p>
             </div>
 
             <div className="labelWorkspaceActions">
@@ -337,23 +336,11 @@ export function LabelManager({
             />
           </div>
 
-          <div className="labelListFooter">
-            <span>
-              {total === 0 ? "暂无记录" : `第 ${rangeStart}-${rangeEnd} 条，共 ${total} 条`}
-            </span>
-
-            <div className="labelPagination">
-              <LabelPaginationControls
-                page={page}
-                totalPages={totalPages}
-                isLoading={isLoading}
-                onPrevious={() => setPage((current) => Math.max(1, current - 1))}
-                onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
-              />
+          {error ? (
+            <div className="labelListFooter">
+              <span className="labelError">{error}</span>
             </div>
-
-            {error ? <span className="labelError">{error}</span> : null}
-          </div>
+          ) : null}
         </section>
       </div>
 
