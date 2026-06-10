@@ -11,12 +11,16 @@ export interface HistoryJobItem {
     confidence: string;
   };
   createdAt: string;
+  startedAt?: string;
   completedAt?: string;
   errorMessage?: string;
 }
 
 export interface HistoryResponse {
   jobs?: HistoryJobItem[];
+  total?: number;
+  limit?: number;
+  offset?: number;
   storageEnabled?: boolean;
   historyMode?: "wallet" | "session";
   walletAddress?: string;

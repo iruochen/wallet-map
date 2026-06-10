@@ -321,6 +321,7 @@ export function AnalysisWorkbench({
 
       const poll = body as AnalysisJobPollResponse;
       setJobProgress(poll.progress);
+      setAnalysisStartedAt(resolveAnalysisStartedAt(poll, analysisStartedAt));
 
       if (poll.status === "completed" && poll.result) {
         rememberActiveAnalysisJob(jobId);
@@ -363,6 +364,7 @@ export function AnalysisWorkbench({
 
       const poll = body as AnalysisJobPollResponse;
       setJobProgress(poll.progress);
+      setAnalysisStartedAt(resolveAnalysisStartedAt(poll, analysisStartedAt));
 
       if (poll.status === "completed" && poll.result) {
         return poll.result;
@@ -1014,4 +1016,19 @@ export function AnalysisWorkbench({
       </aside>
     </section>
   );
+}
+
+function resolveAnalysisStartedAt(
+  poll: Pick<AnalysisJobPollResponse, "startedAt" | "createdAt">,
+  fallback: number | null,
+): number | null {
+  const timestamp = poll.startedAt ?? poll.createdAt;
+
+  if (!timestamp) {
+    return fallback;
+  }
+
+  const parsed = Date.parse(timestamp);
+
+  return Number.isFinite(parsed) ? parsed : fallback;
 }

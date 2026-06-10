@@ -99,6 +99,16 @@ export interface KnownLabelListResult {
   stats: KnownLabelListStats;
 }
 
+export type AnalysisJobStatusFilter = AnalysisJobStatus | "all";
+
+export interface AnalysisJobListInput {
+  limit?: number;
+  offset?: number;
+  subjectId?: string;
+  status?: AnalysisJobStatusFilter;
+  query?: string;
+}
+
 export interface AnalysisJobRepository {
   create(input: CreateAnalysisJobInput): Promise<AnalysisJobRecord>;
   findById(jobId: string): Promise<AnalysisJobRecord | undefined>;

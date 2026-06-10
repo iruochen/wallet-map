@@ -29,7 +29,8 @@ export interface LabelResponse {
   error?: string;
 }
 
-export const labelPageSize = 20;
+export const defaultLabelPageSize = 20;
+export const labelPageSizeOptions = [10, 20, 50] as const;
 
 export type ListChainFilter = "all" | number;
 export type SourceFilter = "all" | "local-labels" | "discovered";

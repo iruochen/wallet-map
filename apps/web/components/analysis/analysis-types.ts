@@ -217,6 +217,8 @@ export interface AnalysisJobPollResponse {
   status: "pending" | "running" | "completed" | "failed";
   progress: AnalysisJobProgress;
   percent: number;
+  createdAt?: string;
+  startedAt?: string;
   error?: string;
   result?: AnalysisResponse;
 }

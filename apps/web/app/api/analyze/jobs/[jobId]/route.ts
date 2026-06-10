@@ -26,6 +26,8 @@ export async function GET(
       status: redisJob.status,
       progress: redisJob.progress,
       percent: getProgressPercent(redisJob.progress),
+      createdAt: redisJob.createdAt,
+      startedAt: redisJob.startedAt ?? redisJob.createdAt,
       error: redisJob.error,
       result: redisJob.status === "completed" ? redisJob.result : undefined,
     });
@@ -36,6 +38,8 @@ export async function GET(
     status: persistedJob!.status,
     progress: persistedJob!.progress ?? { phase: null, completedPhases: [] },
     percent: getProgressPercent(persistedJob!.progress ?? null),
+    createdAt: persistedJob!.createdAt,
+    startedAt: persistedJob!.startedAt ?? persistedJob!.createdAt,
     error: persistedJob!.errorMessage,
     result: persistedJob!.status === "completed" ? persistedJob!.resultSnapshot : undefined,
   });

@@ -853,6 +853,96 @@ button:disabled {
   gap: 8px;
 }
 
+.historyFilterBar {
+  display: grid;
+  grid-template-columns: minmax(130px, 160px) minmax(220px, 1fr) minmax(88px, 110px) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid #e3ebe3;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.historyFilterField {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #4c5b51;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.historyFilterField input,
+.historyFilterField select {
+  width: 100%;
+  min-height: 34px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid #cbd8cd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.historyFilterField input:focus,
+.historyFilterField select:focus {
+  border-color: #87aa90;
+  box-shadow: 0 0 0 3px rgba(31, 107, 61, 0.1);
+}
+
+.historyResultBar,
+.historyTableFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #64736a;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.historyResultBar {
+  padding: 0 2px;
+}
+
+.historyTableFooter {
+  padding: 12px 14px;
+  border-top: 1px solid #e7ece4;
+  background: #fbfdfb;
+}
+
+.historyPagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.historyPaginationButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid #ccd8cd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #355242;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.historyPaginationButton:disabled {
+  cursor: default;
+  opacity: 0.42;
+  background: #f7faf6;
+  color: #9aa89e;
+}
+
 .historyIconButton,
 .historyAuthButton {
   min-height: 34px;
@@ -1148,6 +1238,31 @@ button:disabled {
   color: #64736a;
   font-size: 0.76rem;
   font-weight: 700;
+}
+
+.labelResultActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.labelPageSizeControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64736a;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.labelPageSizeControl .labelFieldInput {
+  width: 72px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 0.76rem;
 }
 
 .labelRecordList {
@@ -4869,6 +4984,16 @@ code {
   .historyToolbarActions {
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .historyFilterBar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .historyResultBar,
+  .historyTableFooter {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .historyAuthButton {

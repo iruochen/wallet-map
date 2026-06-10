@@ -9,7 +9,8 @@ import { LabelFormDialog } from "./label-form-dialog";
 import { LabelRecordList } from "./label-record-list";
 import {
   emptyLabelForm,
-  labelPageSize,
+  defaultLabelPageSize,
+  labelPageSizeOptions,
   type KnownLabelRecord,
   type LabelFormState,
   type LabelListStats,
@@ -37,6 +38,7 @@ export function LabelManager({
   const [query, setQuery] = useState("");
   const [listChainFilter, setListChainFilter] = useState<ListChainFilter>("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [pageSize, setPageSize] = useState(defaultLabelPageSize);
   const [formChainId, setFormChainId] = useState(1);
   const [form, setForm] = useState<LabelFormState>(emptyLabelForm);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -46,9 +48,9 @@ export function LabelManager({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const totalPages = Math.max(1, Math.ceil(total / labelPageSize));
-  const rangeStart = total === 0 ? 0 : (page - 1) * labelPageSize + 1;
-  const rangeEnd = total === 0 ? 0 : Math.min(page * labelPageSize, total);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = total === 0 ? 0 : Math.min(page * pageSize, total);
 
   const loadLabels = useCallback(async () => {
     setIsLoading(true);
@@ -56,8 +58,8 @@ export function LabelManager({
 
     try {
       const params = new URLSearchParams({
-        limit: String(labelPageSize),
-        offset: String((page - 1) * labelPageSize),
+        limit: String(pageSize),
+        offset: String((page - 1) * pageSize),
         sourceMode: sourceFilter,
       });
 
@@ -85,7 +87,7 @@ export function LabelManager({
     } finally {
       setIsLoading(false);
     }
-  }, [listChainFilter, page, query, sourceFilter]);
+  }, [listChainFilter, page, pageSize, query, sourceFilter]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -297,13 +299,33 @@ export function LabelManager({
             <span>
               {total === 0 ? "暂无记录" : `第 ${rangeStart}-${rangeEnd} 条，共 ${total} 条`}
             </span>
-            <LabelPaginationControls
-              page={page}
-              totalPages={totalPages}
-              isLoading={isLoading}
-              onPrevious={() => setPage((current) => Math.max(1, current - 1))}
-              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
-            />
+            <div className="labelResultActions">
+              <label className="labelPageSizeControl">
+                <span>每页</span>
+                <select
+                  className="labelFieldInput"
+                  value={pageSize}
+                  disabled={isLoading}
+                  onChange={(event) => {
+                    setPage(1);
+                    setPageSize(Number(event.target.value));
+                  }}
+                >
+                  {labelPageSizeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <LabelPaginationControls
+                page={page}
+                totalPages={totalPages}
+                isLoading={isLoading}
+                onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+                onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+              />
+            </div>
           </div>
 
           <div className="labelListPanel">

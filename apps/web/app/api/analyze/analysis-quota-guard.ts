@@ -18,7 +18,7 @@ export async function assertAnonymousAnalysisAllowed(subjectId: string): Promise
     return;
   }
 
-  const used = await storage.countJobs(subjectId);
+  const used = await storage.countJobs({ subjectId });
 
   if (used >= limit) {
     throw new Error(formatAnonymousQuotaError(limit));
@@ -41,6 +41,6 @@ export async function readAnonymousAnalysisQuota(
     return buildAnonymousQuota(0, limit);
   }
 
-  const used = await storage.countJobs(subjectId);
+  const used = await storage.countJobs({ subjectId });
   return buildAnonymousQuota(used, limit);
 }

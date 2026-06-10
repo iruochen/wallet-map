@@ -8,7 +8,7 @@ import type {
   RelationshipScore,
 } from "@wallet-map/core";
 import type { Address, ChainId } from "@wallet-map/core";
-import type { AnalysisJobStatus } from "./index";
+import type { AnalysisJobListInput, AnalysisJobStatus } from "./index";
 
 export interface AnalysisJobProgressSnapshot {
   phase: "fetch" | "graph" | "labels" | "analysis" | null;
@@ -35,6 +35,7 @@ export interface AnalysisJobListItem {
   eventCount?: number;
   score?: RelationshipScore;
   createdAt: string;
+  startedAt?: string;
   completedAt?: string;
   errorMessage?: string;
 }
@@ -58,11 +59,13 @@ export interface PostgresAnalysisStorage {
   getJobRecord(jobId: string, subjectId?: string): Promise<{
     status: AnalysisJobStatus;
     progress?: AnalysisJobProgressSnapshot;
+    createdAt?: string;
+    startedAt?: string;
     errorMessage?: string;
     resultSnapshot?: unknown;
   } | undefined>;
-  listJobs(limit?: number, subjectId?: string): Promise<AnalysisJobListItem[]>;
-  countJobs(subjectId?: string): Promise<number>;
+  listJobs(input?: AnalysisJobListInput): Promise<AnalysisJobListItem[]>;
+  countJobs(input?: Pick<AnalysisJobListInput, "subjectId" | "status" | "query">): Promise<number>;
   migrateSubjectJobs(fromSubjectId: string, toSubjectId: string): Promise<number>;
   deleteJob(jobId: string, subjectId: string): Promise<boolean>;
 }
@@ -310,11 +313,13 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
     const result = await pool.query<{
       status: AnalysisJobStatus;
       progress: AnalysisJobProgressSnapshot | null;
+      created_at: Date | string;
+      started_at: Date | string | null;
       error_message: string | null;
       result_snapshot: unknown;
     }>(
       `
-        SELECT status, progress, error_message, result_snapshot
+        SELECT status, progress, created_at, started_at, error_message, result_snapshot
         FROM analysis_jobs
         WHERE id = $1 AND ($2::text IS NULL OR subject_id = $2)
       `,
@@ -329,12 +334,17 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
     return {
       status: row.status,
       progress: row.progress ?? undefined,
+      createdAt: new Date(row.created_at).toISOString(),
+      startedAt: row.started_at ? new Date(row.started_at).toISOString() : undefined,
       errorMessage: row.error_message ?? undefined,
       resultSnapshot: row.result_snapshot ?? undefined,
     };
   }
 
-  async function listJobs(limit = 20, subjectId?: string): Promise<AnalysisJobListItem[]> {
+  async function listJobs(input: AnalysisJobListInput = {}): Promise<AnalysisJobListItem[]> {
+    const limit = normalizeJobListLimit(input.limit);
+    const offset = normalizeJobListOffset(input.offset);
+    const filters = buildJobListFilters(input);
     const result = await pool.query<{
       id: string;
       status: AnalysisJobStatus;
@@ -345,6 +355,7 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
       event_count: number | null;
       score: RelationshipScore | null;
       created_at: Date | string;
+      started_at: Date | string | null;
       completed_at: Date | string | null;
       error_message: string | null;
     }>(
@@ -359,14 +370,16 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
           event_count,
           score,
           created_at,
+          started_at,
           completed_at,
           error_message
         FROM analysis_jobs
-        WHERE ($2::text IS NULL OR subject_id = $2)
+        ${filters.whereClause}
         ORDER BY created_at DESC
-        LIMIT $1
+        LIMIT $${filters.values.length + 1}
+        OFFSET $${filters.values.length + 2}
       `,
-      [limit, subjectId ?? null],
+      [...filters.values, limit, offset],
     );
 
     return result.rows.map((row) => ({
@@ -379,19 +392,21 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
       eventCount: row.event_count ?? undefined,
       score: row.score ?? undefined,
       createdAt: new Date(row.created_at).toISOString(),
+      startedAt: row.started_at ? new Date(row.started_at).toISOString() : undefined,
       completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : undefined,
       errorMessage: row.error_message ?? undefined,
     }));
   }
 
-  async function countJobs(subjectId?: string): Promise<number> {
+  async function countJobs(input: Pick<AnalysisJobListInput, "subjectId" | "status" | "query"> = {}): Promise<number> {
+    const filters = buildJobListFilters(input);
     const result = await pool.query<{ count: string }>(
       `
         SELECT COUNT(*)::text AS count
         FROM analysis_jobs
-        WHERE ($1::text IS NULL OR subject_id = $1)
+        ${filters.whereClause}
       `,
-      [subjectId ?? null],
+      filters.values,
     );
 
     return Number(result.rows[0]?.count ?? 0);
@@ -423,6 +438,53 @@ export function createPostgresAnalysisStorage(pool: Pool): PostgresAnalysisStora
 
     return (result.rowCount ?? result.rows.length) > 0;
   }
+}
+
+function normalizeJobListLimit(limit: AnalysisJobListInput["limit"]): number {
+  if (limit === undefined || !Number.isFinite(limit)) {
+    return 20;
+  }
+
+  return Math.min(100, Math.max(1, Math.trunc(limit)));
+}
+
+function normalizeJobListOffset(offset: AnalysisJobListInput["offset"]): number {
+  if (offset === undefined || !Number.isFinite(offset)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.trunc(offset));
+}
+
+function buildJobListFilters(input: Pick<AnalysisJobListInput, "subjectId" | "status" | "query">) {
+  const filters: string[] = [];
+  const values: string[] = [];
+
+  if (input.subjectId) {
+    values.push(input.subjectId);
+    filters.push(`subject_id = $${values.length}`);
+  }
+
+  if (input.status && input.status !== "all") {
+    values.push(input.status);
+    filters.push(`status = $${values.length}`);
+  }
+
+  if (input.query?.trim()) {
+    values.push(`%${input.query.trim().toLowerCase()}%`);
+    filters.push(`(
+      lower(id) LIKE $${values.length}
+      OR lower(COALESCE(chain_name, '')) LIKE $${values.length}
+      OR lower(COALESCE(source_label, '')) LIKE $${values.length}
+      OR lower(COALESCE(data_mode, '')) LIKE $${values.length}
+      OR lower(COALESCE(error_message, '')) LIKE $${values.length}
+    )`);
+  }
+
+  return {
+    values,
+    whereClause: filters.length ? `WHERE ${filters.join(" AND ")}` : "",
+  };
 }
 
 async function insertFinding(

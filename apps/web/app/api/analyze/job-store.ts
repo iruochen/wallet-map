@@ -13,6 +13,7 @@ export interface AnalysisJobRecord {
   result?: unknown;
   error?: string;
   createdAt: string;
+  startedAt?: string;
   updatedAt: string;
 }
 
@@ -117,6 +118,7 @@ async function updateJob(
 export async function markAnalyzeJobRunning(jobId: string): Promise<void> {
   await updateJob(jobId, (job) => {
     job.status = "running";
+    job.startedAt = job.startedAt ?? new Date().toISOString();
   });
 }
 

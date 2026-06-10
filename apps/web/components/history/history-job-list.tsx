@@ -15,6 +15,8 @@ import { HistoryIdentityAvatar } from "./history-identity-avatar";
 import type { HistoryJobItem, HistoryResponse } from "./history-types";
 
 const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";
+const historyPageSizeOptions = [10, 20, 50] as const;
+type HistoryStatusFilter = "all" | HistoryJobItem["status"];
 
 export function HistoryJobList({
   initialHistoryMode = "session",
@@ -27,6 +29,11 @@ export function HistoryJobList({
   const [storageEnabled, setStorageEnabled] = useState(true);
   const [historyMode, setHistoryMode] = useState<"wallet" | "session">(initialHistoryMode);
   const [walletAddress, setWalletAddress] = useState<string | undefined>(initialWalletAddress);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useState<HistoryStatusFilter>("all");
+  const [historyQuery, setHistoryQuery] = useState("");
   const [anonymousSessionId, setAnonymousSessionId] = useState<string | undefined>();
   const [sessionSyncCount, setSessionSyncCount] = useState(0);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -45,10 +52,20 @@ export function HistoryJobList({
     () => buildHistoryComparison(jobs, comparisonJobIds),
     [jobs, comparisonJobIds],
   );
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = total === 0 ? 0 : Math.min(page * pageSize, total);
+  const hasHistoryFilters = statusFilter !== "all" || Boolean(historyQuery.trim());
 
   useEffect(() => {
     void loadJobs({ showSkeleton: true });
-  }, []);
+  }, [page, pageSize, statusFilter, historyQuery]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   useEffect(() => {
     function handleAuthChanged() {
@@ -76,7 +93,20 @@ export function HistoryJobList({
     setLoadError(null);
 
     try {
-      const response = await fetch("/api/analyze/jobs?limit=30");
+      const params = new URLSearchParams({
+        limit: String(pageSize),
+        offset: String((page - 1) * pageSize),
+      });
+
+      if (statusFilter !== "all") {
+        params.set("status", statusFilter);
+      }
+
+      if (historyQuery.trim()) {
+        params.set("query", historyQuery.trim());
+      }
+
+      const response = await fetch(`/api/analyze/jobs?${params.toString()}`);
       const body = (await response.json()) as HistoryResponse;
 
       if (!response.ok) {
@@ -84,6 +114,7 @@ export function HistoryJobList({
       }
 
       setJobs(body.jobs ?? []);
+      setTotal(body.total ?? body.jobs?.length ?? 0);
       setComparisonJobIds((current) => current.filter((id) => body.jobs?.some((job) => job.id === id) ?? false));
       setStorageEnabled(body.storageEnabled !== false);
       setHistoryMode(body.historyMode ?? "session");
@@ -237,6 +268,64 @@ export function HistoryJobList({
           </button>
         </div>
       </div>
+      <div className="historyFilterBar" aria-label="历史分析筛选">
+        <label className="historyFilterField">
+          <span>状态</span>
+          <select
+            value={statusFilter}
+            disabled={isRefreshing || isListLoading}
+            onChange={(event) => {
+              setPage(1);
+              setStatusFilter(event.target.value as HistoryStatusFilter);
+            }}
+          >
+            <option value="all">全部状态</option>
+            <option value="completed">已完成</option>
+            <option value="running">运行中</option>
+            <option value="pending">排队中</option>
+            <option value="failed">失败</option>
+          </select>
+        </label>
+        <label className="historyFilterField historyFilterSearch">
+          <span>搜索</span>
+          <input
+            value={historyQuery}
+            disabled={isRefreshing || isListLoading}
+            onChange={(event) => {
+              setPage(1);
+              setHistoryQuery(event.target.value);
+            }}
+            placeholder="链、来源、模式、任务 ID"
+          />
+        </label>
+        <label className="historyFilterField historyPageSizeControl">
+          <span>每页</span>
+          <select
+            value={pageSize}
+            disabled={isRefreshing || isListLoading}
+            onChange={(event) => {
+              setPage(1);
+              setPageSize(Number(event.target.value));
+            }}
+          >
+            {historyPageSizeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+        <HistoryPagination
+          page={page}
+          totalPages={totalPages}
+          disabled={isRefreshing || isListLoading}
+          onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+          onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+        />
+      </div>
+      <div className="historyResultBar">
+        <span>{total === 0 ? "暂无匹配记录" : `第 ${rangeStart}-${rangeEnd} 条，共 ${total} 条`}</span>
+      </div>
       {syncMessage ? (
         <div className="stateBanner stateBannerSuccess historySyncBanner" role="status">
           <strong>同步完成</strong>
@@ -283,20 +372,24 @@ export function HistoryJobList({
         <div className="historyEmptyIcon" aria-hidden="true">
           <ScrollText size={24} strokeWidth={1.6} />
         </div>
-        <strong className="historyEmptyTitle">还没有历史记录</strong>
+        <strong className="historyEmptyTitle">{hasHistoryFilters ? "没有匹配的历史记录" : "还没有历史记录"}</strong>
         <p className="historyEmptyDescription">
-          {historyMode === "wallet"
+          {hasHistoryFilters
+            ? "试试放宽状态筛选，或搜索其他链名、来源和任务 ID。"
+            : historyMode === "wallet"
             ? "这个钱包还没有保存过分析记录。完成一次分析后，结果会自动同步到这里。"
             : "完成一次分析后，任务会显示在这里。登录钱包后还能跨会话查看。"}
         </p>
-        <Link
-          className="historyEmptyAction"
-          href="/?fresh=1"
-          onClick={clearStoredAnalysisJob}
-        >
-          <Play size={15} aria-hidden="true" />
-          去运行分析
-        </Link>
+        {hasHistoryFilters ? null : (
+          <Link
+            className="historyEmptyAction"
+            href="/?fresh=1"
+            onClick={clearStoredAnalysisJob}
+          >
+            <Play size={15} aria-hidden="true" />
+            去运行分析
+          </Link>
+        )}
       </div>,
     );
   }
@@ -392,12 +485,60 @@ export function HistoryJobList({
           ))}
         </tbody>
       </table>
+      <div className="historyTableFooter">
+        <span>{`第 ${rangeStart}-${rangeEnd} 条，共 ${total} 条`}</span>
+        <HistoryPagination
+          page={page}
+          totalPages={totalPages}
+          disabled={isRefreshing || isListLoading}
+          onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+          onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+        />
+      </div>
       <HistoryComparisonPanel
         comparison={comparison}
         selectedCount={comparisonJobIds.length}
         onClear={() => setComparisonJobIds([])}
       />
     </div>,
+  );
+}
+
+function HistoryPagination({
+  page,
+  totalPages,
+  disabled,
+  onPrevious,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  disabled: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="historyPagination">
+      <button
+        type="button"
+        className="historyPaginationButton"
+        disabled={disabled || page <= 1}
+        onClick={onPrevious}
+        aria-label="上一页"
+      >
+        ‹
+      </button>
+      <span>第 {page} / {totalPages} 页</span>
+      <button
+        type="button"
+        className="historyPaginationButton"
+        disabled={disabled || page >= totalPages}
+        onClick={onNext}
+        aria-label="下一页"
+      >
+        ›
+      </button>
+    </div>
   );
 }
 
