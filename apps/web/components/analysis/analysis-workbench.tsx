@@ -118,6 +118,7 @@ export function AnalysisWorkbench({
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [jobProgress, setJobProgress] = useState<AnalysisJobProgress | null>(null);
+  const [analysisStartedAt, setAnalysisStartedAt] = useState<number | null>(null);
   const [evidenceTab, setEvidenceTab] = useState<"findings" | "edges">("findings");
   const [openFindingGroups, setOpenFindingGroups] = useState<Record<string, boolean>>({});
   const [openEdgeGroups, setOpenEdgeGroups] = useState<Record<string, boolean>>({});
@@ -336,6 +337,7 @@ export function AnalysisWorkbench({
 
       const controller = new AbortController();
       setIsRunning(true);
+      setAnalysisStartedAt(Date.now());
       setResult(null);
       setEvidenceTab("findings");
       const analysisResult = await pollAnalyzeJob(jobId, controller.signal);
@@ -346,6 +348,7 @@ export function AnalysisWorkbench({
     } finally {
       setIsRunning(false);
       setJobProgress(null);
+      setAnalysisStartedAt(null);
     }
   }
 
@@ -377,6 +380,7 @@ export function AnalysisWorkbench({
 
   async function runAnalysis() {
     setIsRunning(true);
+    setAnalysisStartedAt(Date.now());
     setJobProgress(null);
     setError(null);
     setResult(null);
@@ -428,6 +432,7 @@ export function AnalysisWorkbench({
     } finally {
       setIsRunning(false);
       setJobProgress(null);
+      setAnalysisStartedAt(null);
     }
   }
 
@@ -925,6 +930,7 @@ export function AnalysisWorkbench({
                 progress={jobProgress}
                 chainName={chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"}
                 addressCount={addressCount}
+                startedAt={analysisStartedAt}
                 variant="hero"
               />
             </div>

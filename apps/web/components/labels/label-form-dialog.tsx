@@ -40,6 +40,13 @@ export function LabelFormDialog({
   onReset: () => void;
 }) {
   const addressInputRef = useRef<HTMLInputElement | null>(null);
+  const isSavingRef = useRef(isSaving);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    isSavingRef.current = isSaving;
+    onCloseRef.current = onClose;
+  }, [isSaving, onClose]);
 
   useEffect(() => {
     if (!open) {
@@ -49,14 +56,14 @@ export function LabelFormDialog({
     addressInputRef.current?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !isSaving) {
-        onClose();
+      if (event.key === "Escape" && !isSavingRef.current) {
+        onCloseRef.current();
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isSaving, onClose, open]);
+  }, [open]);
 
   if (!open) {
     return null;
@@ -149,6 +156,7 @@ export function LabelFormDialog({
                 onChange={(event) => onChangeForm({ ...form, label: event.target.value })}
                 placeholder="例如：团队金库"
               />
+              <small>这条地址在列表、图谱和报告中展示的名字。</small>
             </label>
             <label>
               <span>实体</span>
@@ -158,6 +166,7 @@ export function LabelFormDialog({
                 onChange={(event) => onChangeForm({ ...form, entity: event.target.value })}
                 placeholder="例如：内部研究"
               />
+              <small>地址归属的组织、项目或业务主体；不确定可留空。</small>
             </label>
           </div>
 

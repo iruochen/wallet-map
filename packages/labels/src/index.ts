@@ -582,8 +582,12 @@ function readDisplayLabel(record: Record<string, unknown>): string | undefined {
   for (const key of ["nametag", "name_tag", "label", "name", "display_name", "entity_name"]) {
     const value = record[key];
 
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
+    if (typeof value === "string") {
+      const normalized = normalizeKnownText(value);
+
+      if (normalized) {
+        return normalized;
+      }
     }
   }
 
@@ -594,8 +598,12 @@ function readEntityLabel(record: Record<string, unknown>): string | undefined {
   for (const key of ["entity", "entity_name", "owner", "project", "organization"]) {
     const value = record[key];
 
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
+    if (typeof value === "string") {
+      const normalized = normalizeKnownText(value);
+
+      if (normalized) {
+        return normalized;
+      }
     }
   }
 
@@ -620,11 +628,22 @@ function readTags(record: Record<string, unknown>): string[] {
       ? rawTags.split(/[\s,]+/)
       : [];
 
-  return tags.map(slugifyLabel).filter(Boolean);
+  return tags.map(slugifyLabel).filter((tag) => tag && tag !== "unknown");
 }
 
 function slugifyLabel(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function normalizeKnownText(value: string): string | undefined {
+  const normalized = value.trim();
+  const placeholder = normalized.toLowerCase();
+
+  if (!normalized || placeholder === "unknown" || normalized === "未知") {
+    return undefined;
+  }
+
+  return normalized;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

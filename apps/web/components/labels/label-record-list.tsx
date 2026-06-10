@@ -112,7 +112,7 @@ function LabelRecordRow({
         {visibleTags.length ? (
           <div className="labelTagList">
             {visibleTags.map((tag) => (
-              <span key={tag} className="labelTagChip">
+              <span key={tag} className="labelTagChip" title={tag}>
                 {tag}
               </span>
             ))}

@@ -364,6 +364,43 @@ describe("label enrichment", () => {
     expect(labels).toEqual([]);
   });
 
+  it("ignores Chainbase placeholder names even when tags are present", async () => {
+    const provider = createChainbaseLabelProvider({
+      apiKey: "test-key",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            code: 0,
+            message: "ok",
+            data: {
+              address: [
+                {
+                  label: "unknown",
+                  entity: "unknown",
+                  category: "unknown",
+                  tags: ["known entity", "hot wallet"],
+                },
+              ],
+            },
+          }),
+        ),
+      requestThrottleMs: 0,
+    });
+    const labels = await provider.findLabels({
+      nodes: [
+        {
+          id: "wallet:56:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          kind: "wallet",
+          address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          chainId: 56,
+        },
+      ],
+      events: [],
+    });
+
+    expect(labels).toEqual([]);
+  });
+
   it("persists live labels through configured sinks", async () => {
     const savedLabels: NodeLabel[][] = [];
     const liveProvider = createStaticLabelProvider([

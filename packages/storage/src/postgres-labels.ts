@@ -72,6 +72,7 @@ export function createPostgresLabelRepository(
           WHERE chain_id = $1
             AND address = ANY($2::text[])
             AND ($3::text[] IS NULL OR node_kind = ANY($3::text[]))
+            AND ${knownLabelQualityFilterSql}
           ORDER BY
             CASE source
               WHEN 'chainbase-address-labels' THEN 0
@@ -167,6 +168,10 @@ export function createPostgresLabelRepository(
     },
     async upsertKnownLabels(labels) {
       for (const label of labels) {
+        if (!isUsefulKnownLabelRecord(label)) {
+          continue;
+        }
+
         await pool.query(
           `
             INSERT INTO known_labels (
@@ -253,7 +258,7 @@ function normalizeListOffset(offset: KnownLabelListInput["offset"]): number {
 }
 
 function buildKnownLabelScopeFilters(input: KnownLabelListInput) {
-  const filters: string[] = [];
+  const filters: string[] = [knownLabelQualityFilterSql];
   const values: Array<number | string> = [];
 
   if (input.chainId !== undefined) {
@@ -272,6 +277,33 @@ function buildKnownLabelScopeFilters(input: KnownLabelListInput) {
   }
 
   return { filters, values };
+}
+
+const knownLabelQualityFilterSql = `NOT (
+  source = 'chainbase-address-labels'
+  AND lower(label) IN ('unknown', 'known address', '未知')
+  AND COALESCE(NULLIF(lower(entity), ''), 'unknown') IN ('unknown', '未知')
+  AND COALESCE(lower(category), 'unknown') = 'unknown'
+)`;
+
+function isUsefulKnownLabelRecord(label: KnownLabelRecord): boolean {
+  if (label.source !== "chainbase-address-labels") {
+    return true;
+  }
+
+  const displayLabel = label.label.trim().toLowerCase();
+  const entity = label.entity?.trim().toLowerCase();
+  const category = label.category?.trim().toLowerCase();
+
+  if (displayLabel && displayLabel !== "unknown" && displayLabel !== "known address" && displayLabel !== "未知") {
+    return true;
+  }
+
+  if (entity && entity !== "unknown" && entity !== "未知") {
+    return true;
+  }
+
+  return Boolean(category && category !== "unknown");
 }
 
 function buildKnownLabelSourceFilters(input: KnownLabelListInput) {

@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckCircle2, CircleDashed, Database, LoaderCircle, Network, Route, Sparkles } from "lucide-react";
+import { CheckCircle2, CircleDashed, Clock3, Database, LoaderCircle, Network, Route, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { AnalysisJobProgress, AnalysisPhaseId } from "../../app/api/analyze/progress";
 import { getProgressPercent, resolveStepState } from "../../app/api/analyze/progress";
 
@@ -39,16 +40,32 @@ export function AnalysisProgress({
   progress,
   chainName,
   addressCount,
+  startedAt,
   steps = defaultAnalysisSteps,
   variant = "panel",
 }: {
   progress: AnalysisJobProgress | null;
   chainName: string;
   addressCount: number;
+  startedAt?: number | null;
   steps?: AnalysisProgressStep[];
   variant?: "panel" | "hero";
 }) {
   const percent = getProgressPercent(progress);
+  const [now, setNow] = useState(() => Date.now());
+  const activeStep = steps.find((step) => step.id === progress?.phase);
+  const elapsedMs = startedAt ? Math.max(0, now - startedAt) : 0;
+
+  useEffect(() => {
+    if (!startedAt) {
+      return;
+    }
+
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+
+    return () => window.clearInterval(timer);
+  }, [startedAt]);
 
   return (
     <div className={`analysisProgressPanel analysisProgressPanel-${variant}`} role="status" aria-live="polite">
@@ -61,10 +78,19 @@ export function AnalysisProgress({
           ) : null}
           <small className="analysisProgressHint">进度由后端分阶段推送，已完成步骤会标记为完成。</small>
         </div>
-        <span className="analysisProgressValue">
-          <LoaderCircle size={14} strokeWidth={2.4} className="analysisProgressSpinner" aria-hidden="true" />
-          {percent}%
-        </span>
+        <div className="analysisProgressStatus">
+          <span className="analysisProgressValue">
+            <LoaderCircle size={14} strokeWidth={2.4} className="analysisProgressSpinner" aria-hidden="true" />
+            {percent}%
+          </span>
+          <span className="analysisProgressTime">
+            <Clock3 size={13} strokeWidth={2.2} aria-hidden="true" />
+            {startedAt ? `已运行 ${formatElapsedTime(elapsedMs)}` : "准备中"}
+          </span>
+          <span className="analysisProgressPhase">
+            {activeStep ? activeStep.label : "排队中"}
+          </span>
+        </div>
       </div>
       <div
         className={`analysisProgressTrack ${percent > 0 && percent < 100 ? "" : "analysisProgressTrack-indeterminate"}`}
@@ -96,6 +122,18 @@ export function AnalysisProgress({
       </ol>
     </div>
   );
+}
+
+function formatElapsedTime(elapsedMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes <= 0) {
+    return `${seconds}s`;
+  }
+
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
 }
 
 export function LoadingResult() {

@@ -293,6 +293,19 @@ export function LabelManager({
             </button>
           </div>
 
+          <div className="labelResultBar">
+            <span>
+              {total === 0 ? "暂无记录" : `第 ${rangeStart}-${rangeEnd} 条，共 ${total} 条`}
+            </span>
+            <LabelPaginationControls
+              page={page}
+              totalPages={totalPages}
+              isLoading={isLoading}
+              onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+              onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+            />
+          </div>
+
           <div className="labelListPanel">
             <LabelRecordList
               labels={labels}
@@ -308,27 +321,13 @@ export function LabelManager({
             </span>
 
             <div className="labelPagination">
-              <button
-                type="button"
-                className="labelPaginationButton"
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                disabled={isLoading || page <= 1}
-                aria-label="上一页"
-              >
-                <ChevronLeft size={16} aria-hidden="true" />
-              </button>
-              <span>
-                第 {page} / {totalPages} 页
-              </span>
-              <button
-                type="button"
-                className="labelPaginationButton"
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                disabled={isLoading || page >= totalPages}
-                aria-label="下一页"
-              >
-                <ChevronRight size={16} aria-hidden="true" />
-              </button>
+              <LabelPaginationControls
+                page={page}
+                totalPages={totalPages}
+                isLoading={isLoading}
+                onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+                onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+              />
             </div>
 
             {error ? <span className="labelError">{error}</span> : null}
@@ -354,5 +353,45 @@ export function LabelManager({
         }}
       />
     </>
+  );
+}
+
+function LabelPaginationControls({
+  page,
+  totalPages,
+  isLoading,
+  onPrevious,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  isLoading: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="labelPaginationControls">
+      <button
+        type="button"
+        className="labelPaginationButton"
+        onClick={onPrevious}
+        disabled={isLoading || page <= 1}
+        aria-label="上一页"
+      >
+        <ChevronLeft size={16} aria-hidden="true" />
+      </button>
+      <span>
+        第 {page} / {totalPages} 页
+      </span>
+      <button
+        type="button"
+        className="labelPaginationButton"
+        onClick={onNext}
+        disabled={isLoading || page >= totalPages}
+        aria-label="下一页"
+      >
+        <ChevronRight size={16} aria-hidden="true" />
+      </button>
+    </div>
   );
 }
