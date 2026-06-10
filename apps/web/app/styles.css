@@ -32,19 +32,19 @@ body {
     #eef2ec;
 }
 
-body [data-rk] div[role="dialog"]:not(.historyDialog) button {
+body [data-rk] div[role="dialog"]:not(.historyDialog):not(.labelDialog) button {
   justify-content: flex-start !important;
   text-align: left !important;
   transform: none !important;
 }
 
-body [data-rk] div[role="dialog"]:not(.historyDialog) {
+body [data-rk] div[role="dialog"]:not(.historyDialog):not(.labelDialog) {
   background: rgba(18, 31, 24, 0.2) !important;
   backdrop-filter: blur(2px) !important;
 }
 
-body [data-rk] div[role="dialog"]:not(.historyDialog) button[aria-label*="Close"],
-body [data-rk] div[role="dialog"]:not(.historyDialog) button[aria-label*="close"] {
+body [data-rk] div[role="dialog"]:not(.historyDialog):not(.labelDialog) button[aria-label*="Close"],
+body [data-rk] div[role="dialog"]:not(.historyDialog):not(.labelDialog) button[aria-label*="close"] {
   justify-content: center !important;
 }
 
@@ -886,52 +886,103 @@ button:disabled {
    Label manager
    ============================================================ */
 
+.labelPage.historyPage {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.labelPage .historyPanel {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
 .labelPagePanel {
   max-width: 1220px;
 }
 
-.labelManager {
-  display: grid;
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
-  gap: 14px;
-  min-height: 0;
-}
-
-.labelFormPanel,
-.labelListPanel {
+.labelPageBody {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 0;
-  gap: 14px;
-  padding: 14px;
-  border: 1px solid #dfe7df;
-  border-radius: 10px;
-  background: #fbfcfa;
 }
 
-.labelPanelHeader {
+.labelManager {
+  min-width: 0;
+}
+
+.labelWorkspace {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #dfe7df;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 251, 247, 0.94) 100%),
+    #fbfcfa;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 10px 28px rgba(31, 61, 44, 0.05);
+}
+
+.labelWorkspaceTop {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
 }
 
-.labelPanelHeader h2 {
-  margin: 4px 0 0;
-  font-size: 1rem;
+.labelWorkspaceIntro h2 {
+  margin: 0;
+  font-size: 1.05rem;
 }
 
-.labelPanelHeader p {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 0.78rem;
+.labelWorkspaceIntro p {
+  margin: 6px 0 0;
+  color: #64736a;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.labelWorkspaceActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.labelPrimaryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #1f6b3d;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2a7a49 0%, #1f6b3d 100%);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(31, 107, 61, 0.18);
+}
+
+.labelPrimaryButton:hover:not(:disabled) {
+  filter: brightness(1.03);
+}
+
+.labelPrimaryButton:disabled {
+  opacity: 0.55;
+  box-shadow: none;
 }
 
 .labelStatus {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
+  gap: 6px;
+  min-height: 30px;
   padding: 0 10px;
   border: 1px solid #e2d4c2;
   border-radius: 999px;
@@ -948,14 +999,466 @@ button:disabled {
   color: #1f6b3d;
 }
 
-.labelFormGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+.labelMetricStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.labelFormGrid label,
-.labelSearch {
+.labelMetricPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #dfe7df;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #64736a;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.labelMetricPill strong {
+  color: #1f3d2d;
+  font-size: 0.92rem;
+}
+
+.labelMetricPillLocal {
+  border-color: #badfc7;
+  background: #f4fbf6;
+}
+
+.labelMetricPillDiscovered {
+  border-color: #d7e2f2;
+  background: #f6f9ff;
+}
+
+.labelStorageNotice {
+  padding: 12px 14px;
+  border: 1px dashed #e2d4c2;
+  border-radius: 10px;
+  background: #fffaf2;
+}
+
+.labelStorageNotice strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.labelStorageNotice p {
+  margin: 0;
+  color: #64736a;
+  font-size: 0.8rem;
+}
+
+.labelFilterBar {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) minmax(140px, 180px) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid #e5ece3;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.labelFilterField {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #4c5b51;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.labelFilterSearch {
+  min-width: 0;
+}
+
+.labelSearchInputWrap {
+  position: relative;
+  display: block;
+}
+
+.labelSearchInputWrap svg {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  color: #7b8b80;
+  pointer-events: none;
+}
+
+.labelSearchInputWrap .labelFieldInput {
+  padding-left: 32px;
+}
+
+.labelFieldInput {
+  width: 100%;
+  min-height: 38px;
+  min-width: 0;
+  padding: 0 11px;
+  border: 1px solid #ccd8cd;
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.labelFieldInput:focus {
+  border-color: #87aa90;
+  box-shadow: 0 0 0 3px rgba(31, 107, 61, 0.1);
+}
+
+.labelFieldMono {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.78rem;
+}
+
+.labelRefreshButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
+  border: 1px solid #ccd8cd;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #4c5b51;
+}
+
+.labelListPanel {
+  position: relative;
+  min-width: 0;
+}
+
+.labelRecordList {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #dfe7df;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.labelRecordListLoading .labelRecordBody {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.labelRecordLoadingOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #355242;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.labelRecordHeader {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(130px, 0.95fr) 72px 96px minmax(150px, 1.15fr) 76px;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 16px;
+  border-bottom: 1px solid #e7ece4;
+  background: #f7faf6;
+  color: #64736a;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.labelRecordBody {
+  overflow: visible;
+}
+
+.labelRecordRow {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(130px, 0.95fr) 72px 96px minmax(150px, 1.15fr) 76px;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf2ed;
+  transition: background 140ms ease;
+}
+
+.labelRecordRow:hover {
+  background: #fbfdfb;
+}
+
+.labelRecordRow:last-child {
+  border-bottom: 0;
+}
+
+.labelRecordRowLocal {
+  background: linear-gradient(90deg, rgba(244, 251, 246, 0.9) 0%, rgba(255, 255, 255, 0) 42%);
+}
+
+.labelRecordCell {
+  min-width: 0;
+}
+
+.labelRecordCellName strong {
+  display: block;
+  color: #17211b;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.labelRecordCellName span {
+  display: block;
+  margin-top: 3px;
+  color: #64736a;
+  font-size: 0.74rem;
+}
+
+.labelRecordCellAddress a,
+.labelRecordCellAddress code {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid #e5ece3;
+  border-radius: 8px;
+  background: #f8faf8;
+  color: #2f4036;
+  font-size: 0.74rem;
+  text-decoration: none;
+}
+
+.labelRecordCellAddress a:hover {
+  border-color: #badfc7;
+  color: var(--brand);
+}
+
+.labelRecordCellChain,
+.labelRecordCellSource,
+.labelRecordCellActions {
+  display: flex;
+  align-items: center;
+}
+
+.labelChainBadge,
+.labelSourceBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid #d7e2f2;
+  background: #f6f9ff;
+  color: #35506d;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.labelSourceBadgeLocal {
+  border-color: #badfc7;
+  background: #f4fbf6;
+  color: #1f6b3d;
+}
+
+.labelTagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.labelTagChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid #e3ebe3;
+  background: #f4f7f4;
+  color: #4c5b51;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.labelTagMore {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  color: #64736a;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.labelTagEmpty {
+  color: #8b9a90;
+  font-size: 0.78rem;
+}
+
+.labelRowAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #c8ddd0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1f6b3d;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.labelRowActionMuted {
+  color: #8b9a90;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.labelRecordEmpty {
+  padding: 42px 20px;
+  text-align: center;
+}
+
+.labelRecordEmpty strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+}
+
+.labelRecordEmpty p {
+  margin: 0;
+  color: #64736a;
+  font-size: 0.82rem;
+}
+
+.labelListFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 0 2px;
+  color: #64736a;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.labelPagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.labelPaginationButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid #ccd8cd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #355242;
+}
+
+.labelFilterBarLoading {
+  opacity: 0.82;
+}
+
+.labelDialog[role="dialog"] {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbf8 100%) !important;
+  backdrop-filter: none !important;
+}
+
+.labelError {
+  color: var(--danger);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.labelDialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(18, 31, 24, 0.34);
+  backdrop-filter: blur(3px);
+}
+
+.labelDialog {
+  position: relative;
+  width: min(100%, 620px);
+  max-height: min(92vh, 760px);
+  overflow: auto;
+  padding: 22px 22px 18px;
+  border: 1px solid #dfe7df;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f8fbf8 100%);
+  color: #17211b;
+  box-shadow: 0 24px 60px rgba(31, 61, 44, 0.18);
+}
+
+.labelDialogIntro {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-right: 36px;
+}
+
+.labelDialogIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #badfc7;
+  border-radius: 12px;
+  background: #f4fbf6;
+  color: #1f6b3d;
+  flex-shrink: 0;
+}
+
+.labelDialogTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.labelDialogDescription {
+  margin: 6px 0 0;
+  color: #64736a;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.labelDialogForm {
+  display: grid;
+  gap: 12px;
+}
+
+.labelDialogFormRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.labelDialogForm label,
+.labelDialogFormWide {
   display: grid;
   gap: 6px;
   min-width: 0;
@@ -964,98 +1467,39 @@ button:disabled {
   font-weight: 700;
 }
 
-.labelFormWide {
-  grid-column: 1 / -1;
+.labelDialogActions {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #e7ece4;
 }
 
-.labelFormGrid input,
-.labelFormGrid select,
-.labelSearch input {
-  width: 100%;
-  min-height: 36px;
-  min-width: 0;
-  padding: 0 10px;
-  border: 1px solid #ccd8cd;
-  border-radius: 8px;
-  background: #ffffff;
-  color: var(--text);
-  outline: none;
-}
-
-.labelFormGrid input:focus,
-.labelFormGrid select:focus,
-.labelSearch input:focus {
-  border-color: #87aa90;
-  box-shadow: 0 0 0 3px rgba(31, 107, 61, 0.1);
-}
-
-.labelFormActions {
+.labelDialogActionButtons {
   display: flex;
-  align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.labelFormActions button {
-  min-height: 36px;
-  padding: 0 12px;
-}
-
-.labelMessage,
-.labelError {
-  font-size: 0.78rem;
+.labelDialogMessage {
+  margin: 0;
+  color: #1f6b3d;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
-.labelMessage {
-  color: #1f6b3d;
-}
-
-.labelError {
+.labelDialogError {
+  margin: 0;
   color: var(--danger);
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
-.labelTableWrap {
-  min-height: 0;
-  overflow: auto;
-  scrollbar-gutter: stable;
-}
-
-.labelTable {
-  width: 100%;
-  min-width: 760px;
-  border-collapse: collapse;
-}
-
-.labelTable th,
-.labelTable td {
-  padding: 11px 10px;
-  border-bottom: 1px solid #e5ece3;
-  text-align: left;
-  vertical-align: top;
-  font-size: 0.78rem;
-}
-
-.labelTable th {
-  color: #64736a;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-}
-
-.labelTable td strong,
-.labelTable td span {
-  display: block;
-}
-
-.labelTable td span {
-  margin-top: 3px;
-  color: #64736a;
-  font-size: 0.72rem;
-}
-
-.labelTable code {
-  font-size: 0.72rem;
-  word-break: break-all;
+.labelDialogSaveButton {
+  border-color: #1f6b3d;
+  background: linear-gradient(180deg, #2a7a49 0%, #1f6b3d 100%);
+  color: #ffffff;
 }
 
 .historyAuthButtonMuted {
@@ -4353,16 +4797,30 @@ code {
     max-width: 100%;
   }
 
-  .labelManager {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .labelFormGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .labelPanelHeader {
+  .labelWorkspaceTop {
     display: grid;
+  }
+
+  .labelFilterBar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .labelRecordHeader {
+    display: none;
+  }
+
+  .labelRecordRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .labelRecordCellActions {
+    justify-content: flex-start;
+  }
+
+  .labelDialogFormRow {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .historyTable th,

@@ -6,7 +6,10 @@ import type {
 } from "@wallet-map/core";
 import type {
   KnownLabelListInput,
+  KnownLabelListResult,
+  KnownLabelListStats,
   KnownLabelRecord,
+  KnownLabelSourceMode,
   LabelLookupInput,
   LabelRepository,
 } from "./index";
@@ -89,57 +92,78 @@ export function createPostgresLabelRepository(
       return result.rows.map(mapKnownLabelRow);
     },
     async listKnownLabels(input = {}) {
-      const filters: string[] = [];
-      const values: Array<number | string> = [];
       const limit = normalizeListLimit(input.limit);
+      const offset = normalizeListOffset(input.offset);
+      const scopeFilters = buildKnownLabelScopeFilters(input);
+      const sourceFilters = buildKnownLabelSourceFilters(input);
+      const listFilters = [...scopeFilters.filters, ...sourceFilters.filters];
+      const listValues = [...scopeFilters.values, ...sourceFilters.values];
+      const whereClause = listFilters.length ? `WHERE ${listFilters.join(" AND ")}` : "";
 
-      if (input.chainId !== undefined) {
-        values.push(input.chainId);
-        filters.push(`chain_id = $${values.length}`);
-      }
+      const [statsResult, countResult, listResult] = await Promise.all([
+        pool.query<{
+          total: number;
+          local: number;
+          discovered: number;
+        }>(
+          `
+            SELECT
+              COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE source = 'local-labels')::int AS local,
+              COUNT(*) FILTER (WHERE source <> 'local-labels')::int AS discovered
+            FROM known_labels
+            ${scopeFilters.filters.length ? `WHERE ${scopeFilters.filters.join(" AND ")}` : ""}
+          `,
+          scopeFilters.values,
+        ),
+        pool.query<{ total: number }>(
+          `
+            SELECT COUNT(*)::int AS total
+            FROM known_labels
+            ${whereClause}
+          `,
+          listValues,
+        ),
+        pool.query<KnownLabelRow>(
+          `
+            SELECT
+              id,
+              node_kind,
+              chain_id,
+              address,
+              label,
+              entity,
+              category,
+              tags,
+              source,
+              confidence,
+              first_seen_at,
+              last_seen_at,
+              metadata
+            FROM known_labels
+            ${whereClause}
+            ORDER BY updated_at DESC, label ASC
+            LIMIT $${listValues.length + 1}
+            OFFSET $${listValues.length + 2}
+          `,
+          [...listValues, limit, offset],
+        ),
+      ]);
 
-      if (input.source?.trim()) {
-        values.push(input.source.trim());
-        filters.push(`source = $${values.length}`);
-      }
+      const statsRow = statsResult.rows[0];
+      const stats: KnownLabelListStats = {
+        total: statsRow?.total ?? 0,
+        local: statsRow?.local ?? 0,
+        discovered: statsRow?.discovered ?? 0,
+      };
 
-      if (input.query?.trim()) {
-        values.push(`%${input.query.trim().toLowerCase()}%`);
-        filters.push(`(
-          lower(address) LIKE $${values.length}
-          OR lower(label) LIKE $${values.length}
-          OR lower(COALESCE(entity, '')) LIKE $${values.length}
-          OR lower(source) LIKE $${values.length}
-        )`);
-      }
-
-      values.push(limit);
-
-      const result = await pool.query<KnownLabelRow>(
-        `
-          SELECT
-            id,
-            node_kind,
-            chain_id,
-            address,
-            label,
-            entity,
-            category,
-            tags,
-            source,
-            confidence,
-            first_seen_at,
-            last_seen_at,
-            metadata
-          FROM known_labels
-          ${filters.length ? `WHERE ${filters.join(" AND ")}` : ""}
-          ORDER BY updated_at DESC, label ASC
-          LIMIT $${values.length}
-        `,
-        values,
-      );
-
-      return result.rows.map(mapKnownLabelRow);
+      return {
+        items: listResult.rows.map(mapKnownLabelRow),
+        total: countResult.rows[0]?.total ?? 0,
+        limit,
+        offset,
+        stats,
+      } satisfies KnownLabelListResult;
     },
     async upsertKnownLabels(labels) {
       for (const label of labels) {
@@ -206,14 +230,75 @@ export function toLabelLookupInput(nodes: GraphNode[], chainId: ChainId): LabelL
 
 function normalizeListLimit(limit: KnownLabelListInput["limit"]): number {
   if (limit === undefined) {
-    return 100;
+    return 20;
   }
 
   if (!Number.isFinite(limit)) {
-    return 100;
+    return 20;
   }
 
-  return Math.min(250, Math.max(1, Math.trunc(limit)));
+  return Math.min(100, Math.max(1, Math.trunc(limit)));
+}
+
+function normalizeListOffset(offset: KnownLabelListInput["offset"]): number {
+  if (offset === undefined) {
+    return 0;
+  }
+
+  if (!Number.isFinite(offset)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.trunc(offset));
+}
+
+function buildKnownLabelScopeFilters(input: KnownLabelListInput) {
+  const filters: string[] = [];
+  const values: Array<number | string> = [];
+
+  if (input.chainId !== undefined) {
+    values.push(input.chainId);
+    filters.push(`chain_id = $${values.length}`);
+  }
+
+  if (input.query?.trim()) {
+    values.push(`%${input.query.trim().toLowerCase()}%`);
+    filters.push(`(
+      lower(address) LIKE $${values.length}
+      OR lower(label) LIKE $${values.length}
+      OR lower(COALESCE(entity, '')) LIKE $${values.length}
+      OR lower(source) LIKE $${values.length}
+    )`);
+  }
+
+  return { filters, values };
+}
+
+function buildKnownLabelSourceFilters(input: KnownLabelListInput) {
+  const filters: string[] = [];
+  const values: Array<number | string> = [];
+  const sourceMode = resolveKnownLabelSourceMode(input);
+
+  if (sourceMode === "local-labels") {
+    values.push("local-labels");
+    filters.push(`source = $${values.length}`);
+  } else if (sourceMode === "discovered") {
+    values.push("local-labels");
+    filters.push(`source <> $${values.length}`);
+  } else if (input.source?.trim()) {
+    values.push(input.source.trim());
+    filters.push(`source = $${values.length}`);
+  }
+
+  return { filters, values };
+}
+
+function resolveKnownLabelSourceMode(input: KnownLabelListInput): KnownLabelSourceMode {
+  if (input.sourceMode === "local-labels" || input.sourceMode === "discovered") {
+    return input.sourceMode;
+  }
+
+  return "all";
 }
 
 function mapKnownLabelRow(row: KnownLabelRow): KnownLabelRecord {

@@ -17,11 +17,15 @@ const labelCategories = [
 
 export type LocalLabelCategory = (typeof labelCategories)[number];
 
+export type LabelSourceMode = "all" | "local-labels" | "discovered";
+
 export interface LabelListQuery {
   chainId?: ChainId;
   source?: string;
+  sourceMode: LabelSourceMode;
   query?: string;
   limit: number;
+  offset: number;
 }
 
 export interface LocalLabelInput {
@@ -37,14 +41,18 @@ export interface LocalLabelInput {
 export function parseLabelListQuery(url: URL): LabelListQuery {
   const chainId = readOptionalChainId(url.searchParams.get("chainId"));
   const limit = normalizeLimit(url.searchParams.get("limit"));
+  const offset = normalizeOffset(url.searchParams.get("offset"));
   const source = normalizeOptionalText(url.searchParams.get("source"));
+  const sourceMode = readSourceMode(url.searchParams.get("sourceMode"));
   const query = normalizeOptionalText(url.searchParams.get("query"));
 
   return {
     chainId,
     source,
+    sourceMode,
     query,
     limit,
+    offset,
   };
 }
 
@@ -209,14 +217,36 @@ function readTags(value: unknown): string[] {
 
 function normalizeLimit(value: string | null): number {
   if (!value) {
-    return 100;
+    return 20;
   }
 
   const limit = Number(value);
 
   if (!Number.isFinite(limit)) {
-    return 100;
+    return 20;
   }
 
-  return Math.min(250, Math.max(1, Math.trunc(limit)));
+  return Math.min(100, Math.max(1, Math.trunc(limit)));
+}
+
+function normalizeOffset(value: string | null): number {
+  if (!value) {
+    return 0;
+  }
+
+  const offset = Number(value);
+
+  if (!Number.isFinite(offset)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.trunc(offset));
+}
+
+function readSourceMode(value: string | null): LabelSourceMode {
+  if (value === "local-labels" || value === "discovered") {
+    return value;
+  }
+
+  return "all";
 }

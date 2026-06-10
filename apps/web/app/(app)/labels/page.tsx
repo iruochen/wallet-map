@@ -5,24 +5,28 @@ export const dynamic = "force-dynamic";
 
 export default async function LabelsPage() {
   const repository = await getLabelRepository();
-  const labels = repository
-    ? await repository.listKnownLabels({ chainId: 1, limit: 100 }).catch(() => [])
-    : [];
+  const initialList = repository
+    ? await repository.listKnownLabels({ limit: 20, offset: 0 }).catch(() => undefined)
+    : undefined;
 
   return (
     <div className="historyPage labelPage">
       <section className="historyPanel labelPagePanel">
         <div className="historyPanelHeader">
           <div>
-            <span className="panelEyebrow">Label operations</span>
+            <span className="panelEyebrow">标签运营</span>
             <h1>本地标签库</h1>
-            <p>管理团队自定义地址标签；分析任务会通过 PostgreSQL 标签提供器复用这些记录。</p>
+            <p>查看分析沉淀的地址标签，并通过弹窗快速维护团队本地标签。</p>
           </div>
         </div>
-        <LabelManager
-          initialLabels={labels}
-          initialStorageEnabled={Boolean(repository)}
-        />
+        <div className="labelPageBody">
+          <LabelManager
+            initialLabels={initialList?.items ?? []}
+            initialTotal={initialList?.total ?? 0}
+            initialStats={initialList?.stats ?? { total: 0, local: 0, discovered: 0 }}
+            initialStorageEnabled={Boolean(repository)}
+          />
+        </div>
       </section>
     </div>
   );

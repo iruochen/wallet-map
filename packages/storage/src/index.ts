@@ -74,11 +74,29 @@ export interface LabelLookupInput {
   nodeKinds?: Array<GraphNode["kind"]>;
 }
 
+export type KnownLabelSourceMode = "all" | "local-labels" | "discovered";
+
 export interface KnownLabelListInput {
   chainId?: ChainId;
   source?: string;
+  sourceMode?: KnownLabelSourceMode;
   query?: string;
   limit?: number;
+  offset?: number;
+}
+
+export interface KnownLabelListStats {
+  total: number;
+  local: number;
+  discovered: number;
+}
+
+export interface KnownLabelListResult {
+  items: KnownLabelRecord[];
+  total: number;
+  limit: number;
+  offset: number;
+  stats: KnownLabelListStats;
 }
 
 export interface AnalysisJobRepository {
@@ -96,7 +114,7 @@ export interface AnalysisRunRepository {
 
 export interface LabelRepository {
   findKnownLabels(input: LabelLookupInput): Promise<KnownLabelRecord[]>;
-  listKnownLabels(input?: KnownLabelListInput): Promise<KnownLabelRecord[]>;
+  listKnownLabels(input?: KnownLabelListInput): Promise<KnownLabelListResult>;
   upsertKnownLabels(labels: KnownLabelRecord[]): Promise<void>;
 }
 

@@ -34,7 +34,13 @@ describe("storage package", () => {
       },
       labels: {
         findKnownLabels: async () => [],
-        listKnownLabels: async () => [],
+        listKnownLabels: async () => ({
+          items: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+          stats: { total: 0, local: 0, discovered: 0 },
+        }),
         upsertKnownLabels: async () => undefined,
       },
     } satisfies WalletMapStorage;

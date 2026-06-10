@@ -69,7 +69,24 @@ describe("label management schema", () => {
       chainId: 56,
       query: "cex",
       source: "local-labels",
-      limit: 250,
+      sourceMode: "all",
+      limit: 100,
+      offset: 0,
+    });
+  });
+
+  it("parses pagination and source mode query params", () => {
+    const query = parseLabelListQuery(
+      new URL("https://wallet-map.test/api/labels?sourceMode=discovered&offset=40&limit=25"),
+    );
+
+    expect(query).toEqual({
+      chainId: undefined,
+      query: undefined,
+      source: undefined,
+      sourceMode: "discovered",
+      limit: 25,
+      offset: 40,
     });
   });
 });
