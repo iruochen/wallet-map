@@ -225,16 +225,19 @@ export class PdfReportExporter {
     const contentWidth = page.width - page.margin * 2;
     const cursor: PdfCursor = { y: page.margin };
 
-    drawHeader(doc, safeReport, page, cursor, contentWidth);
-    drawVerdictRibbon(doc, safeReport, page, cursor, contentWidth);
-    drawMetaCards(doc, safeReport, page, cursor, contentWidth);
-    drawExecutiveBrief(doc, safeReport, page, cursor, contentWidth);
-    drawScoreCards(doc, safeReport, page, cursor, contentWidth);
+    drawCoverPage(doc, safeReport, page, cursor, contentWidth, signalGroups);
+    doc.addPage();
+    cursor.y = page.margin;
+    drawPageKicker(doc, "Review Packet", "Signals, relationships, and evidence samples", page, cursor, contentWidth);
+    drawScoreDimensionMatrix(doc, safeReport, page, cursor, contentWidth);
     drawGraphBars(doc, safeReport, page, cursor, contentWidth);
     drawSignalHighlights(doc, safeReport.summary?.signalHighlights ?? [], signalGroups, page, cursor, contentWidth);
     drawFindingBars(doc, signalGroups.slice(0, 8), page, cursor, contentWidth);
     drawPairInsightCards(doc, safeReport.summary?.pairInsights ?? [], page, cursor, contentWidth);
 
+    doc.addPage();
+    cursor.y = page.margin;
+    drawPageKicker(doc, "Evidence Appendix", "Sample transactions for manual review", page, cursor, contentWidth);
     drawEvidenceAppendix(doc, safeReport.findings.slice(0, 16), page, cursor, contentWidth);
     drawMethodologyBox(doc, page, cursor, contentWidth);
 
@@ -611,27 +614,68 @@ function pickHigherConfidence(left: Finding["confidence"], right: Finding["confi
   return rank[right] > rank[left] ? right : left;
 }
 
+type PdfRgb = readonly [number, number, number];
+
+const pdfPalette = {
+  ink: [27, 35, 32],
+  muted: [94, 107, 100],
+  line: [214, 224, 217],
+  paper: [250, 252, 249],
+  panel: [244, 248, 244],
+  forest: [24, 61, 48],
+  green: [31, 107, 61],
+  amber: [184, 120, 16],
+  blue: [55, 87, 201],
+  red: [166, 58, 58],
+} as const satisfies Record<string, PdfRgb>;
+
+function drawCoverPage(
+  doc: jsPDF,
+  report: AnalysisReport,
+  page: PdfPage,
+  cursor: PdfCursor,
+  width: number,
+  signalGroups: SignalGroup[],
+): void {
+  drawHeader(doc, report, page, cursor, width);
+  drawVerdictRibbon(doc, report, page, cursor, width);
+  drawExecutiveBrief(doc, report, page, cursor, width);
+  drawMetaCards(doc, report, page, cursor, width);
+  drawCoverSignalPanel(doc, report, signalGroups, page, cursor, width);
+  drawReviewerChecklist(doc, report, page, cursor, width);
+}
+
 function drawHeader(doc: jsPDF, report: AnalysisReport, page: PdfPage, cursor: PdfCursor, width: number): void {
   const x = page.margin;
   const y = cursor.y;
-  doc.setFillColor(24, 61, 48);
-  doc.roundedRect(x, y, width, 92, 14, 14, "F");
+  setFill(doc, pdfPalette.forest);
+  doc.roundedRect(x, y, width, 128, 16, 16, "F");
+  setFill(doc, [36, 84, 66]);
+  doc.roundedRect(x + width - 184, y, 184, 128, 16, 16, "F");
+  setFill(doc, [49, 105, 82]);
+  doc.circle(x + width - 48, y + 32, 34, "F");
+  setFill(doc, [210, 231, 215]);
+  doc.rect(x + width - 154, y + 82, 82, 4, "F");
+  doc.rect(x + width - 124, y + 96, 112, 4, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.text("Wallet Map Relationship Report", x + 24, y + 34);
+  doc.setFontSize(9);
+  doc.text("WALLET MAP", x + 24, y + 28);
+  doc.setFontSize(26);
+  doc.text("Relationship", x + 24, y + 61);
+  doc.text("Audit Report", x + 24, y + 91);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text(formatPdfLabel(`Report ID: ${report.meta?.reportId ?? "WM-UNKNOWN"}`), x + 24, y + 54);
-  doc.text(formatPdfLabel(`Generated: ${report.generatedAt}`), x + 24, y + 68);
+  doc.setFontSize(9);
+  doc.text(formatPdfLabel(`Report ID ${report.meta?.reportId ?? "WM-UNKNOWN"}`), x + 24, y + 112);
+  doc.text(formatPdfLabel(`Generated ${formatGeneratedAt(report.generatedAt)}`), x + width - 166, y + 112);
   drawPdfTextLine(
     doc,
-    formatPdfLabel(`Scope: ${report.scope ?? "unknown"} | Source: ${report.sourceLabel ?? "unknown"}`),
-    x + 24,
-    y + 82,
-    width - 48,
+    formatPdfLabel(`${report.scope ?? "Unknown scope"} | ${report.sourceLabel ?? "Unknown source"}`),
+    x + width - 166,
+    y + 34,
+    132,
   );
-  cursor.y += 112;
+  cursor.y += 150;
 }
 
 function drawVerdictRibbon(
@@ -643,56 +687,64 @@ function drawVerdictRibbon(
 ): void {
   const verdict = report.summary?.verdict ?? "none";
   const colors = {
-    strong: [31, 107, 61],
-    medium: [184, 120, 16],
-    weak: [55, 87, 201],
-    none: [108, 117, 125],
-  } as const;
+    strong: pdfPalette.green,
+    medium: pdfPalette.amber,
+    weak: pdfPalette.blue,
+    none: pdfPalette.muted,
+  } as const satisfies Record<string, PdfRgb>;
   const color = colors[verdict as keyof typeof colors] ?? colors.none;
 
-  ensurePageSpace(doc, page, cursor, 34);
+  ensurePageSpace(doc, page, cursor, 50);
   const x = page.margin;
   const y = cursor.y;
-  doc.setFillColor(color[0], color[1], color[2]);
-  doc.roundedRect(x, y, width, 28, 8, 8, "F");
+  setFill(doc, [250, 252, 249]);
+  setDraw(doc, pdfPalette.line);
+  doc.roundedRect(x, y, width, 42, 10, 10, "FD");
+  setFill(doc, color);
+  doc.roundedRect(x + 12, y + 11, 72, 20, 7, 7, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(8.5);
+  doc.text(formatStrengthPdf(verdict).toUpperCase(), x + 22, y + 25);
+  setText(doc, pdfPalette.ink);
+  doc.setFontSize(10.5);
   doc.text(
-    formatPdfLabel(`Verdict: ${formatVerdict(report.summary?.verdict)} · Score ${report.score.score}/100 · Confidence ${formatConfidence(report.score.confidence)}`),
-    x + 16,
-    y + 18,
+    formatPdfLabel(`Score ${report.score.score}/100 | ${formatConfidence(report.score.confidence)} confidence | ${report.findings.length} findings`),
+    x + 100,
+    y + 26,
   );
-  cursor.y += 42;
+  cursor.y += 58;
 }
 
 function drawMetaCards(doc: jsPDF, report: AnalysisReport, page: PdfPage, cursor: PdfCursor, width: number): void {
-  ensurePageSpace(doc, page, cursor, 58);
+  ensurePageSpace(doc, page, cursor, 72);
   const x = page.margin;
   const y = cursor.y;
   const gap = 10;
-  const cardWidth = (width - gap * 2) / 3;
+  const cardWidth = (width - gap * 4) / 5;
   const cards = [
     { label: "Watched wallets", value: String(report.metrics?.watchedAddressCount ?? "—") },
     { label: "On-chain events", value: String(report.metrics?.eventCount ?? "—") },
+    { label: "Wallet nodes", value: String(report.metrics?.walletCount ?? countNodesByKind(report.graph, "wallet")) },
+    { label: "Contracts", value: String(report.metrics?.contractCount ?? countNodesByKind(report.graph, "contract")) },
     { label: "Evidence edges", value: String(report.metrics?.edgeCount ?? report.graph.edges.length) },
   ];
 
   cards.forEach((card, index) => {
     const left = x + index * (cardWidth + gap);
-    doc.setFillColor(252, 253, 251);
-    doc.setDrawColor(224, 231, 223);
-    doc.roundedRect(left, y, cardWidth, 48, 8, 8, "FD");
-    doc.setTextColor(92, 105, 96);
+    setFill(doc, pdfPalette.paper);
+    setDraw(doc, pdfPalette.line);
+    doc.roundedRect(left, y, cardWidth, 58, 8, 8, "FD");
+    setText(doc, pdfPalette.muted);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.text(card.label.toUpperCase(), left + 12, y + 18);
-    doc.setTextColor(36, 49, 41);
-    doc.setFontSize(16);
-    doc.text(card.value, left + 12, y + 36);
+    doc.setFontSize(6.9);
+    doc.text(card.label.toUpperCase(), left + 10, y + 17);
+    setText(doc, pdfPalette.ink);
+    doc.setFontSize(18);
+    doc.text(card.value, left + 10, y + 43);
   });
 
-  cursor.y += 64;
+  cursor.y += 76;
 }
 
 function drawExecutiveBrief(
@@ -707,45 +759,51 @@ function drawExecutiveBrief(
   const drivers = uniqueFormatted(report.score.reasons).slice(0, 3);
   const summaryLines = [overview.conclusion, overview.scope, overview.reviewNote]
     .map((line) => truncatePdfText(formatPdfLabel(line), 96))
-    .flatMap((line) => splitPdfText(doc, line, width - 190).slice(0, 2))
+    .flatMap((line) => splitPdfText(doc, line, width - 216).slice(0, 2))
     .slice(0, 6);
-  const cardHeight = Math.max(116, 44 + summaryLines.length * 11);
+  const cardHeight = Math.max(138, 50 + summaryLines.length * 12);
 
   ensurePageSpace(doc, page, cursor, cardHeight + 18);
   const y = cursor.y;
 
-  doc.setFillColor(252, 253, 251);
-  doc.setDrawColor(218, 227, 217);
+  setFill(doc, pdfPalette.paper);
+  setDraw(doc, pdfPalette.line);
   doc.roundedRect(x, y, width, cardHeight, 12, 12, "FD");
-  doc.setTextColor(36, 49, 41);
+  setFill(doc, [235, 242, 236]);
+  doc.roundedRect(x + 14, y + 14, 28, cardHeight - 28, 8, 8, "F");
+  setText(doc, pdfPalette.ink);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("Analyst Brief", x + 16, y + 24);
+  doc.text("Executive Brief", x + 56, y + 28);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
-  doc.setTextColor(76, 91, 81);
+  setText(doc, pdfPalette.muted);
 
   summaryLines.forEach((line, index) => {
-    doc.text(line, x + 16, y + 42 + index * 11);
+    doc.text(line, x + 56, y + 48 + index * 12);
   });
 
-  doc.setFillColor(24, 61, 48);
-  doc.roundedRect(x + width - 150, y + 18, 118, 48, 10, 10, "F");
+  setFill(doc, pdfPalette.forest);
+  doc.roundedRect(x + width - 160, y + 18, 128, 58, 10, 10, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text(`${report.score.score}/100`, x + width - 132, y + 48);
+  doc.setFontSize(22);
+  doc.text(`${report.score.score}/100`, x + width - 142, y + 54);
   doc.setFontSize(8);
-  doc.text("RELATIONSHIP SCORE", x + width - 132, y + 32);
+  doc.text("RELATIONSHIP SCORE", x + width - 142, y + 34);
 
   if (drivers.length > 0) {
-    doc.setTextColor(36, 49, 41);
+    setText(doc, pdfPalette.ink);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
-    doc.text("Top drivers", x + width - 150, y + 82);
+    doc.text("Top drivers", x + width - 160, y + 96);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(92, 105, 96);
-    doc.text(truncatePdfText(drivers.join(" | "), 44), x + width - 150, y + 96);
+    setText(doc, pdfPalette.muted);
+    splitPdfText(doc, drivers.join(" | "), 140)
+      .slice(0, 2)
+      .forEach((line, index) => {
+        doc.text(line, x + width - 160, y + 111 + index * 10);
+      });
   }
 
   cursor.y += cardHeight + 18;
@@ -783,6 +841,171 @@ function drawScoreCards(
     doc.text(card.value, left + 16, y + 55);
   });
   cursor.y += 104;
+}
+
+function drawCoverSignalPanel(
+  doc: jsPDF,
+  report: AnalysisReport,
+  signalGroups: SignalGroup[],
+  page: PdfPage,
+  cursor: PdfCursor,
+  width: number,
+): void {
+  ensurePageSpace(doc, page, cursor, 112);
+  const x = page.margin;
+  const y = cursor.y;
+  const leftWidth = Math.floor(width * 0.54);
+  const rightX = x + leftWidth + 14;
+  const topSignals = signalGroups.slice(0, 3);
+
+  setFill(doc, pdfPalette.forest);
+  doc.roundedRect(x, y, leftWidth, 108, 12, 12, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("TOP SIGNAL FAMILIES", x + 18, y + 24);
+
+  if (topSignals.length === 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("No analyzer signal passed the reporting threshold.", x + 18, y + 52);
+  } else {
+    topSignals.forEach((signal, index) => {
+      const rowY = y + 44 + index * 20;
+      const barWidth = clamp(signal.scoreImpact * 1.6, 24, leftWidth - 166);
+      setFill(doc, [54, 103, 80]);
+      doc.roundedRect(x + 18, rowY - 8, leftWidth - 36, 13, 6, 6, "F");
+      setFill(doc, index === 0 ? [219, 238, 220] : [165, 203, 176]);
+      doc.roundedRect(x + 18, rowY - 8, barWidth, 13, 6, 6, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text(truncatePdfText(formatPdfLabel(signal.title), 30), x + 28, rowY + 2);
+      doc.text(`${signal.count} hits`, x + leftWidth - 72, rowY + 2);
+    });
+  }
+
+  setFill(doc, pdfPalette.paper);
+  setDraw(doc, pdfPalette.line);
+  doc.roundedRect(rightX, y, width - leftWidth - 14, 108, 12, 12, "FD");
+  setText(doc, pdfPalette.ink);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("RUN CONTEXT", rightX + 16, y + 24);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  setText(doc, pdfPalette.muted);
+  [
+    `Mode: ${report.meta?.resolvedMode ?? "unknown"}`,
+    `Provider: ${report.meta?.dataProvider ?? report.sourceLabel ?? "unknown"}`,
+    `Chain: ${report.meta?.chainName ?? report.scope ?? "unknown"}`,
+    `Fetched: ${formatGeneratedAt(report.meta?.fetchedAt ?? report.generatedAt)}`,
+  ].forEach((line, index) => {
+    doc.text(truncatePdfText(formatPdfLabel(line), 42), rightX + 16, y + 44 + index * 13);
+  });
+
+  cursor.y += 128;
+}
+
+function drawReviewerChecklist(
+  doc: jsPDF,
+  report: AnalysisReport,
+  page: PdfPage,
+  cursor: PdfCursor,
+  width: number,
+): void {
+  const x = page.margin;
+  const y = cursor.y;
+  const items = [
+    report.score.reasons[0] ? `Confirm leading driver: ${report.score.reasons[0]}` : "Confirm whether absence of signals matches the selected scope.",
+    "Review exchange, bridge, and contract intermediaries before attribution.",
+    report.score.counterEvidence[0]
+      ? `Account for counter-evidence: ${report.score.counterEvidence[0]}`
+      : "Check for public infrastructure that may lower review priority.",
+  ].map((item) => truncatePdfText(formatPdfLabel(item), 88));
+
+  ensurePageSpace(doc, page, cursor, 94);
+  setFill(doc, [255, 252, 244]);
+  setDraw(doc, [231, 218, 192]);
+  doc.roundedRect(x, y, width, 82, 10, 10, "FD");
+  setText(doc, pdfPalette.ink);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Reviewer checklist", x + 16, y + 22);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  setText(doc, pdfPalette.muted);
+  items.forEach((item, index) => {
+    const dotY = y + 40 + index * 13;
+    setDraw(doc, pdfPalette.amber);
+    doc.circle(x + 19, dotY - 3, 3, "S");
+    doc.text(item, x + 30, dotY);
+  });
+  cursor.y += 98;
+}
+
+function drawPageKicker(
+  doc: jsPDF,
+  title: string,
+  subtitle: string,
+  page: PdfPage,
+  cursor: PdfCursor,
+  width: number,
+): void {
+  const x = page.margin;
+  const y = cursor.y;
+  setText(doc, pdfPalette.ink);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text(title, x, y + 12);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  setText(doc, pdfPalette.muted);
+  doc.text(formatPdfLabel(subtitle), x, y + 30);
+  setDraw(doc, pdfPalette.line);
+  doc.line(x, y + 44, x + width, y + 44);
+  cursor.y += 66;
+}
+
+function drawScoreDimensionMatrix(
+  doc: jsPDF,
+  report: AnalysisReport,
+  page: PdfPage,
+  cursor: PdfCursor,
+  width: number,
+): void {
+  const x = page.margin;
+  const dimensions = [
+    ["Funding", report.score.dimensions.funding, pdfPalette.green],
+    ["Destination", report.score.dimensions.destination, pdfPalette.blue],
+    ["Contract", report.score.dimensions.contract, pdfPalette.amber],
+    ["Temporal", report.score.dimensions.temporal, [118, 93, 171] as const],
+    ["Asset", report.score.dimensions.asset, [64, 133, 147] as const],
+  ] as const;
+
+  ensurePageSpace(doc, page, cursor, 112);
+  setText(doc, pdfPalette.ink);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text("Score Dimension Matrix", x, cursor.y);
+  cursor.y += 24;
+
+  dimensions.forEach(([label, value, color], index) => {
+    const rowY = cursor.y + index * 16;
+    setText(doc, pdfPalette.muted);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.text(label, x, rowY + 7);
+    setFill(doc, pdfPalette.panel);
+    doc.roundedRect(x + 88, rowY, width - 132, 8, 4, 4, "F");
+    setFill(doc, color);
+    doc.roundedRect(x + 88, rowY, Math.max(4, ((width - 132) * value) / 100), 8, 4, 4, "F");
+    setText(doc, pdfPalette.ink);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${value}`, x + width - 28, rowY + 7);
+  });
+
+  cursor.y += dimensions.length * 16 + 24;
 }
 
 function drawGraphBars(
@@ -1203,6 +1426,27 @@ function truncateMiddle(value: string, maxLength: number): string {
   if (value.length <= maxLength) return value;
   const sideLength = Math.max(4, Math.floor((maxLength - 3) / 2));
   return `${value.slice(0, sideLength)}...${value.slice(-sideLength)}`;
+}
+
+function formatGeneratedAt(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return formatPdfLabel(value);
+  }
+
+  return date.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+}
+
+function setFill(doc: jsPDF, color: PdfRgb): void {
+  doc.setFillColor(color[0], color[1], color[2]);
+}
+
+function setDraw(doc: jsPDF, color: PdfRgb): void {
+  doc.setDrawColor(color[0], color[1], color[2]);
+}
+
+function setText(doc: jsPDF, color: PdfRgb): void {
+  doc.setTextColor(color[0], color[1], color[2]);
 }
 
 function clamp(value: number, min: number, max: number): number {
