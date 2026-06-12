@@ -112,8 +112,91 @@ button:disabled {
   background: transparent;
 }
 
+.routeLoadingContent.historyPage {
+  display: flex;
+  place-items: initial;
+}
+
 .workbenchLoadingShell {
   pointer-events: none;
+}
+
+.workbenchLoadingHeader {
+  min-height: 60px;
+}
+
+.workbenchLoadingHeader > div,
+.workbenchLoadingCard {
+  width: 100%;
+}
+
+.workbenchLoadingLine {
+  width: 100%;
+}
+
+.workbenchLoadingLineShort {
+  width: min(62%, 220px);
+}
+
+.workbenchLoadingBlock {
+  min-height: 72px;
+  border-radius: 10px;
+}
+
+.workbenchLoadingBlockTall {
+  min-height: 124px;
+}
+
+.workbenchLoadingGraph {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid #dfe7df;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(31, 61, 44, 0.08), transparent 32%),
+    #f8faf7;
+}
+
+.workbenchLoadingGraph span {
+  position: absolute;
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e6eee4;
+}
+
+.workbenchLoadingGraph span::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: translateX(-100%);
+  animation: shimmer 1.3s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+}
+
+.workbenchLoadingGraph span:nth-child(1) {
+  top: 28%;
+  left: 22%;
+  width: 34%;
+  height: 12px;
+  transform: rotate(-18deg);
+}
+
+.workbenchLoadingGraph span:nth-child(2) {
+  top: 52%;
+  right: 18%;
+  width: 42%;
+  height: 12px;
+  transform: rotate(14deg);
+}
+
+.workbenchLoadingGraph span:nth-child(3) {
+  right: 34%;
+  bottom: 24%;
+  width: 28%;
+  height: 12px;
+  transform: rotate(-8deg);
 }
 
 .routeLoading {
@@ -147,6 +230,94 @@ button:disabled {
 
 .routeLoadingPanel span:nth-child(3) {
   width: 52%;
+}
+
+.routeLoadingShell {
+  gap: 10px;
+}
+
+.routeLoadingToolbar,
+.routeLoadingFilter,
+.routeLoadingTable {
+  flex-shrink: 0;
+  border: 1px solid #dfe7df;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.routeLoadingToolbar,
+.routeLoadingFilter {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.routeLoadingToolbar {
+  grid-template-columns: minmax(180px, 1fr) 150px 38px;
+  align-items: center;
+}
+
+.routeLoadingFilter {
+  grid-template-columns: 160px minmax(220px, 1fr) 110px;
+}
+
+.routeLoadingTable {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.routeLoadingTableHeader,
+.routeLoadingTableRow {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr 0.7fr 1fr;
+  gap: 14px;
+  align-items: center;
+  min-width: 760px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #e7ece4;
+}
+
+.routeLoadingTableHeader {
+  background: #f7faf6;
+}
+
+.routeLoadingToolbar span,
+.routeLoadingFilter span,
+.routeLoadingTable span,
+.workbenchLoadingLine,
+.workbenchLoadingBlock {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf2ed;
+}
+
+.routeLoadingToolbar span,
+.routeLoadingFilter span,
+.routeLoadingTable span,
+.workbenchLoadingLine {
+  height: 14px;
+}
+
+.routeLoadingTableRow span:first-child,
+.workbenchLoadingLineTitle {
+  height: 24px;
+  border-radius: 8px;
+}
+
+.routeLoadingToolbar span::after,
+.routeLoadingFilter span::after,
+.routeLoadingTable span::after,
+.workbenchLoadingLine::after,
+.workbenchLoadingBlock::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: translateX(-100%);
+  animation: shimmer 1.2s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
 }
 
 @keyframes pageSoftIn {
@@ -1275,6 +1446,7 @@ button:disabled {
 }
 
 .labelRecordList {
+  --label-record-columns: minmax(150px, 1.05fr) 150px 64px 96px minmax(220px, 1.45fr) 70px;
   position: relative;
   height: 100%;
   min-height: 0;
@@ -1314,7 +1486,7 @@ button:disabled {
   top: 0;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(150px, 1.05fr) 150px 64px 96px minmax(220px, 1.45fr) 70px;
+  grid-template-columns: var(--label-record-columns);
   gap: 12px;
   align-items: center;
   min-width: 920px;
@@ -1338,7 +1510,7 @@ button:disabled {
 
 .labelRecordSkeletonRow {
   display: grid;
-  grid-template-columns: minmax(150px, 1.05fr) 150px 64px 96px minmax(220px, 1.45fr) 70px;
+  grid-template-columns: var(--label-record-columns);
   gap: 12px;
   align-items: center;
   min-width: 920px;
@@ -1377,7 +1549,7 @@ button:disabled {
 
 .labelRecordRow {
   display: grid;
-  grid-template-columns: minmax(150px, 1.05fr) 150px 64px 96px minmax(220px, 1.45fr) 70px;
+  grid-template-columns: var(--label-record-columns);
   gap: 12px;
   align-items: center;
   min-width: 920px;
@@ -1731,6 +1903,7 @@ button:disabled {
 }
 
 .historyTableWrap {
+  --history-table-columns: 1.15fr 1fr 1.05fr 0.72fr 0.86fr 1.06fr 0.78fr;
   position: relative;
   overflow-x: auto;
   min-height: 100%;
@@ -1749,6 +1922,7 @@ button:disabled {
 
 .historyTable {
   width: 100%;
+  min-width: 880px;
   border-collapse: collapse;
   font-size: 0.82rem;
 }
@@ -2307,23 +2481,34 @@ button:disabled {
 .historySkeleton {
   display: grid;
   gap: 0;
-  padding: 8px 0;
+  min-width: 880px;
+  padding: 0;
 }
 
+.historySkeletonHeader,
 .historySkeletonRow {
   display: grid;
-  grid-template-columns: 1.4fr 1.2fr 1fr 0.8fr;
-  gap: 24px;
+  grid-template-columns: var(--history-table-columns);
+  gap: 14px;
   align-items: center;
-  min-height: 62px;
-  padding: 0 14px;
+  min-width: 880px;
+  padding: 13px 14px;
   border-bottom: 1px solid #e9eee7;
+}
+
+.historySkeletonHeader {
+  background: #f7faf6;
+}
+
+.historySkeletonBody {
+  display: grid;
 }
 
 .historySkeletonRow:last-child {
   border-bottom: 0;
 }
 
+.historySkeletonHeader span,
 .historySkeletonRow span {
   position: relative;
   overflow: hidden;
@@ -2332,6 +2517,24 @@ button:disabled {
   background: #edf2eb;
 }
 
+.historySkeletonHeader span {
+  height: 10px;
+}
+
+.historySkeletonRow span:nth-child(1),
+.historySkeletonRow span:nth-child(2),
+.historySkeletonRow span:nth-child(4) {
+  height: 28px;
+  border-radius: 8px;
+}
+
+.historySkeletonRow span:nth-child(5),
+.historySkeletonRow span:nth-child(6),
+.historySkeletonRow span:nth-child(7) {
+  height: 24px;
+}
+
+.historySkeletonHeader span::after,
 .historySkeletonRow span::after {
   position: absolute;
   inset: 0;

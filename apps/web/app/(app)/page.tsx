@@ -29,22 +29,54 @@ function WorkbenchLoadingFallback() {
   return (
     <section className="workbench workbenchLoadingShell" aria-label="正在加载工作台">
       <div className="workbenchColumn workbenchInput">
-        <div className="routeLoadingPanel">
-          <span />
-          <span />
-          <span />
+        <div className="workbenchColumnHeader workbenchLoadingHeader">
+          <div>
+            <span className="workbenchLoadingLine workbenchLoadingLineTitle" />
+            <span className="workbenchLoadingLine workbenchLoadingLineShort" />
+          </div>
+        </div>
+        <div className="workbenchInputBody">
+          <div className="inputPanel workbenchLoadingCard">
+            <span className="workbenchLoadingLine workbenchLoadingLineTitle" />
+            <span className="workbenchLoadingBlock" />
+            <span className="workbenchLoadingLine" />
+            <span className="workbenchLoadingLine workbenchLoadingLineShort" />
+          </div>
+          <div className="summaryPanel workbenchLoadingCard">
+            <span className="workbenchLoadingLine workbenchLoadingLineTitle" />
+            <span className="workbenchLoadingLine" />
+            <span className="workbenchLoadingLine workbenchLoadingLineShort" />
+          </div>
         </div>
       </div>
       <div className="workbenchColumn workbenchGraph">
-        <div className="routeLoadingPanel">
-          <span />
-          <span />
+        <header className="workbenchColumnHeader workbenchLoadingHeader">
+          <div>
+            <span className="workbenchLoadingLine workbenchLoadingLineTitle" />
+            <span className="workbenchLoadingLine workbenchLoadingLineShort" />
+          </div>
+        </header>
+        <div className="workbenchGraphBody">
+          <div className="workbenchLoadingGraph">
+            <span />
+            <span />
+            <span />
+          </div>
         </div>
       </div>
       <div className="workbenchColumn workbenchFindings">
-        <div className="routeLoadingPanel">
-          <span />
-          <span />
+        <header className="workbenchColumnHeader workbenchFindingsHeader workbenchLoadingHeader">
+          <div className="workbenchFindingsTitle">
+            <span className="workbenchLoadingLine workbenchLoadingLineTitle" />
+            <span className="workbenchLoadingLine workbenchLoadingLineShort" />
+          </div>
+        </header>
+        <div className="workbenchScroll">
+          <div className="loadingStack">
+            <span className="workbenchLoadingBlock workbenchLoadingBlockTall" />
+            <span className="workbenchLoadingBlock" />
+            <span className="workbenchLoadingBlock" />
+          </div>
         </div>
       </div>
     </section>

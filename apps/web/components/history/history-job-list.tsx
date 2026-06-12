@@ -589,14 +589,28 @@ function HistoryComparisonPanel({
 function HistorySkeleton() {
   return (
     <div className="historyTableWrap historySkeleton" aria-label="正在加载历史记录">
-      {Array.from({ length: 5 }, (_, index) => (
-        <div className="historySkeletonRow" key={index}>
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-      ))}
+      <div className="historySkeletonHeader" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="historySkeletonBody" aria-hidden="true">
+        {Array.from({ length: 7 }, (_, index) => (
+          <div className="historySkeletonRow" key={index}>
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

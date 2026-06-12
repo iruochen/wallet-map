@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Pencil, RefreshCw } from "lucide-react";
+import { ExternalLink, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { buildExplorerAddressUrl } from "../../app/chains";
 import { shortenAddress } from "../../app/format";
@@ -48,19 +48,19 @@ export function LabelRecordList({
     }, 700);
   }
 
-  if (labels.length === 0) {
-    if (isLoading) {
-      return (
-        <div className="labelRecordList labelRecordListLoading" aria-label="正在加载标签">
-          <LabelRecordHeader />
-          <LabelRecordSkeleton />
-        </div>
-      );
-    }
+  if (isLoading) {
+    return (
+      <div className="labelRecordList labelRecordListLoading" aria-label="正在加载标签">
+        <LabelRecordHeader />
+        <LabelRecordSkeleton />
+      </div>
+    );
+  }
 
+  if (labels.length === 0) {
     return (
       <div className="labelRecordEmpty">
-        <strong>{isLoading ? "加载中…" : "暂无匹配记录"}</strong>
+        <strong>暂无匹配记录</strong>
         <p>
           {sourceFilter === "local-labels"
             ? "还没有本地标签。点击右上角「添加标签」创建第一条。"
@@ -72,16 +72,9 @@ export function LabelRecordList({
 
   return (
     <div
-      className={`labelRecordList ${isLoading ? "labelRecordListLoading" : ""} ${isScrolling ? "labelRecordListScrolling" : ""}`}
+      className={`labelRecordList ${isScrolling ? "labelRecordListScrolling" : ""}`}
       onScroll={handleScroll}
     >
-      {isLoading ? (
-        <div className="labelRecordLoadingOverlay" role="status" aria-live="polite">
-          <RefreshCw size={18} className="historySpinIcon" aria-hidden="true" />
-          <span>正在加载标签…</span>
-        </div>
-      ) : null}
-
       <LabelRecordHeader />
 
       <div className="labelRecordBody">
