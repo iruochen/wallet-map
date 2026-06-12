@@ -1286,9 +1286,13 @@ button:disabled {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
-.labelRecordListLoading .labelRecordBody {
+.labelRecordListLoading .labelRecordBody:not(.labelRecordSkeleton) {
   pointer-events: none;
   opacity: 0.45;
+}
+
+.labelRecordListScrolling {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 22px), transparent 100%);
 }
 
 .labelRecordLoadingOverlay {
@@ -1326,6 +1330,49 @@ button:disabled {
 
 .labelRecordBody {
   overflow: visible;
+}
+
+.labelRecordSkeleton {
+  min-width: 920px;
+}
+
+.labelRecordSkeletonRow {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.05fr) 150px 64px 96px minmax(220px, 1.45fr) 70px;
+  gap: 12px;
+  align-items: center;
+  min-width: 920px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf2ed;
+}
+
+.labelRecordSkeletonRow span {
+  position: relative;
+  display: block;
+  height: 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf2ed;
+}
+
+.labelRecordSkeletonRow span:nth-child(1) {
+  height: 30px;
+  border-radius: 9px;
+}
+
+.labelRecordSkeletonRow span:nth-child(3),
+.labelRecordSkeletonRow span:nth-child(4),
+.labelRecordSkeletonRow span:nth-child(6) {
+  height: 24px;
+}
+
+.labelRecordSkeletonRow span::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: translateX(-100%);
+  animation: shimmer 1.4s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.78), transparent);
 }
 
 .labelRecordRow {
@@ -5025,6 +5072,27 @@ code {
 
   .labelRecordHeader {
     display: none;
+  }
+
+  .labelRecordSkeleton,
+  .labelRecordSkeletonRow {
+    min-width: 0;
+  }
+
+  .labelRecordSkeletonRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .labelRecordSkeletonRow span {
+    max-width: 100%;
+  }
+
+  .labelRecordSkeletonRow span:nth-child(3),
+  .labelRecordSkeletonRow span:nth-child(4),
+  .labelRecordSkeletonRow span:nth-child(6) {
+    width: 92px;
   }
 
   .labelRecordRow {

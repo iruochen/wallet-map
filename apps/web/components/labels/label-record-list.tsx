@@ -1,6 +1,7 @@
 "use client";
 
 import { ExternalLink, Pencil, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { buildExplorerAddressUrl } from "../../app/chains";
 import { shortenAddress } from "../../app/format";
 import {
@@ -24,7 +25,39 @@ export function LabelRecordList({
   sourceFilter: string;
   onEdit: (label: KnownLabelRecord) => void;
 }) {
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimerRef.current) {
+        window.clearTimeout(scrollTimerRef.current);
+      }
+    };
+  }, []);
+
+  function handleScroll() {
+    setIsScrolling(true);
+
+    if (scrollTimerRef.current) {
+      window.clearTimeout(scrollTimerRef.current);
+    }
+
+    scrollTimerRef.current = window.setTimeout(() => {
+      setIsScrolling(false);
+    }, 700);
+  }
+
   if (labels.length === 0) {
+    if (isLoading) {
+      return (
+        <div className="labelRecordList labelRecordListLoading" aria-label="正在加载标签">
+          <LabelRecordHeader />
+          <LabelRecordSkeleton />
+        </div>
+      );
+    }
+
     return (
       <div className="labelRecordEmpty">
         <strong>{isLoading ? "加载中…" : "暂无匹配记录"}</strong>
@@ -38,7 +71,10 @@ export function LabelRecordList({
   }
 
   return (
-    <div className={`labelRecordList ${isLoading ? "labelRecordListLoading" : ""}`}>
+    <div
+      className={`labelRecordList ${isLoading ? "labelRecordListLoading" : ""} ${isScrolling ? "labelRecordListScrolling" : ""}`}
+      onScroll={handleScroll}
+    >
       {isLoading ? (
         <div className="labelRecordLoadingOverlay" role="status" aria-live="polite">
           <RefreshCw size={18} className="historySpinIcon" aria-hidden="true" />
@@ -46,20 +82,43 @@ export function LabelRecordList({
         </div>
       ) : null}
 
-      <div className="labelRecordHeader" aria-hidden="true">
-        <span>标签</span>
-        <span>地址</span>
-        <span>链</span>
-        <span>来源</span>
-        <span>标签组</span>
-        <span>操作</span>
-      </div>
+      <LabelRecordHeader />
 
       <div className="labelRecordBody">
         {labels.map((label) => (
           <LabelRecordRow key={label.id} label={label} onEdit={onEdit} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function LabelRecordHeader() {
+  return (
+    <div className="labelRecordHeader" aria-hidden="true">
+      <span>标签</span>
+      <span>地址</span>
+      <span>链</span>
+      <span>来源</span>
+      <span>标签组</span>
+      <span>操作</span>
+    </div>
+  );
+}
+
+function LabelRecordSkeleton() {
+  return (
+    <div className="labelRecordBody labelRecordSkeleton" aria-hidden="true">
+      {Array.from({ length: 8 }, (_, index) => (
+        <div className="labelRecordSkeletonRow" key={index}>
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      ))}
     </div>
   );
 }

@@ -316,6 +316,16 @@ export function HistoryJobList({
           </select>
         </label>
       </div>
+      <div className="historyResultBar">
+        <span>{total === 0 ? "暂无匹配记录" : `第 ${rangeStart}-${rangeEnd} 条，共 ${total} 条`}</span>
+        <HistoryPagination
+          page={page}
+          totalPages={totalPages}
+          disabled={isRefreshing || isListLoading}
+          onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+          onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+        />
+      </div>
       {syncMessage ? (
         <div className="stateBanner stateBannerSuccess historySyncBanner" role="status">
           <strong>同步完成</strong>
@@ -475,16 +485,6 @@ export function HistoryJobList({
           ))}
         </tbody>
       </table>
-      <div className="historyTableFooter">
-        <span>{`第 ${rangeStart}-${rangeEnd} 条，共 ${total} 条`}</span>
-        <HistoryPagination
-          page={page}
-          totalPages={totalPages}
-          disabled={isRefreshing || isListLoading}
-          onPrevious={() => setPage((current) => Math.max(1, current - 1))}
-          onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
-        />
-      </div>
       <HistoryComparisonPanel
         comparison={comparison}
         selectedCount={comparisonJobIds.length}
