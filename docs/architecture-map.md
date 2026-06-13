@@ -1,290 +1,164 @@
-# 钱包关联分析工具架构 MAP
+# Wallet Map 架构图
 
 English version: [architecture-map.en.md](architecture-map.en.md)
 
 ## 1. 项目定位
 
-这是一个面向个人和团队的链上钱包关系审计工具，用来回答：
+Wallet Map 是一个本地优先的钱包关系分析工作台，用于帮助个人、研究者和小团队审计一组地址之间的公开链上关系信号。项目关注证据整理、图谱展示和人工复核优先级，不处理私钥、助记词、签名、托管资产或自动化钱包操作。
 
-- 几个钱包之间是否有直接或间接资金往来。
-- 它们是否和同一批合约、CEX 充值地址、桥、跨链路由、NFT/Token 合约发生过交互。
-- 某些链上行为是否形成了可视化的关联路径。
-- 给定一组钱包，哪些关联最强、最值得人工复核。
+核心目标：
 
-项目应保持“本地优先、可开源、可插拔、多链扩展”的方向。工具可以帮助用户理解链上可见关联和隐私暴露，但不应内置规避平台风控、批量绕过规则或自动化滥用流程。
+- 将多链交易、转账、合约交互和标签数据归一为可解释的关系图。
+- 输出直接转账、共享资金来源、共享去向、同合约交互、时间相近行为和多跳路径等证据。
+- 以评分和证据明细辅助人工复核，而不是声明地址归属或身份结论。
+- 保持可开源、可插拔、可在无托管数据库的本地环境运行。
 
-## 2. 产品边界
+## 2. 运行边界
 
-第一版先做小而清晰：
+项目当前覆盖：
 
-- 输入 2 到 N 个钱包地址。
-- 支持 EVM 链，优先 Ethereum、Arbitrum、Optimism、Base、Polygon、BSC。
-- 拉取普通交易、内部交易、ERC20 转账、ERC721/1155 转账、常见跨链桥交互。
-- 构建地址关系图。
-- 识别直接转账、共同资金来源、共同去向、同合约交互、时间接近的相似操作。
-- 输出图谱、路径列表、关联评分和证据明细。
+- Next.js Web 工作台。
+- EVM 地址分析，优先支持 Ethereum、Arbitrum、Base、BSC 等链。
+- fixture 数据集，用于无密钥演示、测试和贡献者快速验证。
+- Etherscan-like、NodeReal、Solscan 等数据源适配点。
+- 图谱构建、默认分析器、关系评分、证据表和报告导出。
+- 可选 PostgreSQL 持久化、Redis job 状态和标签缓存。
 
-暂不做：
+项目不覆盖：
 
-- 自动化钱包操作。
-- 规避检测建议。
-- 私钥、助记词、签名能力。
-- 大规模地址爬虫。
+- 钱包签名、交易发送、私钥或助记词处理。
+- 大规模地址爬虫或批量监控系统。
+- 绕过平台规则、规避风控或自动化滥用建议。
+- 将弱链上信号解释为身份确认。
 
 ## 3. 总体架构
 
 ```mermaid
 flowchart LR
-  U["User / CLI / Web UI"] --> API["API Layer"]
-  API --> JOB["Job Queue"]
-  JOB --> INGEST["Chain Ingestion Workers"]
-  INGEST --> ADAPTER["Chain Data Adapters"]
-  ADAPTER --> RPC["RPC / Indexer APIs"]
-  ADAPTER --> NORM["Normalizer"]
-  NORM --> STORE["Storage Layer"]
-  STORE --> GRAPH["Graph Builder"]
-  GRAPH --> ENGINE["Analysis Engine"]
-  ENGINE --> SCORE["Relationship Scoring"]
-  ENGINE --> EXPLAIN["Evidence & Explainability"]
-  SCORE --> API
-  EXPLAIN --> API
-  API --> UI["Graph UI / Reports"]
+  UI["Next.js Workbench"] --> ROUTES["App Router Pages"]
+  UI --> API["Route Handlers"]
+  API --> LIMITS["Request Validation and Plan Limits"]
+  API --> JOB["Job Store: Redis or Memory"]
+  API --> SOURCE["Data Source Resolver"]
+  SOURCE --> ADAPTERS["Chain Data Adapters"]
+  ADAPTERS --> PROVIDERS["RPC / Indexer APIs / Fixtures"]
+  SOURCE --> EVENTS["Normalized Events"]
+  EVENTS --> GRAPH["Graph Builder"]
+  GRAPH --> LABELS["Label Enrichment"]
+  LABELS --> ANALYZERS["Analysis Engine"]
+  ANALYZERS --> SCORE["Exposure Scoring"]
+  ANALYZERS --> REPORTS["Report Exporters"]
+  SCORE --> RESPONSE["API Response Builder"]
+  REPORTS --> RESPONSE
+  RESPONSE --> UI
+  API --> PG["Optional PostgreSQL"]
+  LABELS --> CACHE["Optional Redis Cache"]
 ```
 
-## 4. 核心模块
+## 4. 应用入口
 
-### 4.1 Address Set
+Web 应用位于 `apps/web`，使用 Next.js App Router。
 
-管理一次分析任务的地址集合。
+主要页面：
 
-- 地址标准化：checksum、链 ID、标签。
-- 地址分组：用户输入组、观察到的关联地址、系统识别实体。
-- 本地备注：例如“主钱包”“测试钱包”“交易所充值”。
+- `/`：分析工作台，输入地址、选择链和数据源，展示进度、图谱、证据、评分和导出入口。
+- `/history`：历史分析列表。仅在 PostgreSQL 可用时返回持久化结果。
+- `/labels`：维护者使用的标签管理页面，默认不向用户开放，由 `NEXT_PUBLIC_LABEL_MANAGER_ENABLED` 控制。
 
-### 4.2 Data Adapters
+主要 API：
 
-每条链或数据源一个适配器，统一输出标准事件。
+- `POST /api/analyze`：创建分析任务，校验输入、创建 job、执行分析并返回结果。
+- `GET /api/analyze/jobs/:id`：读取分析 job 状态、进度和完成结果。
+- `GET /api/analyze/jobs`：读取历史任务列表，需要 PostgreSQL。
+- `GET /api/labels`、`POST /api/labels`：读取和维护本地标签，需要标签管理开关和数据库。
+- 钱包登录、ENS、会话相关 API 用于产品边界和历史归属，不参与链上关系推断。
 
-适配器接口建议：
+## 5. 数据流
 
-```ts
-interface ChainAdapter {
-  chainId: number;
-  getNativeTransactions(address: Address, range?: BlockRange): Promise<RawTx[]>;
-  getTokenTransfers(address: Address, range?: BlockRange): Promise<RawTransfer[]>;
-  getInternalTransactions?(address: Address, range?: BlockRange): Promise<RawInternalTx[]>;
-  getContractMetadata?(address: Address): Promise<ContractMetadata | null>;
-}
-```
+一次分析请求的主流程：
 
-首批数据源可以支持：
+1. 用户在工作台提交地址、链、时间范围和数据源配置。
+2. `POST /api/analyze` 进行地址校验、请求大小限制和匿名/登录计划限制。
+3. API 创建 job。Redis 可用时保存到 Redis；否则保存到内存 job store。
+4. 数据源解析器选择 fixture、Etherscan-like、NodeReal、Solscan 或后续适配器。
+5. 适配器拉取或读取原始事件，并转换为统一的 normalized events。
+6. Graph Builder 将事件转换为节点、边和证据引用。
+7. Label Enrichment 合并内置标签、可选 Chainbase/Etherscan 标签、PostgreSQL 标签和 Redis 缓存。
+8. Analysis Engine 运行默认分析器，生成 findings。
+9. Scoring 模块生成可解释评分和 confidence。
+10. Response Builder 组装图谱、证据、评分、导出数据和 job 状态。
+11. PostgreSQL 开启时保存完成快照，便于历史回放。
 
-- RPC provider：基础交易和日志。
-- Etherscan-like API：快速拿交易、内部交易、Token 转账。
-- Covalent / Moralis / Alchemy / QuickNode Streams：后续作为可选插件。
-- 本地 CSV 导入：便于用户从现有网站导出后分析。
+## 6. 模块边界
 
-### 4.3 Normalized Event Model
+### `apps/web`
 
-所有链上数据归一成少数几类事件：
+承载产品界面、路由、API 编排、会话和部署时配置。页面组件不应直接实现数据源、标签源、存储或复杂图谱算法。
 
-```ts
-type NormalizedEvent =
-  | NativeTransferEvent
-  | TokenTransferEvent
-  | ContractCallEvent
-  | BridgeEvent
-  | DexSwapEvent
-  | NftTransferEvent;
-```
+### `packages/core`
 
-每个事件至少包含：
+定义共享领域模型、normalized events、图结构、分析上下文和评分基础类型。这里是跨应用和跨适配器的稳定契约层。
 
-- `chainId`
-- `txHash`
-- `blockNumber`
-- `timestamp`
-- `from`
-- `to`
-- `asset`
-- `amount`
-- `contract`
-- `methodId`
-- `eventType`
-- `rawRef`
+### `packages/adapters`
 
-### 4.4 Storage Layer
+封装链上数据源。适配器负责获取和标准化数据，不负责关系判断。
 
-推荐先用 PostgreSQL，后续视需求增加图数据库。
+### `packages/analyzers`
 
-MVP：
+实现关系分析规则，例如直接转账、多跳路径、共享资金来源、共享去向、同合约交互、时间相近行为和桥接关联。
 
-- PostgreSQL + Prisma/Drizzle。
-- 关键表：addresses、analysis_jobs、transactions、transfers、contract_calls、edges、findings、labels。
-- 图计算先在应用层完成，避免一开始引入过多基础设施。
+### `packages/labels`
 
-后续增强：
+提供内置实体标签和外部标签源整合。标签是数据增强，不应散落在页面组件或 API 条件判断中。
 
-- Neo4j：更复杂路径查询。
-- DuckDB：本地分析、离线 CSV。
-- ClickHouse：大规模历史数据。
+### `packages/storage`
 
-### 4.5 Graph Builder
+维护 PostgreSQL schema、repository 接口和持久化实现。Web 应用通过配置开关决定是否启用。
 
-把事件转换成图。
+### `packages/exporters`
 
-节点：
+生成 Markdown、JSON、CSV、PDF 等报告输出。导出逻辑应保留证据引用，并支持后续脱敏能力。
 
-- Wallet
-- Contract
-- CEX / Bridge / DEX / Known Entity
-- Token / NFT Collection
+## 7. 存储和缓存
 
-边：
+Wallet Map 可以在无 PostgreSQL、无 Redis 的本地 fixture 模式运行。部署到 Vercel 等 serverless 平台时，建议至少配置 Redis，用于跨函数实例保存 job 状态和进度。
 
-- Native Transfer
-- Token Transfer
-- NFT Transfer
-- Contract Interaction
-- Shared Counterparty
-- Temporal Similarity
-- Bridge Route
+### Redis
 
-边需要保存证据，不只保存结论：
+Redis 用于：
 
-- 交易哈希列表。
-- 时间窗口。
-- 金额。
-- 链。
-- 来源事件。
+- 分析 job 状态和进度。
+- 运行中的分析结果缓存。
+- 标签列表和标签查询热缓存。
 
-### 4.6 Analysis Engine
+当前实现读取 `STORAGE_REDIS_ENABLED=true` 和 `REDIS_URL`。未配置时自动退回内存 job store。内存模式适合本地单进程演示，不适合作为 Vercel 正式部署的 job 状态存储。
 
-第一批分析器用插件式设计：
+### PostgreSQL
 
-```ts
-interface Analyzer {
-  id: string;
-  name: string;
-  run(context: AnalysisContext): Promise<Finding[]>;
-}
-```
+PostgreSQL 用于：
 
-建议内置分析器：
+- 完成的分析 job 快照。
+- normalized events、graph nodes、graph edges 和 findings。
+- `known_labels` 标签数据。
+- 历史列表和历史回放。
 
-- Direct Transfer Analyzer：A 和 B 是否直接转账。
-- Multi-hop Path Analyzer：A 到 B 是否存在 2 到 4 跳路径。
-- Shared Funding Source Analyzer：是否来自同一上游地址。
-- Shared Withdrawal / Deposit Analyzer：是否流向同一 CEX、桥或聚合器。
-- Same Contract Interaction Analyzer：是否交互过同一合约。
-- Temporal Pattern Analyzer：是否在相近时间执行相似操作。
-- Bridge Correlation Analyzer：跨链桥入桥和出桥路径是否可疑地接近。
-- NFT / POAP / SBT Overlap Analyzer：是否持有或转移过相同 NFT 类资产。
+当前实现读取 `STORAGE_POSTGRES_ENABLED=true` 和 `DATABASE_URL`。未配置时，历史和标签管理能力会返回 storage-disabled 状态。
 
-### 4.7 Scoring
+## 8. 可插拔扩展
 
-关联评分应可解释，不做黑盒结论。
+项目预留四类扩展点：
 
-建议输出：
+- Chain Adapter：新增链或数据提供商。
+- Analyzer：新增关系分析规则。
+- Label Provider：新增实体标签来源。
+- Exporter：新增报告格式。
 
-- `score`: 0 到 100。
-- `confidence`: low / medium / high。
-- `reasons`: 证据列表。
-- `counterEvidence`: 降低可信度的因素。
+扩展模块应遵循现有 package 边界，并保留输入、输出和错误状态的类型契约。
 
-评分示例：
+## 9. 隐私和安全原则
 
-- 直接转账：强关联。
-- 同一资金来源：中到强关联，取决于来源是否是 CEX/公共合约。
-- 同合约交互：弱到中关联。
-- 时间接近且操作相似：弱到中关联。
-- 多个弱信号重叠：可提升关联等级。
-
-### 4.8 UI
-
-第一版 UI 应直接服务分析，不做营销页。
-
-关键页面：
-
-- Address Input：输入钱包、选择链、时间范围、API key。
-- Analysis Overview：总评分、关键发现、风险矩阵。
-- Graph Explorer：节点图、边类型过滤、路径高亮。
-- Evidence Table：交易哈希、时间、链、金额、事件类型。
-- Report Export：Markdown / JSON / CSV。
-
-图谱库候选：
-
-- React Flow：实现快，适合交互式图谱。
-- Cytoscape.js：图分析能力更强。
-- Sigma.js：大图渲染更强。
-
-## 5. 推荐技术栈
-
-### 方案 A：开源友好的一体化 TypeScript
-
-- Frontend：Next.js + React + Tailwind CSS
-- API：Next.js Route Handlers 或 Hono
-- Worker：BullMQ + Redis
-- DB：PostgreSQL + Drizzle ORM
-- Graph UI：React Flow 或 Cytoscape.js
-- Package Manager：pnpm
-
-优点：前后端统一语言，开源贡献门槛低。
-
-### 方案 B：分析能力更强的 Python 后端
-
-- Frontend：Next.js
-- API：FastAPI
-- Worker：Celery / Dramatiq
-- DB：PostgreSQL
-- Analysis：networkx / pandas / duckdb
-- Graph UI：Cytoscape.js
-
-优点：链上数据分析和图算法更舒服。
-
-建议从方案 A 开始；如果后续复杂图算法变多，再把 Analysis Engine 拆成 Python 服务。
-
-## 6. 插件扩展设计
-
-需要预留四类插件：
-
-- Chain Adapter：新增链或数据源。
-- Analyzer：新增关联分析规则。
-- Label Provider：实体标签库，例如 CEX、桥、DEX、项目方合约。
-- Exporter：导出 JSON、CSV、Markdown、HTML 报告。
-
-目录结构建议：
-
-```text
-apps/
-  web/
-packages/
-  core/
-    models/
-    graph/
-    scoring/
-  adapters/
-    evm-etherscan/
-    evm-rpc/
-    csv-import/
-  analyzers/
-    direct-transfer/
-    multi-hop-path/
-    shared-counterparty/
-    temporal-pattern/
-  labels/
-    static-registry/
-  exporters/
-    markdown/
-    json/
-docs/
-```
-
-## 7. 数据隐私原则
-
-- 默认本地运行。
-- 不上传用户地址集合，除非用户明确配置远程服务。
-- API key 放在本地 `.env`。
-- 报告默认脱敏选项：隐藏部分地址、金额区间化。
-- 不保存私钥，不请求签名。
-- 开源 README 中明确项目边界：用于个人链上足迹审计、研究和合规分析。
+- 默认支持本地运行和 fixture 演示。
+- 不提交真实 API key、bearer token、JWT、真实钱包地址或用户私有数据。
+- 公开示例使用合成地址，例如 `0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`。
+- 报告和 UI 文案描述“关系信号”和“复核优先级”，不描述为身份证明。
+- 标签管理页面默认关闭，公开部署仅在维护者明确需要时开启。

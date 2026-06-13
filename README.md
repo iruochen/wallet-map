@@ -29,9 +29,8 @@ Implemented capabilities include:
 
 Planned before a public stable release:
 
-- CI workflow for typecheck, test, lint, and build.
 - Additional live provider coverage and cache validation.
-- Bilingual documentation completion and release checklist review.
+- Public release checklist review.
 - Formal security contact and dependency update policy.
 
 ## Workspace
@@ -75,9 +74,11 @@ The Next.js app reads runtime secrets from `apps/web/.env.local`.
 
 ## Local Infrastructure
 
-PostgreSQL and Redis are optional. The application can run in fixture mode without either service, which is the recommended default for first-time setup and Vercel deployments that do not yet have managed storage.
+PostgreSQL and Redis are optional for local development. The application can run in fixture mode without either service, which is the recommended default for first-time setup.
 
 Enable local PostgreSQL and Redis only when you want persisted history, multi-instance job progress, Redis-backed label cache, or private label management.
+
+For Vercel preview and production deployments, configure managed Redis before opening the analysis flow to users. The current implementation expects `STORAGE_REDIS_ENABLED=true` and `REDIS_URL`, for example an Upstash Redis TLS URL. See [Vercel Deployment](docs/vercel-deployment.md).
 
 If you use Colima on macOS:
 
@@ -111,6 +112,7 @@ After PostgreSQL is running, apply:
 ```bash
 psql "$DATABASE_URL" -f packages/storage/migrations/0001_initial_schema.sql
 psql "$DATABASE_URL" -f packages/storage/migrations/0002_analysis_job_metadata.sql
+psql "$DATABASE_URL" -f packages/storage/migrations/0003_scoped_event_and_job_subjects.sql
 ```
 
 Analysis jobs persist to PostgreSQL only when `STORAGE_POSTGRES_ENABLED=true`
@@ -213,6 +215,7 @@ address-count and request-size limits before creating a job.
 - Commit Convention: [English](docs/commit-convention.md), [中文](docs/commit-convention.zh.md)
 - Documentation Style: [English](docs/documentation-style.md), [中文](docs/documentation-style.zh.md)
 - Database Schema: [English](docs/database-schema.md), [中文](docs/database-schema.zh.md)
+- Vercel Deployment: [English](docs/vercel-deployment.md), [中文](docs/vercel-deployment.zh.md)
 - Analysis Guidelines: [English](docs/analysis-guidelines.md), [中文](docs/analysis-guidelines.zh.md)
 - Open Source Guidelines: [English](docs/open-source.md), [中文](docs/open-source.zh.md)
 - Release Process: [English](docs/release-process.md), [中文](docs/release-process.zh.md)

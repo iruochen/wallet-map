@@ -10,13 +10,15 @@ English version: [docs/README.md](README.md)
 2. [架构图](architecture-map.md)
 3. [分析规范](analysis-guidelines.zh.md)
 4. [数据库结构](database-schema.zh.md)
-5. [开源规范](open-source.zh.md)
-6. [发布流程](release-process.zh.md)
+5. [Vercel 部署](vercel-deployment.zh.md)
+6. [开源规范](open-source.zh.md)
+7. [发布流程](release-process.zh.md)
 
 ## 当前发布说明
 
 - 仓库仍处于 pre-1.0 阶段。
-- fixture 模式是公开演示和无存储 Vercel 部署的默认路径。
+- fixture 模式是本地演示和贡献者快速上手的默认路径。
+- Vercel Preview 和 Production 部署建议使用托管 Redis 保存分析 job 状态。
 - PostgreSQL、Redis、标签持久化、标签缓存和标签管理页面均为可选运行时能力。
 - 标签管理页面默认关闭，由 `NEXT_PUBLIC_LABEL_MANAGER_ENABLED` 控制。
 - 公开示例必须使用合成钱包地址。
@@ -31,6 +33,7 @@ English version: [docs/README.md](README.md)
 | 提交规范 | [commit-convention.md](commit-convention.md) | [commit-convention.zh.md](commit-convention.zh.md) |
 | 文档风格 | [documentation-style.md](documentation-style.md) | [documentation-style.zh.md](documentation-style.zh.md) |
 | 数据库结构 | [database-schema.md](database-schema.md) | [database-schema.zh.md](database-schema.zh.md) |
+| Vercel 部署 | [vercel-deployment.md](vercel-deployment.md) | [vercel-deployment.zh.md](vercel-deployment.zh.md) |
 | 分析规范 | [analysis-guidelines.md](analysis-guidelines.md) | [analysis-guidelines.zh.md](analysis-guidelines.zh.md) |
 | 开源规范 | [open-source.md](open-source.md) | [open-source.zh.md](open-source.zh.md) |
 | 发布流程 | [release-process.md](release-process.md) | [release-process.zh.md](release-process.zh.md) |

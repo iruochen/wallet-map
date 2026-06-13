@@ -2,7 +2,7 @@
 
 中文版本：[database-schema.zh.md](database-schema.zh.md)
 
-Wallet Map supports PostgreSQL as an optional durable storage target and Redis as an optional hot-cache and in-flight job-progress backend. The application can run without either service in fixture mode or in a single-instance preview deployment.
+Wallet Map supports PostgreSQL as an optional durable storage target and Redis as an optional hot-cache and in-flight job-progress backend. The application can run without either service in fixture mode or in a single-instance local demo. Vercel preview and production deployments should use managed Redis for analysis job status.
 
 ## Current Boundary
 
@@ -83,7 +83,7 @@ Lookup priority in PostgreSQL favors `chainbase-address-labels`, then `etherscan
 STORAGE_POSTGRES_ENABLED=true
 DATABASE_URL=postgresql://...
 STORAGE_REDIS_ENABLED=true
-REDIS_URL=redis://...
+REDIS_URL=rediss://...
 CHAINBASE_API_KEY=...
 LABEL_DATABASE_ENABLED=true
 LABEL_REDIS_CACHE_ENABLED=true
@@ -91,4 +91,4 @@ LABEL_LIST_CACHE_ENABLED=true
 NEXT_PUBLIC_LABEL_MANAGER_ENABLED=false
 ```
 
-On Vercel, use managed PostgreSQL and Redis (for example Neon + Upstash). Do not run Docker Compose services on Vercel itself.
+On Vercel, use managed Redis such as Upstash for job progress. Use managed PostgreSQL such as Neon only when persistent history or label management is required. Do not run Docker Compose services on Vercel itself. See [Vercel Deployment](vercel-deployment.md).

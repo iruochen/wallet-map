@@ -4,187 +4,161 @@
 
 ## 1. Project Positioning
 
-Wallet Map is a local-first wallet relationship audit workbench for individuals, small teams, and researchers. It helps users review visible on-chain signals between a group of addresses:
+Wallet Map is a local-first wallet relationship analysis workbench for individuals, researchers, and small teams. It helps users review public on-chain relationship signals between a group of addresses. The project focuses on evidence collection, graph exploration, and human review priority. It does not handle private keys, seed phrases, signatures, custody, or automated wallet operations.
 
-- direct or indirect fund flows
-- shared counterparties
-- shared contract interactions
-- bridge and cross-chain route evidence
-- time-adjacent behavior patterns
-- graph paths that require human review
+Core goals:
 
-The project must remain open-source friendly, privacy-conscious, pluggable, and multi-chain ready. It must not provide private-key handling, signing, automated wallet operations, or instructions for evading third-party review systems.
+- Normalize multi-chain transactions, transfers, contract interactions, and labels into an explainable relationship graph.
+- Surface evidence for direct transfers, shared funding, shared destinations, same-contract interactions, time-adjacent behavior, and multi-hop paths.
+- Use scoring and evidence details to support human review, not to claim identity or ownership.
+- Remain open-source friendly, pluggable, and runnable in local environments without managed databases.
 
-## 2. Product Boundary
+## 2. Runtime Boundary
 
-Out of scope:
+The current project includes:
 
-- automated wallet actions
-- private keys, seed phrases, signatures, or custody
-- large-scale address crawling
-- claims that weak signals prove identity
-- advice for bypassing platform policies
+- Next.js web workbench.
+- EVM address analysis, with Ethereum, Arbitrum, Base, and BSC as priority chains.
+- Fixture datasets for keyless demos, tests, and contributor onboarding.
+- Adapter points for Etherscan-like APIs, NodeReal, Solscan, and future providers.
+- Graph construction, default analyzers, relationship scoring, evidence tables, and report export.
+- Optional PostgreSQL persistence, Redis job state, and label cache.
+
+The project does not include:
+
+- Wallet signing, transaction sending, private keys, or seed phrase handling.
+- Large-scale address crawling or batch monitoring systems.
+- Guidance for bypassing third-party policies or review systems.
+- Claims that weak on-chain signals prove identity.
 
 ## 3. High-Level Architecture
 
 ```mermaid
 flowchart LR
-  U["User / Web UI"] --> API["Next.js Route Handlers"]
-  API --> JOB["Job Store: Memory or Redis"]
-  API --> PROVIDERS["Data Source Resolver"]
-  PROVIDERS --> ADAPTERS["Chain Data Adapters"]
-  ADAPTERS --> RPC["RPC / Indexer APIs / Fixtures"]
-  PROVIDERS --> CORE["Normalized Events"]
-  CORE --> GRAPH["Graph Builder"]
+  UI["Next.js Workbench"] --> ROUTES["App Router Pages"]
+  UI --> API["Route Handlers"]
+  API --> LIMITS["Request Validation and Plan Limits"]
+  API --> JOB["Job Store: Redis or Memory"]
+  API --> SOURCE["Data Source Resolver"]
+  SOURCE --> ADAPTERS["Chain Data Adapters"]
+  ADAPTERS --> PROVIDERS["RPC / Indexer APIs / Fixtures"]
+  SOURCE --> EVENTS["Normalized Events"]
+  EVENTS --> GRAPH["Graph Builder"]
   GRAPH --> LABELS["Label Enrichment"]
-  LABELS --> ENGINE["Analysis Engine"]
-  ENGINE --> SCORE["Exposure Scoring"]
-  ENGINE --> REPORTS["Reports"]
-  SCORE --> API
-  REPORTS --> API
-  API --> UI["Workbench / History / Graph / Evidence"]
-  API --> STORE["Optional PostgreSQL"]
-  LABELS --> CACHE["Optional Redis Label Cache"]
+  LABELS --> ANALYZERS["Analysis Engine"]
+  ANALYZERS --> SCORE["Exposure Scoring"]
+  ANALYZERS --> REPORTS["Report Exporters"]
+  SCORE --> RESPONSE["API Response Builder"]
+  REPORTS --> RESPONSE
+  RESPONSE --> UI
+  API --> PG["Optional PostgreSQL"]
+  LABELS --> CACHE["Optional Redis Cache"]
 ```
 
-## 4. Core Modules
+## 4. Application Entry Points
 
-### Address Set
+The web application lives in `apps/web` and uses the Next.js App Router.
 
-Owns the input address group for one analysis run:
+Main pages:
 
-- address validation and normalization
-- chain IDs
-- watched versus observed node roles
-- optional local labels and display names
+- `/`: analysis workbench for address input, chain/source selection, progress, graph, evidence, scoring, and exports.
+- `/history`: analysis history. It returns persisted records only when PostgreSQL is configured.
+- `/labels`: maintainer-only label manager, disabled by default through `NEXT_PUBLIC_LABEL_MANAGER_ENABLED`.
 
-### Data Adapters
+Main APIs:
 
-Adapters isolate external data sources and return normalized events. They should not run relationship analysis.
+- `POST /api/analyze`: creates an analysis job, validates input, runs the pipeline, and returns the result.
+- `GET /api/analyze/jobs/:id`: reads job status, progress, and completed output.
+- `GET /api/analyze/jobs`: lists historical jobs when PostgreSQL is enabled.
+- `GET /api/labels` and `POST /api/labels`: read and maintain local labels when the label manager and database are enabled.
+- Wallet login, ENS, and session APIs support product limits and history ownership; they are not part of relationship inference.
 
-Implemented or planned sources include:
+## 5. Data Flow
 
-- fixture JSON
-- Etherscan-like APIs
-- NodeReal for supported EVM chains
-- Solscan for Solana
-- future CSV/import and RPC log providers
+A standard analysis request follows this path:
 
-### Normalized Event Model
+1. The user submits addresses, chains, time range, and source settings from the workbench.
+2. `POST /api/analyze` validates addresses, request size, and anonymous or signed-in plan limits.
+3. The API creates a job. Redis stores it when available; otherwise the app uses an in-memory job store.
+4. The data source resolver selects fixture, Etherscan-like, NodeReal, Solscan, or future adapters.
+5. Adapters fetch or read raw events and return normalized events.
+6. The graph builder converts events into nodes, edges, and evidence references.
+7. Label enrichment merges built-in labels, optional Chainbase/Etherscan labels, PostgreSQL labels, and Redis cache entries.
+8. The analysis engine runs default analyzers and produces findings.
+9. The scoring module produces explainable scores and confidence.
+10. The response builder returns graph data, evidence, scoring, exports, and job state.
+11. PostgreSQL stores completed snapshots when persistence is enabled.
 
-All chain data is normalized into a small event set, such as native transfers, token transfers, NFT transfers, contract calls, bridge events, and DEX-like events.
+## 6. Module Boundaries
 
-Each event should retain:
+### `apps/web`
 
-- `chainId`
-- `txHash`
-- `blockNumber`
-- `timestamp`
-- `from`
-- `to`
-- `asset`
-- `amount`
-- `contract`
-- `methodId`
-- `eventType`
-- `rawRef`
+Contains the product UI, routes, API orchestration, sessions, and deployment-time configuration. Page components should not own data-source logic, label-provider logic, storage implementation, or complex graph algorithms.
 
-### Storage Layer
+### `packages/core`
 
-Storage is optional. The app must run without PostgreSQL and Redis.
+Defines shared domain models, normalized events, graph structures, analysis context, and scoring primitives. This is the stable contract layer across apps and adapters.
 
-When enabled:
+### `packages/adapters`
 
-- PostgreSQL stores analysis jobs, normalized events, graph nodes and edges, findings, snapshots, and known labels.
-- Redis stores in-flight job progress and hot label/list cache.
-- The label manager is private by default and controlled by `NEXT_PUBLIC_LABEL_MANAGER_ENABLED`.
+Wraps chain data sources. Adapters fetch and normalize data; they do not make relationship judgments.
 
-When disabled:
+### `packages/analyzers`
 
-- `/api/analyze` uses an in-memory job store.
-- fixture and live analysis still work in a single-instance environment.
-- history and label management return storage-disabled states.
+Implements relationship rules such as direct transfer, multi-hop paths, shared funding, shared destination, same-contract interaction, temporal proximity, and bridge correlation.
 
-### Graph Builder
+### `packages/labels`
 
-Converts normalized events into a relationship graph.
+Provides built-in entity labels and external label-source integration. Labels are data enrichment and should not be hard-coded inside pages or scattered API conditionals.
 
-Node types:
+### `packages/storage`
 
-- wallet
-- contract
-- known entity
-- asset
+Owns PostgreSQL schema, repository contracts, and persistence implementations. The web app enables this layer through runtime configuration.
 
-Edge types:
+### `packages/exporters`
 
-- native transfer
-- token transfer
-- NFT transfer
-- contract interaction
-- shared counterparty
-- temporal similarity
-- bridge route
+Generates Markdown, JSON, CSV, PDF, and future report formats. Exporters should preserve evidence references and support future redaction behavior.
 
-Edges must retain evidence references instead of storing conclusions only.
+## 7. Storage and Cache
 
-### Analysis Engine
+Wallet Map can run in local fixture mode without PostgreSQL or Redis. On serverless platforms such as Vercel, Redis is recommended for deployed environments so job state and progress survive across function instances.
 
-Analyzers are plugin-style modules:
+### Redis
 
-```ts
-interface Analyzer {
-  id: string;
-  name: string;
-  run(context: AnalysisContext): Promise<Finding[]>;
-}
-```
+Redis is used for:
 
-Default analyzers should produce evidence-backed findings and avoid external fetching.
+- analysis job status and progress
+- in-flight analysis result cache
+- hot label-list and label-lookup cache
 
-### Scoring
+The current implementation reads `STORAGE_REDIS_ENABLED=true` and `REDIS_URL`. When Redis is not configured, the app falls back to an in-memory job store. Memory mode is suitable for local single-process demos, not for durable job state on Vercel.
 
-Scores are review-priority signals, not identity claims.
+### PostgreSQL
 
-The scoring model includes:
+PostgreSQL is used for:
 
-- funding
-- destination
-- contract
-- temporal
-- asset
-- confidence adjustments
+- completed analysis job snapshots
+- normalized events, graph nodes, graph edges, and findings
+- `known_labels`
+- history list and replay
 
-Public entities and popular contracts should reduce confidence for weak and medium signals.
+The current implementation reads `STORAGE_POSTGRES_ENABLED=true` and `DATABASE_URL`. When PostgreSQL is not configured, history and label management return storage-disabled states.
 
-### UI
+## 8. Extension Points
 
-The first screen should be the analysis workbench, not a marketing page.
+The project reserves four extension types:
 
-Key routes:
+- Chain Adapter: add a chain or data provider.
+- Analyzer: add a relationship analysis rule.
+- Label Provider: add an entity-label source.
+- Exporter: add a report format.
 
-- `/`: workbench
-- `/history`: persisted analysis history when storage is configured
-- `/labels`: private label manager, disabled by default
+Extensions should follow the existing package boundaries and preserve typed input, output, and error contracts.
 
-## 5. Technology Direction
+## 9. Privacy and Safety Principles
 
-Current stack:
-
-- Frontend/API: Next.js, React, TypeScript
-- Package manager: pnpm
-- Graph UI: Cytoscape.js
-- Storage: optional PostgreSQL
-- Cache/job progress: optional Redis
-- Tests: Vitest
-
-Future work may introduce additional provider packages, graph slicing endpoints, or a larger-graph renderer without changing the core analysis contracts.
-
-## 6. Privacy and Safety Principles
-
-- Default to local-first behavior.
-- Do not upload user address sets without explicit configuration.
-- Do not commit API keys, bearer tokens, real wallet addresses, or private data.
-- Public examples must use synthetic addresses.
-- Reports should support redaction before sharing.
-- The product should describe “relationship signals” and “review priority,” not ownership proof.
+- Local and fixture-mode operation are supported by default.
+- Do not commit real API keys, bearer tokens, JWTs, real wallet addresses, or user-private data.
+- Public examples use synthetic addresses such as `0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`.
+- Reports and UI copy describe “relationship signals” and “review priority,” not proof of identity.
+- The label manager is disabled by default and should be enabled only when maintainers explicitly need it.

@@ -2,7 +2,7 @@
 
 English version: [database-schema.md](database-schema.md)
 
-Wallet Map 将 PostgreSQL 和 Redis 作为可选基础设施。没有配置这两项服务时，应用仍可在 fixture 模式或单实例预览环境中运行。
+Wallet Map 将 PostgreSQL 和 Redis 作为可选基础设施。没有配置这两项服务时，应用仍可在 fixture 模式或本地单实例演示中运行。Vercel Preview 和 Production 部署建议使用托管 Redis 保存分析 job 状态。
 
 ## 当前边界
 
@@ -83,7 +83,7 @@ PostgreSQL 查找优先级为：`chainbase-address-labels`、`etherscan-nametag`
 STORAGE_POSTGRES_ENABLED=true
 DATABASE_URL=postgresql://...
 STORAGE_REDIS_ENABLED=true
-REDIS_URL=redis://...
+REDIS_URL=rediss://...
 CHAINBASE_API_KEY=...
 LABEL_DATABASE_ENABLED=true
 LABEL_REDIS_CACHE_ENABLED=true
@@ -91,4 +91,4 @@ LABEL_LIST_CACHE_ENABLED=true
 NEXT_PUBLIC_LABEL_MANAGER_ENABLED=false
 ```
 
-Vercel 部署应使用托管 PostgreSQL 和 Redis，例如 Neon 与 Upstash。不要在 Vercel 上运行 Docker Compose。
+Vercel 部署应使用 Upstash 等托管 Redis 保存 job 进度。只有需要持久化历史或标签管理时才启用 Neon 等托管 PostgreSQL。不要在 Vercel 上运行 Docker Compose。见 [Vercel 部署](vercel-deployment.zh.md)。

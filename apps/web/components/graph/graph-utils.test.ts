@@ -87,13 +87,13 @@ describe("resolveNodes", () => {
       {
         id: "contract:1:test",
         kind: "contract",
-        address: "0xd9c500dff816a1da21a48a732d3498bf09dc9aeb",
-        label: "0xd9c500dff816a1da21a48a732d3498bf09dc9aeb",
-        shortLabel: "0xd9c5...9aeb",
+        address: "0xdddddddddddddddddddddddddddddddddddddddd",
+        label: "0xdddddddddddddddddddddddddddddddddddddddd",
+        shortLabel: "0xdddd...dddd",
       },
     ], []);
 
-    expect(resolved[0]?.shortLabel).toBe("0xd9c5...9aeb");
+    expect(resolved[0]?.shortLabel).toBe("0xdddd...dddd");
   });
 
   it("shortens address labels when no short label is provided", () => {
@@ -101,12 +101,12 @@ describe("resolveNodes", () => {
       {
         id: "contract:1:test",
         kind: "contract",
-        address: "0xd9c500dff816a1da21a48a732d3498bf09dc9aeb",
-        label: "0xd9c500dff816a1da21a48a732d3498bf09dc9aeb",
+        address: "0xdddddddddddddddddddddddddddddddddddddddd",
+        label: "0xdddddddddddddddddddddddddddddddddddddddd",
       },
     ], []);
 
-    expect(resolved[0]?.shortLabel).toBe("0xd9c5\u20269aeb");
+    expect(resolved[0]?.shortLabel).toBe("0xdddd\u2026dddd");
   });
 });
 
