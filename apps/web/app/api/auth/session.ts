@@ -123,6 +123,24 @@ export async function getCurrentHistorySubject(): Promise<{
   session?: WalletSession;
   mode: "wallet" | "session";
 }> {
+  return readHistorySubject({ createAnonymousSession: true });
+}
+
+export async function readCurrentHistorySubject(): Promise<{
+  subjectId: string;
+  session?: WalletSession;
+  mode: "wallet" | "session";
+}> {
+  return readHistorySubject({ createAnonymousSession: false });
+}
+
+async function readHistorySubject(options: {
+  createAnonymousSession: boolean;
+}): Promise<{
+  subjectId: string;
+  session?: WalletSession;
+  mode: "wallet" | "session";
+}> {
   const session = await readWalletSession();
   if (session) {
     return {
@@ -136,7 +154,7 @@ export async function getCurrentHistorySubject(): Promise<{
   const existing = readSignedCookie<{ id: string }>(jar.get(anonymousCookieName)?.value);
   const id = existing?.id ?? randomBytes(16).toString("hex");
 
-  if (!existing?.id) {
+  if (!existing?.id && options.createAnonymousSession) {
     jar.set(anonymousCookieName, signValue(JSON.stringify({ id })), {
       httpOnly: true,
       sameSite: "lax",

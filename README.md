@@ -1,6 +1,6 @@
 # Wallet Map
 
-Wallet Map is a local-first wallet relationship analysis toolkit.
+Wallet Map is a local-first wallet relationship analysis toolkit for EVM address groups.
 
 It helps users inspect visible on-chain links between two or more wallets:
 
@@ -10,7 +10,29 @@ It helps users inspect visible on-chain links between two or more wallets:
 - shared contract interactions
 - time-adjacent behavior patterns
 
-The project is designed for personal chain-footprint audits, research, and compliance-friendly analysis. It does not handle private keys, signatures, or automated wallet operations.
+The project is designed for personal chain-footprint audits, public-data research, and compliance-friendly review workflows. It does not handle private keys, signatures, custody, or automated wallet operations.
+
+中文文档入口见 [README.zh.md](README.zh.md)。Documentation is maintained in English and Chinese; see [Project Docs](#project-docs).
+
+## Current Status
+
+Wallet Map is pre-1.0 and suitable for local evaluation, fixture-mode demos, and early contributor review.
+
+Implemented capabilities include:
+
+- Next.js workbench with address input, progress, graph view, evidence, history, and report export.
+- Synthetic fixture mode that requires no private API keys or infrastructure.
+- Etherscan-like live ingestion for Ethereum, Arbitrum, Base, and BSC when provider keys are configured.
+- NodeReal and Solscan provider hooks for supported chains.
+- Core graph construction, default analyzers, multidimensional exposure scoring, and report exporters.
+- Optional PostgreSQL persistence, Redis job progress/cache, and a private label manager.
+
+Planned before a public stable release:
+
+- CI workflow for typecheck, test, lint, and build.
+- Additional live provider coverage and cache validation.
+- Bilingual documentation completion and release checklist review.
+- Formal security contact and dependency update policy.
 
 ## Workspace
 
@@ -53,7 +75,9 @@ The Next.js app reads runtime secrets from `apps/web/.env.local`.
 
 ## Local Infrastructure
 
-This project uses Docker Compose for local PostgreSQL and Redis.
+PostgreSQL and Redis are optional. The application can run in fixture mode without either service, which is the recommended default for first-time setup and Vercel deployments that do not yet have managed storage.
+
+Enable local PostgreSQL and Redis only when you want persisted history, multi-instance job progress, Redis-backed label cache, or private label management.
 
 If you use Colima on macOS:
 
@@ -89,14 +113,16 @@ psql "$DATABASE_URL" -f packages/storage/migrations/0001_initial_schema.sql
 psql "$DATABASE_URL" -f packages/storage/migrations/0002_analysis_job_metadata.sql
 ```
 
-Analysis jobs persist to PostgreSQL; in-flight progress is stored in Redis when
-`REDIS_URL` is configured. Open `/history` to replay completed runs or compare
-two completed jobs by score, confidence, event count, and source.
+Analysis jobs persist to PostgreSQL only when `STORAGE_POSTGRES_ENABLED=true`
+and `DATABASE_URL` is configured. In-flight progress is stored in Redis only
+when `STORAGE_REDIS_ENABLED=true` and `REDIS_URL` is configured; otherwise the
+web app uses an in-memory job store suitable for a single local or preview
+instance.
 
-Known labels also use PostgreSQL. Open `/labels` to add or update local
-address labels stored in `known_labels` with the `local-labels` source. These
-records are read by the analysis label stack when `DATABASE_URL` is configured
-and `LABEL_DATABASE_ENABLED` is not set to `false`.
+Known labels use PostgreSQL only when `LABEL_DATABASE_ENABLED=true`. The
+private label manager route `/labels` is hidden and returns 404 unless
+`NEXT_PUBLIC_LABEL_MANAGER_ENABLED=true`. Keep it disabled for public
+deployments unless the maintainer intends to manage labels through the app.
 
 The analysis label stack also includes a built-in `known-entity-labels`
 provider for public services such as exchange hot wallets, bridges, DEX
@@ -180,19 +206,21 @@ address-count and request-size limits before creating a job.
 
 ## Project Docs
 
-- [Architecture Map](docs/architecture-map.md)
-- [Development Workflow](docs/development-workflow.md)
-- [Code Style](docs/code-style.md)
-- [Commit Convention](docs/commit-convention.md)
-- [Documentation Style](docs/documentation-style.md)
-- [Database Schema](docs/database-schema.md)
-- [Graph Visualization](docs/graph-visualization.md)
-- [Product Design Roadmap](docs/product-design-roadmap.zh.md)
-- [Analysis Guidelines](docs/analysis-guidelines.md)
-- [Open Source Guidelines](docs/open-source.md)
-- [Release Process](docs/release-process.md)
-- [Project Readiness](docs/project-readiness.md)
-- [Contributing](CONTRIBUTING.md)
-- [Security Policy](SECURITY.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Parallel Agent Work](agents/README.md)
+- Overview: [English](docs/README.md), [中文](docs/README.zh.md)
+- Architecture Map: [English](docs/architecture-map.en.md), [中文](docs/architecture-map.md)
+- Development Workflow: [English](docs/development-workflow.md), [中文](docs/development-workflow.zh.md)
+- Code Style: [English](docs/code-style.md), [中文](docs/code-style.zh.md)
+- Commit Convention: [English](docs/commit-convention.md), [中文](docs/commit-convention.zh.md)
+- Documentation Style: [English](docs/documentation-style.md), [中文](docs/documentation-style.zh.md)
+- Database Schema: [English](docs/database-schema.md), [中文](docs/database-schema.zh.md)
+- Graph Visualization: [English](docs/graph-visualization.md), [中文](docs/graph-visualization.zh.md)
+- Product Design Roadmap: [English](docs/product-design-roadmap.md), [中文](docs/product-design-roadmap.zh.md)
+- Analysis Guidelines: [English](docs/analysis-guidelines.md), [中文](docs/analysis-guidelines.zh.md)
+- Open Source Guidelines: [English](docs/open-source.md), [中文](docs/open-source.zh.md)
+- Release Process: [English](docs/release-process.md), [中文](docs/release-process.zh.md)
+- Project Readiness: [English](docs/project-readiness.md), [中文](docs/project-readiness.zh.md)
+- Contributing: [English](CONTRIBUTING.md), [中文](CONTRIBUTING.zh.md)
+- Security Policy: [English](SECURITY.md), [中文](SECURITY.zh.md)
+- Code of Conduct: [English](CODE_OF_CONDUCT.md), [中文](CODE_OF_CONDUCT.zh.md)
+- Changelog: [English](CHANGELOG.md), [中文](CHANGELOG.zh.md)
+- Parallel Agent Work: [English](agents/README.md), [中文](agents/README.zh.md)

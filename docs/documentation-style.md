@@ -23,9 +23,7 @@ Preferred order:
 
 ## Language
 
-Use plain English in repository docs for open-source accessibility.
-
-Chinese notes are fine for internal planning, but public-facing repo docs should keep English as the default unless we intentionally add bilingual docs later.
+Maintain public repository docs in English and Chinese. English remains the primary cross-project reference language; Chinese counterparts should communicate the same capability boundaries, safety posture, and operational requirements without informal wording.
 
 ## Analysis Wording
 
@@ -55,4 +53,3 @@ Examples should be:
 - labelled when simplified
 
 Do not include private wallet lists, API keys, screenshots containing secrets, or private investigation notes.
-

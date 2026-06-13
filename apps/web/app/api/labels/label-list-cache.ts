@@ -1,5 +1,6 @@
 import { createClient, type RedisClientType } from "redis";
 import type { KnownLabelListResult } from "@wallet-map/storage";
+import { readLabelListCacheEnabled } from "../../../lib/feature-config";
 
 const labelListCachePrefix = "wallet-map:label-list:";
 const defaultTtlSeconds = 30;
@@ -95,7 +96,7 @@ async function getRedisClient(
 ): Promise<RedisClientType | undefined> {
   const redisUrl = env.REDIS_URL?.trim();
 
-  if (!redisUrl || env.LABEL_LIST_CACHE_ENABLED === "false") {
+  if (!redisUrl || !readLabelListCacheEnabled(env)) {
     return undefined;
   }
 

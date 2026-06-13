@@ -9,6 +9,11 @@ import {
 } from "@wallet-map/labels";
 import { Pool } from "pg";
 import { createPostgresLabelRepository } from "@wallet-map/storage";
+import {
+  readLabelDatabaseEnabled,
+  readLabelRedisCacheEnabled,
+  readPostgresEnabled,
+} from "../../../lib/feature-config";
 import { getPostgresPool } from "../../../lib/server-db";
 import {
   createRedisLabelProvider,
@@ -21,9 +26,7 @@ const etherscanNametagEnabledEnv = "ETHERSCAN_NAMETAG_ENABLED";
 const chainbaseApiKeyEnv = "CHAINBASE_API_KEY";
 const chainbaseLabelsEnabledEnv = "CHAINBASE_LABELS_ENABLED";
 const databaseUrlEnv = "DATABASE_URL";
-const labelDatabaseEnabledEnv = "LABEL_DATABASE_ENABLED";
 const redisUrlEnv = "REDIS_URL";
-const labelRedisCacheEnabledEnv = "LABEL_REDIS_CACHE_ENABLED";
 
 export interface AnalyzeLabelStack {
   providers: LabelProvider[];
@@ -40,21 +43,21 @@ export function createAnalyzeLabelStack(
   const connectionString = env[databaseUrlEnv]?.trim();
   const pool =
     getPostgresPool() ??
-    (connectionString
+    (readPostgresEnabled(env) && connectionString
       ? new Pool({
           connectionString,
           max: 4,
         })
       : undefined);
 
-  if (pool && env[labelDatabaseEnabledEnv] !== "false") {
+  if (pool && readLabelDatabaseEnabled(env)) {
     const repository = createPostgresLabelRepository({ pool });
 
     providers.push(createRepositoryLabelProvider(repository));
     sinks.push(createRepositoryLabelSink(repository));
   }
 
-  if (env[redisUrlEnv] && env[labelRedisCacheEnabledEnv] !== "false") {
+  if (env[redisUrlEnv] && readLabelRedisCacheEnabled(env)) {
     const redisCache = createRedisLabelProvider({
       url: env[redisUrlEnv]!,
     });

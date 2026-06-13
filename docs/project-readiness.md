@@ -22,6 +22,8 @@ This checklist tracks the early project setup needed before feature work grows.
 - [x] GitHub pull request template.
 - [x] Basic tests for core packages.
 - [x] Parallel agent task records.
+- [x] PostgreSQL, Redis, and label management can be disabled by configuration.
+- [x] English and Chinese documentation entry points.
 
 ## Before Public Release
 
@@ -30,10 +32,10 @@ This checklist tracks the early project setup needed before feature work grows.
 - [x] Persist analysis jobs and results to PostgreSQL.
 - [x] Store in-flight analysis progress in Redis.
 - [x] Add analysis history page (`/history`).
-- [ ] Add a public demo fixture that does not contain private wallet data.
+- [x] Add a public demo fixture that does not contain private wallet data.
 - [x] Add report redaction guidance.
 - [ ] Add dependency update policy.
-- [ ] Decide whether docs should remain English-only or become bilingual.
+- [x] Add bilingual documentation structure.
 - [ ] Replace temporary security contact language with a concrete contact channel.
 
 ## Before First Tagged Version

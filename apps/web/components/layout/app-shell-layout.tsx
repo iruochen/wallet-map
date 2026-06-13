@@ -3,6 +3,8 @@
 import { usePathname } from "next/navigation";
 import { AppHeader } from "./app-header";
 
+const labelsEnabled = process.env.NEXT_PUBLIC_LABEL_MANAGER_ENABLED === "true";
+
 const shellConfig = {
   "/": {
     subtitle: "钱包关联分析工作台",
@@ -29,7 +31,11 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="appShell">
-      <AppHeader subtitle={config.subtitle} activeNav={config.activeNav} />
+      <AppHeader
+        subtitle={config.subtitle}
+        activeNav={config.activeNav}
+        labelsEnabled={labelsEnabled}
+      />
       <main className="appMain">{children}</main>
     </div>
   );

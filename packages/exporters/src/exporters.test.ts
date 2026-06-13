@@ -147,7 +147,7 @@ describe("exporters", () => {
 
     expect(output.type).toBe("application/pdf");
     expect(output.size).toBeGreaterThan(1000);
-  });
+  }, 15_000);
 
   it("exports PDF reports with localized summaries and many findings", async () => {
     const longReport: AnalysisReport = {

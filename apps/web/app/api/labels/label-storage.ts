@@ -1,4 +1,5 @@
 import { createPostgresLabelRepository, ensureStorageMigrations } from "@wallet-map/storage";
+import { readLabelDatabaseEnabled } from "../../../lib/feature-config";
 import { getPostgresPool } from "../../../lib/server-db";
 
 let labelRepository:
@@ -21,6 +22,10 @@ export async function getLabelRepository() {
 }
 
 async function initializeLabelRepository() {
+  if (!readLabelDatabaseEnabled()) {
+    return undefined;
+  }
+
   const pool = getPostgresPool();
 
   if (!pool) {

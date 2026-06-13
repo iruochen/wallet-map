@@ -1,11 +1,16 @@
 import { Pool } from "pg";
 import { createClient, type RedisClientType } from "redis";
+import { readPostgresEnabled, readRedisEnabled } from "./feature-config";
 
 let pool: Pool | undefined;
 let redisClient: RedisClientType | undefined;
 let redisConnectPromise: Promise<RedisClientType | undefined> | undefined;
 
 export function getPostgresPool(): Pool | undefined {
+  if (!readPostgresEnabled()) {
+    return undefined;
+  }
+
   const connectionString = process.env.DATABASE_URL?.trim();
 
   if (!connectionString) {
@@ -23,6 +28,10 @@ export function getPostgresPool(): Pool | undefined {
 }
 
 export async function getRedisClient(): Promise<RedisClientType | undefined> {
+  if (!readRedisEnabled()) {
+    return undefined;
+  }
+
   const url = process.env.REDIS_URL?.trim();
 
   if (!url) {

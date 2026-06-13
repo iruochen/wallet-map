@@ -4,10 +4,15 @@ import {
   readCachedLabelList,
   writeCachedLabelList,
 } from "./label-list-cache";
+import { readLabelManagerEnabled } from "../../../lib/feature-config";
 import { getLabelRepository } from "./label-storage";
 import { buildLocalLabelRecord, parseLabelListQuery, parseLocalLabelInput } from "./schema";
 
 export async function GET(request: Request): Promise<Response> {
+  if (!readLabelManagerEnabled()) {
+    return Response.json({ error: "Label management is disabled." }, { status: 404 });
+  }
+
   const repository = await getLabelRepository();
 
   if (!repository) {
@@ -69,6 +74,10 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  if (!readLabelManagerEnabled()) {
+    return Response.json({ error: "Label management is disabled." }, { status: 404 });
+  }
+
   const repository = await getLabelRepository();
 
   if (!repository) {

@@ -1,5 +1,7 @@
 # Wallet Map 产品设计文档与迭代规划
 
+English version: [product-design-roadmap.md](product-design-roadmap.md)
+
 ## 1. 文档目的
 
 本文面向 Wallet Map 当前 MVP 之后的产品决策和工程排期。它基于现有仓库状态、已完成的前端可视化 MVP，以及后续关于数据源、图分析、风险评分和商业化方向的讨论。
@@ -17,6 +19,7 @@ Wallet Map 的产品表述应保持克制：它是一个本地优先的钱包关
 - 评分：`scoreFindings` 已提供 0-100 的基础加权评分和 confidence。
 - 前端：Next.js workbench 已展示输入区、总评分、pair insights、findings、evidence 和 Cytoscape 图谱。
 - 本地基础设施：PostgreSQL、Redis 已通过 Docker Compose 接入；分析 job 进度写入 Redis，完整结果与标签缓存写入 PostgreSQL/Redis。
+- 部署开关：PostgreSQL、Redis、标签持久化、标签缓存和 `/labels` 私有标签管理页面已经支持通过环境变量开启或关闭；无 Pg/Redis 的 Vercel 部署可使用 fixture/live 单实例路径。
 - 历史分析：`/history` 页面可查看已持久化的分析任务，并回到工作台复盘。
 
 这说明项目已经完成从“想法验证”到“可演示工具”的跨越。下一阶段重点不应是堆 UI，而是让分析结果更稳定、更快、更可信，并让用户理解每个风险判断背后的证据。
@@ -505,4 +508,4 @@ interface SybilExposureScore {
 
 ## 12. 下一步建议
 
-M1 的证据闭环、报告导出与图谱联动已基本具备。当前建议继续推进 M2 剩余项：第二 live provider、provider selector、live 并发控制；并验证 Vercel 环境下 Redis job 与 PostgreSQL 持久化的稳定性。完成后进入 M3 高级分析器（共同上游、多跳路径、公共实体降权）。
+M1 的证据闭环、报告导出与图谱联动已基本具备。M2/M3/M4 中的大部分核心能力已经进入初版实现：PostgreSQL/Redis 可选持久化、history replay、provider selector、live 并发控制、高级 analyzers、多维评分、报告导出和本地标签管理均已存在。当前建议优先完成发布工程化：CI、依赖更新策略、正式安全联系渠道、无 Pg/Redis Vercel 部署验证、第二 live provider 覆盖和缓存命中率验证。

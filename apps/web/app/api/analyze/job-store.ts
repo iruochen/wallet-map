@@ -1,4 +1,5 @@
 import { getRedisClient } from "../../../lib/server-db";
+import { readRedisEnabled } from "../../../lib/feature-config";
 import type { AnalysisJobProgress, AnalysisJobStatus, AnalysisPhaseId } from "./progress";
 import { applyPhaseCompleted, applyPhaseStarted, createInitialJobProgress } from "./progress";
 
@@ -22,7 +23,11 @@ interface AnalyzeJobGlobal {
 }
 
 function useMemoryStore(): boolean {
-  return process.env.ANALYZE_JOB_STORE === "memory" || !process.env.REDIS_URL?.trim();
+  return (
+    process.env.ANALYZE_JOB_STORE === "memory" ||
+    !readRedisEnabled() ||
+    !process.env.REDIS_URL?.trim()
+  );
 }
 
 function getMemoryJobMap(): Map<string, AnalysisJobRecord> {

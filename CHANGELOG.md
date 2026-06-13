@@ -26,3 +26,10 @@ The format follows Keep a Changelog loosely, and the project uses semantic versi
 - Parallel agent task records.
 - Project documentation for development, code style, analysis, open source, and environment safety.
 - Result metadata and UI updates for live-vs-fixture status, chain support, and graph/evidence previews on large responses.
+- English and Chinese documentation entry points for README, docs, governance files, and agent work notes.
+
+### Changed
+
+- PostgreSQL, Redis, label persistence, label cache, and the private label manager can be explicitly enabled or disabled through environment flags.
+- Example environment files now default to storage-free fixture mode for local evaluation and Vercel previews without managed PostgreSQL/Redis.
+- The `/labels` manager is disabled by default and only opens when `NEXT_PUBLIC_LABEL_MANAGER_ENABLED=true`.

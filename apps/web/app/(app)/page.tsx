@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { readAnonymousAnalysisQuota } from "../api/analyze/analysis-quota-guard";
-import { getCurrentHistorySubject } from "../api/auth/session";
+import { readCurrentHistorySubject } from "../api/auth/session";
 import { AnalysisWorkbench } from "../../components/analysis/analysis-workbench";
 import { readLiveConfigured } from "../../components/layout/app-header";
 import { supportedAnalysisChains } from "../chains";
@@ -8,7 +8,7 @@ import { supportedAnalysisChains } from "../chains";
 export default async function HomePage() {
   const liveConfigured = readLiveConfigured();
   const initialAddresses = readInitialAddresses();
-  const historySubject = await getCurrentHistorySubject();
+  const historySubject = await readCurrentHistorySubject();
   const anonymousAnalysisQuota = await readAnonymousAnalysisQuota(
     historySubject.subjectId,
     historySubject.mode,

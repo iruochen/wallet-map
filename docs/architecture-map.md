@@ -1,5 +1,7 @@
 # 钱包关联分析工具架构 MAP
 
+English version: [architecture-map.en.md](architecture-map.en.md)
+
 ## 1. 项目定位
 
 这是一个面向个人和团队的链上钱包关系审计工具，用来回答：
@@ -12,6 +14,10 @@
 项目应保持“本地优先、可开源、可插拔、多链扩展”的方向。工具可以帮助用户理解链上可见关联和隐私暴露，但不应内置规避平台风控、批量绕过规则或自动化滥用流程。
 
 ## 2. MVP 范围
+
+当前仓库已经从早期 MVP 规划进入 pre-1.0 工作台阶段。已实现的核心能力包括：fixture/auto/live 分析模式、Etherscan-like EVM 数据接入、NodeReal/Solscan provider 接入点、normalized event、关系图构建、默认 analyzers、多维 Exposure Score、Cytoscape 图谱、证据表、历史记录、报告导出，以及可选 PostgreSQL/Redis 持久化和默认关闭的私有标签管理页面。
+
+公开发布时的默认运行路径应支持无 PostgreSQL、无 Redis 的 fixture 模式或单实例预览部署。PostgreSQL、Redis、标签持久化、标签缓存和 `/labels` 页面均应通过环境变量显式开启。
 
 第一版先做小而清晰：
 

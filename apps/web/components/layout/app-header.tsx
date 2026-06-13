@@ -4,9 +4,10 @@ import { WalletHeaderControls } from "./wallet-header-controls";
 export interface AppHeaderProps {
   subtitle: string;
   activeNav: "workbench" | "history" | "labels";
+  labelsEnabled?: boolean;
 }
 
-export function AppHeader({ subtitle, activeNav }: AppHeaderProps) {
+export function AppHeader({ subtitle, activeNav, labelsEnabled = false }: AppHeaderProps) {
   return (
     <header className="appHeader" aria-label="Wallet Map header">
       <Link className="appBrand" href="/" aria-label="返回工作台首页">
@@ -32,12 +33,14 @@ export function AppHeader({ subtitle, activeNav }: AppHeaderProps) {
           >
             历史分析
           </Link>
-          <Link
-            className={`headerNavLink ${activeNav === "labels" ? "headerNavLinkActive" : ""}`}
-            href="/labels"
-          >
-            标签库
-          </Link>
+          {labelsEnabled ? (
+            <Link
+              className={`headerNavLink ${activeNav === "labels" ? "headerNavLinkActive" : ""}`}
+              href="/labels"
+            >
+              标签库
+            </Link>
+          ) : null}
         </nav>
         <WalletHeaderControls />
       </div>
