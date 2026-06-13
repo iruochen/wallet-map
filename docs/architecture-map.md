@@ -131,7 +131,7 @@ Redis 用于：
 - 运行中的分析结果缓存。
 - 标签列表和标签查询热缓存。
 
-当前实现读取 `STORAGE_REDIS_ENABLED=true` 和 `REDIS_URL`。未配置时自动退回内存 job store。内存模式适合本地单进程演示，不适合作为 Vercel 正式部署的 job 状态存储。
+当前实现读取 `STORAGE_REDIS_ENABLED=true`，并优先使用 `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`，同时兼容 `KV_REST_API_URL` / `KV_REST_API_TOKEN` 和 `REDIS_URL`。未配置时自动退回内存 job store。内存模式适合本地单进程演示，不适合作为 Vercel 正式部署的 job 状态存储。
 
 ### PostgreSQL
 

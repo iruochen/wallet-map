@@ -1,3 +1,4 @@
+import { Redis } from "@upstash/redis";
 import { getRedisClient } from "../../../lib/server-db";
 import { readRedisEnabled } from "../../../lib/feature-config";
 import type { AnalysisJobProgress, AnalysisJobStatus, AnalysisPhaseId } from "./progress";
@@ -22,11 +23,32 @@ interface AnalyzeJobGlobal {
   __walletMapAnalyzeJobs?: Map<string, AnalysisJobRecord>;
 }
 
+let upstashRedisClient: Redis | undefined;
+
+function getUpstashRestConfig(): { url: string; token: string } | undefined {
+  const url =
+    process.env.UPSTASH_REDIS_REST_URL?.trim() ||
+    process.env.KV_REST_API_URL?.trim();
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN?.trim() ||
+    process.env.KV_REST_API_TOKEN?.trim();
+
+  if (!url || !token) {
+    return undefined;
+  }
+
+  return { url, token };
+}
+
+function hasRedisBackend(): boolean {
+  return Boolean(process.env.REDIS_URL?.trim() || getUpstashRestConfig());
+}
+
 function useMemoryStore(): boolean {
   return (
     process.env.ANALYZE_JOB_STORE === "memory" ||
     !readRedisEnabled() ||
-    !process.env.REDIS_URL?.trim()
+    !hasRedisBackend()
   );
 }
 
@@ -44,17 +66,48 @@ function buildRedisKey(jobId: string): string {
   return `${REDIS_KEY_PREFIX}${jobId}`;
 }
 
-async function readJob(jobId: string): Promise<AnalysisJobRecord | undefined> {
-  if (useMemoryStore()) {
-    return getMemoryJobMap().get(jobId);
+function getUpstashRedisClient(): Redis | undefined {
+  const config = getUpstashRestConfig();
+
+  if (!config) {
+    return undefined;
+  }
+
+  if (!upstashRedisClient) {
+    upstashRedisClient = new Redis(config);
+  }
+
+  return upstashRedisClient;
+}
+
+async function readRedisJob(jobId: string): Promise<AnalysisJobRecord | undefined> {
+  const key = buildRedisKey(jobId);
+  const upstash = getUpstashRedisClient();
+
+  if (upstash) {
+    const raw = await upstash.get<AnalysisJobRecord | string>(key).catch(() => null);
+
+    if (!raw) {
+      return undefined;
+    }
+
+    if (typeof raw === "string") {
+      try {
+        return JSON.parse(raw) as AnalysisJobRecord;
+      } catch {
+        return undefined;
+      }
+    }
+
+    return raw;
   }
 
   const redis = await getRedisClient();
   if (!redis) {
-    return getMemoryJobMap().get(jobId);
+    return undefined;
   }
 
-  const raw = await redis.get(buildRedisKey(jobId)).catch(() => null);
+  const raw = await redis.get(key).catch(() => null);
   if (!raw) {
     return undefined;
   }
@@ -66,6 +119,53 @@ async function readJob(jobId: string): Promise<AnalysisJobRecord | undefined> {
   }
 }
 
+async function writeRedisJob(record: AnalysisJobRecord): Promise<boolean> {
+  const key = buildRedisKey(record.jobId);
+  const value = JSON.stringify(record);
+  const upstash = getUpstashRedisClient();
+
+  if (upstash) {
+    await upstash.set(key, value, { ex: JOB_TTL_SECONDS });
+    return true;
+  }
+
+  const redis = await getRedisClient();
+  if (!redis) {
+    return false;
+  }
+
+  await redis.set(key, value, { EX: JOB_TTL_SECONDS });
+  return true;
+}
+
+async function deleteRedisJob(jobId: string): Promise<void> {
+  const key = buildRedisKey(jobId);
+  const upstash = getUpstashRedisClient();
+
+  if (upstash) {
+    await upstash.del(key).catch(() => undefined);
+    return;
+  }
+
+  const redis = await getRedisClient();
+  if (redis) {
+    await redis.del(key).catch(() => undefined);
+  }
+}
+
+async function readJob(jobId: string): Promise<AnalysisJobRecord | undefined> {
+  if (useMemoryStore()) {
+    return getMemoryJobMap().get(jobId);
+  }
+
+  const job = await readRedisJob(jobId);
+  if (!job) {
+    return getMemoryJobMap().get(jobId);
+  }
+
+  return job;
+}
+
 async function writeJob(record: AnalysisJobRecord): Promise<void> {
   record.updatedAt = new Date().toISOString();
 
@@ -74,17 +174,11 @@ async function writeJob(record: AnalysisJobRecord): Promise<void> {
     return;
   }
 
-  const redis = await getRedisClient();
-  if (!redis) {
-    getMemoryJobMap().set(record.jobId, record);
-    return;
-  }
+  const stored = await writeRedisJob(record).catch(() => false);
 
-  await redis
-    .set(buildRedisKey(record.jobId), JSON.stringify(record), { EX: JOB_TTL_SECONDS })
-    .catch(() => {
-      getMemoryJobMap().set(record.jobId, record);
-    });
+  if (!stored) {
+    getMemoryJobMap().set(record.jobId, record);
+  }
 }
 
 export async function createAnalyzeJob(jobId: string, subjectId?: string): Promise<AnalysisJobRecord> {
@@ -163,14 +257,11 @@ export async function deleteAnalyzeJob(jobId: string): Promise<void> {
     return;
   }
 
-  const redis = await getRedisClient();
-  if (redis) {
-    await redis.del(buildRedisKey(jobId)).catch(() => undefined);
-  }
-
+  await deleteRedisJob(jobId);
   getMemoryJobMap().delete(jobId);
 }
 
 export function resetAnalyzeJobStoreForTests(): void {
   getMemoryJobMap().clear();
+  upstashRedisClient = undefined;
 }

@@ -78,7 +78,7 @@ PostgreSQL and Redis are optional for local development. The application can run
 
 Enable local PostgreSQL and Redis only when you want persisted history, multi-instance job progress, Redis-backed label cache, or private label management.
 
-For Vercel preview and production deployments, configure managed Redis before opening the analysis flow to users. The current implementation expects `STORAGE_REDIS_ENABLED=true` and `REDIS_URL`, for example an Upstash Redis TLS URL. See [Vercel Deployment](docs/vercel-deployment.md).
+For Vercel preview and production deployments, configure managed Redis before opening the analysis flow to users. The current implementation expects `STORAGE_REDIS_ENABLED=true` plus either Upstash REST variables or a Redis URL. See [Vercel Deployment](docs/vercel-deployment.md).
 
 If you use Colima on macOS:
 

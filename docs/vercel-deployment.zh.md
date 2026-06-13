@@ -15,14 +15,15 @@ Upstash 提供适合早期预览部署的免费额度。正式发布或邀请外
 
 ## Upstash Redis
 
-当前代码使用 `redis` 包，并读取 `REDIS_URL`。Upstash 应配置 Redis 协议连接串，优先使用 TLS URL：
+Vercel 部署路径建议使用 Upstash REST 环境变量：
 
 ```bash
 STORAGE_REDIS_ENABLED=true
-REDIS_URL=rediss://:password@endpoint:port
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
 ```
 
-如果 Vercel Marketplace 集成只注入了 `KV_REST_API_URL`、`KV_REST_API_TOKEN`、`UPSTASH_REDIS_REST_URL` 或 `UPSTASH_REDIS_REST_TOKEN`，请到 Upstash 数据库连接页面复制 Redis protocol connection string，并在 Vercel 项目环境变量中手动新增 `REDIS_URL`。
+Job store 同时兼容 Vercel KV 变量名 `KV_REST_API_URL`、`KV_REST_API_TOKEN`，也保留 `REDIS_URL=rediss://...` 作为 Redis 协议 fallback。
 
 除非维护者明确需要 Redis 标签缓存，否则保持关闭：
 
@@ -55,7 +56,7 @@ pnpm db:migrate
 1. 在 Vercel 中导入或连接 GitHub 仓库。
 2. 使用 pnpm 构建；当前构建命令为 `pnpm --filter @wallet-map/web build`。
 3. 通过 Vercel Marketplace 添加 Upstash Redis，或在 Upstash 创建数据库。
-4. 为 Production 和 Preview 环境配置 `STORAGE_REDIS_ENABLED=true` 与 `REDIS_URL`。
+4. 为 Production 和 Preview 环境配置 `STORAGE_REDIS_ENABLED=true`、`UPSTASH_REDIS_REST_URL` 与 `UPSTASH_REDIS_REST_TOKEN`。
 5. 不需要历史或标签管理时保持 PostgreSQL 关闭。
 6. 面向公开用户时保持标签管理页面关闭。
 7. 所有 provider key 只通过 Vercel 环境变量配置。

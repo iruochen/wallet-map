@@ -131,7 +131,7 @@ Redis is used for:
 - in-flight analysis result cache
 - hot label-list and label-lookup cache
 
-The current implementation reads `STORAGE_REDIS_ENABLED=true` and `REDIS_URL`. When Redis is not configured, the app falls back to an in-memory job store. Memory mode is suitable for local single-process demos, not for durable job state on Vercel.
+The current implementation reads `STORAGE_REDIS_ENABLED=true` and prefers `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. It also supports `KV_REST_API_URL` / `KV_REST_API_TOKEN` and `REDIS_URL`. When Redis is not configured, the app falls back to an in-memory job store. Memory mode is suitable for local single-process demos, not for durable job state on Vercel.
 
 ### PostgreSQL
 

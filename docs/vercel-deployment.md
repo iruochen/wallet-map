@@ -15,14 +15,15 @@ Upstash provides a free tier suitable for early preview deployments. Confirm the
 
 ## Upstash Redis
 
-The current code uses the `redis` package and reads `REDIS_URL`. Configure Upstash with a Redis protocol URL, preferably the TLS URL:
+The Vercel deployment path should use Upstash REST variables:
 
 ```bash
 STORAGE_REDIS_ENABLED=true
-REDIS_URL=rediss://:password@endpoint:port
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
 ```
 
-If the Vercel Marketplace integration only injects REST variables such as `KV_REST_API_URL`, `KV_REST_API_TOKEN`, `UPSTASH_REDIS_REST_URL`, or `UPSTASH_REDIS_REST_TOKEN`, copy the Redis protocol connection string from the Upstash database connection page and add it to the Vercel project as `REDIS_URL`.
+The job store also supports Vercel KV variable names (`KV_REST_API_URL` and `KV_REST_API_TOKEN`) and a Redis protocol fallback through `REDIS_URL=rediss://...`.
 
 Keep label caches disabled unless a maintainer intentionally enables them:
 
@@ -55,7 +56,7 @@ Keep `NEXT_PUBLIC_LABEL_MANAGER_ENABLED=false` for public deployments unless the
 1. Import or connect the GitHub repository in Vercel.
 2. Set the root command to use pnpm. The current build command is `pnpm --filter @wallet-map/web build`.
 3. Add Upstash Redis from Vercel Marketplace or create a database in Upstash.
-4. Add `STORAGE_REDIS_ENABLED=true` and `REDIS_URL` to Production and Preview environments.
+4. Add `STORAGE_REDIS_ENABLED=true`, `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN` to Production and Preview environments.
 5. Keep PostgreSQL disabled unless history or label management is needed.
 6. Keep the label manager disabled for public users.
 7. Add provider keys only through Vercel environment variables.
