@@ -1,5 +1,6 @@
+import { after } from "next/server";
 import { assertAnonymousAnalysisAllowed } from "./analysis-quota-guard";
-import { startAnalyzeJob } from "./execute-job";
+import { createAnalyzeJobId, initializeAndExecuteAnalyzeJob } from "./execute-job";
 import {
   assertAnalyzeRequestCapacity,
   readAnalyzeRequestBody,
@@ -7,6 +8,8 @@ import {
 import { parseAnalyzeRequest } from "./schema";
 import { getCurrentHistorySubject } from "../auth/session";
 import { getProductPlanLimits, type ProductPlanTier } from "../../pro-plan";
+
+export const maxDuration = 60;
 
 // Validate request, start a background job, return 202 + jobId (not the final result).
 export async function POST(request: Request): Promise<Response> {
@@ -24,7 +27,11 @@ export async function POST(request: Request): Promise<Response> {
       await assertAnonymousAnalysisAllowed(historySubject.subjectId);
     }
 
-    const jobId = startAnalyzeJob(parsed, historySubject.subjectId);
+    const jobId = createAnalyzeJobId();
+
+    after(async () => {
+      await initializeAndExecuteAnalyzeJob(jobId, parsed, historySubject.subjectId);
+    });
 
     return Response.json({ jobId }, { status: 202 });
   } catch (error) {

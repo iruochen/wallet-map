@@ -1,10 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
-import { startAnalyzeJob } from "./execute-job";
+import { createAnalyzeJobId, initializeAndExecuteAnalyzeJob } from "./execute-job";
 import { getCurrentHistorySubject } from "../auth/session";
 
+vi.mock("next/server", () => ({
+  after: vi.fn((callback: () => unknown) => {
+    void callback();
+  }),
+}));
+
 vi.mock("./execute-job", () => ({
-  startAnalyzeJob: vi.fn(() => "job:test"),
+  createAnalyzeJobId: vi.fn(() => "job:test"),
+  initializeAndExecuteAnalyzeJob: vi.fn(async () => undefined),
 }));
 
 vi.mock("./analysis-quota-guard", () => ({
@@ -18,12 +25,14 @@ vi.mock("../auth/session", () => ({
   })),
 }));
 
-const startAnalyzeJobMock = vi.mocked(startAnalyzeJob);
+const createAnalyzeJobIdMock = vi.mocked(createAnalyzeJobId);
+const initializeAndExecuteAnalyzeJobMock = vi.mocked(initializeAndExecuteAnalyzeJob);
 const getCurrentHistorySubjectMock = vi.mocked(getCurrentHistorySubject);
 
 describe("POST /api/analyze", () => {
   beforeEach(() => {
-    startAnalyzeJobMock.mockClear();
+    createAnalyzeJobIdMock.mockClear();
+    initializeAndExecuteAnalyzeJobMock.mockClear();
     getCurrentHistorySubjectMock.mockResolvedValue({
       subjectId: "session:test",
       mode: "session",
@@ -36,7 +45,8 @@ describe("POST /api/analyze", () => {
 
     expect(response.status).toBe(400);
     expect(body.error).toContain("Anonymous plan supports up to 10 addresses");
-    expect(startAnalyzeJobMock).not.toHaveBeenCalled();
+    expect(createAnalyzeJobIdMock).not.toHaveBeenCalled();
+    expect(initializeAndExecuteAnalyzeJobMock).not.toHaveBeenCalled();
   });
 
   it("accepts signed-in requests within the free plan address limit", async () => {
@@ -54,7 +64,8 @@ describe("POST /api/analyze", () => {
 
     expect(response.status).toBe(202);
     expect(body.jobId).toBe("job:test");
-    expect(startAnalyzeJobMock).toHaveBeenCalledOnce();
+    expect(createAnalyzeJobIdMock).toHaveBeenCalledOnce();
+    expect(initializeAndExecuteAnalyzeJobMock).toHaveBeenCalledOnce();
   });
 });
 

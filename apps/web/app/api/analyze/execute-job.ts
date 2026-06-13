@@ -25,12 +25,16 @@ function mapPipelinePhase(phase: AnalysisPipelinePhase): AnalysisPhaseId {
 
 // POST returns jobId right away; analysis runs in the background.
 export function startAnalyzeJob(parsed: ParsedAnalyzeRequest, subjectId?: string): string {
-  const jobId = crypto.randomUUID();
+  const jobId = createAnalyzeJobId();
   void initializeAndExecuteAnalyzeJob(jobId, parsed, subjectId);
   return jobId;
 }
 
-async function initializeAndExecuteAnalyzeJob(
+export function createAnalyzeJobId(): string {
+  return crypto.randomUUID();
+}
+
+export async function initializeAndExecuteAnalyzeJob(
   jobId: string,
   parsed: ParsedAnalyzeRequest,
   subjectId?: string,
