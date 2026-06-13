@@ -14,9 +14,8 @@ This directory contains the public project documentation for Wallet Map. The doc
 6. [Open Source Guidelines](open-source.md)
 7. [Release Process](release-process.md)
 
-## Current Publication Notes
+## Publication Notes
 
-- The repository is pre-1.0.
 - Fixture mode is the default path for local demos and contributor onboarding.
 - Vercel preview and production deployments should use managed Redis for analysis job status.
 - PostgreSQL, Redis, label persistence, label cache, and the label manager page are optional runtime capabilities.

@@ -1,121 +1,120 @@
 # Wallet Map
 
-Wallet Map 是一个本地优先的钱包关系分析工具，面向 EVM 地址组审计、公开链上数据研究和合规友好的复盘工作流。
+Wallet Map 是一个本地优先的钱包关系分析工作台，用于审阅一组钱包地址之间公开可见的链上证据。
 
-它帮助用户检查两个或多个钱包之间已经公开可见的链上关联信号：
+它帮助用户检查直接转账、共同交易对手、多跳路径、共同合约交互、时间相近行为等关系信号。项目适用于个人链上足迹审计、公开数据研究和合规友好的复盘工作流。
 
-- 直接转账
-- 共同交易对手
-- 多跳路径
-- 共同合约交互
-- 时间相近的行为模式
-
-本项目不处理私钥、助记词、签名、资产托管或自动化钱包操作，也不提供规避第三方规则的建议。
+Wallet Map 不处理私钥、助记词、签名、资产托管、交易发送或自动化钱包操作。
 
 English documentation starts at [README.md](README.md). 项目文档同时维护英文和中文版本，见[项目文档](#项目文档)。
 
-## 当前状态
+## 预览
 
-Wallet Map 目前处于 pre-1.0 阶段，适合本地评估、fixture 演示和早期贡献者审阅。
+![Wallet Map 工作台](docs/assets/wallet-map-home.png)
 
-已完成能力包括：
+线上应用：[https://wm.ruochen.app](https://wm.ruochen.app)
 
-- Next.js 工作台：地址输入、进度、图谱、证据、历史记录和报告导出。
-- 不依赖私有 API key 或数据库的合成 fixture 模式。
-- 配置 provider key 后，可通过 Etherscan-like live path 获取 Ethereum、Arbitrum、Base 和 BSC 数据。
-- NodeReal 与 Solscan provider 接入点。
-- 核心图构建、默认分析器、多维 Exposure Score 和报告导出器。
-- 可选 PostgreSQL 持久化、Redis job 进度/缓存，以及默认关闭的私有标签管理页面。
+## 功能
 
-公开稳定发布前仍需补齐：
-
-- CI workflow：typecheck、test、lint、build。
-- 更多 live provider 覆盖和缓存命中验证。
-- 双语文档完整性和 release checklist 审核。
-- 正式安全联系渠道和依赖更新策略。
+- 面向 EVM 钱包地址组的关系分析。
+- 工作台支持地址输入、进度追踪、图谱探索、证据复核和报告导出。
+- 合成 fixture 模式可用于本地演示、测试和贡献者快速上手，不需要私有 API key。
+- 支持通过 Etherscan-like provider 获取 live EVM 数据，并保留 NodeReal、Solscan 接入点。
+- 支持关系图构建、默认分析器插件、多维 exposure scoring 和带证据的 findings。
+- 支持导出 PDF、Markdown、JSON、CSV。
+- 可选 PostgreSQL 持久化，用于历史记录和回放。
+- 可选 Redis job state，用于 serverless 部署。
+- 私有标签管理页面默认关闭。
 
 ## 工作区结构
 
 ```text
 apps/
-  web/                 Next.js UI
+  web/                 Next.js 应用和 API routes
 packages/
-  core/                共享领域模型、图类型、评分基础
-  adapters/            数据源和链适配器边界
+  core/                领域模型、图契约、评分基础
+  adapters/            链和数据源适配器
   analyzers/           钱包关系分析器插件
-  exporters/           报告和导出接口
+  exporters/           报告导出器
   labels/              标签 provider 和 enrichment
   storage/             持久化接口与 SQL migrations
 docs/                  双语项目文档
-fixtures/              测试和演示用公开样本数据
+fixtures/              测试和演示用合成样本数据
 ```
 
-## 常用命令
+## 快速开始
 
 ```bash
 pnpm install
-pnpm typecheck
-pnpm test
 pnpm dev
 ```
 
-## 环境变量
+打开本地应用后，可以使用首页样例地址以 fixture 模式运行分析。Fixture 模式使用 `fixtures/sample-events.json`，不需要 API key、PostgreSQL 或 Redis。
 
-复制示例文件后再进行本地开发：
+常用检查：
+
+```bash
+pnpm typecheck
+pnpm test
+pnpm --filter @wallet-map/web build
+```
+
+## 配置
+
+本地开发前复制示例环境变量文件：
 
 ```bash
 cp .env.example .env.local
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-不要提交真实 `.env` 文件、API key、带凭据的 RPC URL 或私有钱包数据。Next.js 应用从 `apps/web/.env.local` 读取运行时配置。
+不要提交真实 `.env` 文件、API key、带凭据的 RPC URL、私有钱包数据或用户提供的真实钱包地址。
 
-## 可选基础设施
+### 数据源
 
-PostgreSQL 和 Redis 是可选能力。首次本地运行和暂未配置托管存储的 Vercel 部署，可以只使用 fixture 模式。
+- `Auto`：已配置 live provider 时使用 live 数据，否则回退到 fixture。
+- `Fixture`：始终使用合成样本数据。
+- `Live`：要求对应 provider 凭据，缺失时返回明确错误。
 
-只有在需要持久化历史、多实例 job 进度、Redis 标签缓存或私有标签管理时，才启用本地 PostgreSQL/Redis：
+Provider 环境变量包括 `ETHERSCAN_API_KEY`、`NODEREAL_API_KEY`、`NODEREAL_BSC_API_KEY`、`SOLSCAN_API_KEY`、`CHAINBASE_API_KEY`。
+
+### 存储
+
+PostgreSQL 和 Redis 对本地开发都是可选能力。
+
+Vercel Preview 和 Production 部署建议启用 Redis，以便分析 job 状态能跨 serverless 函数实例保存。Job store 支持 Upstash REST 变量和 Redis 协议 URL：
 
 ```bash
-docker-compose up -d
-pnpm db:migrate
+STORAGE_REDIS_ENABLED=true
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
+# 或 REDIS_URL=rediss://...
 ```
 
-相关开关：
+只有需要持久化历史、回放和数据库标签管理时才启用 PostgreSQL：
 
 ```bash
 STORAGE_POSTGRES_ENABLED=true
 DATABASE_URL=postgresql://...
-STORAGE_REDIS_ENABLED=true
-REDIS_URL=redis://...
-LABEL_DATABASE_ENABLED=true
-LABEL_REDIS_CACHE_ENABLED=true
-LABEL_LIST_CACHE_ENABLED=true
+pnpm db:migrate
+```
+
+标签管理页面默认关闭：
+
+```bash
 NEXT_PUBLIC_LABEL_MANAGER_ENABLED=false
 ```
 
-`/labels` 标签库管理页面默认关闭。只有维护者明确设置 `NEXT_PUBLIC_LABEL_MANAGER_ENABLED=true` 后，导航和路由才会开放。
+## 部署
 
-## MVP 使用流程
+当前生产环境部署在 Vercel：
 
-当前 MVP 可在 fixture 模式下完整运行：
+- 应用：[https://wm.ruochen.app](https://wm.ruochen.app)
+- Build command：`pnpm --filter @wallet-map/web build`
+- Install command：`pnpm install --frozen-lockfile`
+- Output directory：`apps/web/.next`
 
-1. 执行 `pnpm dev`。
-2. 打开工作台。
-3. 使用首页样例地址或导入 `.txt`、`.csv`、`.tsv` 地址文件。
-4. 提交分析表单。
-5. 应用调用 `/api/analyze`，构建关系图，运行默认分析器，并返回带证据的 findings。
-6. 从摘要区导出 PDF、Markdown、JSON 或 CSV evidence。
-
-`fixtures/sample-events.json` 是合成公开演示数据，覆盖直接转账、共同资金来源、共同去向、共同合约、多跳路径、时间模式和桥相关信号。
-
-## 数据源模式
-
-- `Auto`：存在 live provider key 时使用 live 数据，否则回退到 fixture。
-- `Fixture`：始终使用 `fixtures/sample-events.json`。
-- `Live`：要求相关 provider key，缺失时返回明确错误。
-
-Etherscan API key 可支持 Ethereum、Arbitrum、Base 和 BSC。NodeReal、Solscan 和 Chainbase 相关能力通过对应环境变量启用。
+环境变量和托管 Redis 配置见 [Vercel 部署](docs/vercel-deployment.zh.md)。
 
 ## 项目文档
 
@@ -126,6 +125,7 @@ Etherscan API key 可支持 Ethereum、Arbitrum、Base 和 BSC。NodeReal、Sols
 - 提交规范：[English](docs/commit-convention.md), [中文](docs/commit-convention.zh.md)
 - 文档风格：[English](docs/documentation-style.md), [中文](docs/documentation-style.zh.md)
 - 数据库结构：[English](docs/database-schema.md), [中文](docs/database-schema.zh.md)
+- Vercel 部署：[English](docs/vercel-deployment.md), [中文](docs/vercel-deployment.zh.md)
 - 分析规范：[English](docs/analysis-guidelines.md), [中文](docs/analysis-guidelines.zh.md)
 - 开源规范：[English](docs/open-source.md), [中文](docs/open-source.zh.md)
 - 发布流程：[English](docs/release-process.md), [中文](docs/release-process.zh.md)

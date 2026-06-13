@@ -1,210 +1,120 @@
 # Wallet Map
 
-Wallet Map is a local-first wallet relationship analysis toolkit for EVM address groups.
+Wallet Map is a local-first wallet relationship analysis workbench for reviewing public on-chain evidence across wallet address groups.
 
-It helps users inspect visible on-chain links between two or more wallets:
+It helps users inspect visible relationship signals such as direct transfers, shared counterparties, multi-hop paths, shared contract interactions, and time-adjacent activity patterns. The project is designed for personal chain-footprint audits, public-data research, and compliance-friendly review workflows.
 
-- direct transfers
-- shared counterparties
-- multi-hop paths
-- shared contract interactions
-- time-adjacent behavior patterns
+Wallet Map does not handle private keys, seed phrases, signatures, custody, transaction submission, or automated wallet operations.
 
-The project is designed for personal chain-footprint audits, public-data research, and compliance-friendly review workflows. It does not handle private keys, signatures, custody, or automated wallet operations.
+中文文档入口见 [README.zh.md](README.zh.md). Documentation is maintained in English and Chinese; see [Project Docs](#project-docs).
 
-中文文档入口见 [README.zh.md](README.zh.md)。Documentation is maintained in English and Chinese; see [Project Docs](#project-docs).
+## Preview
 
-## Current Status
+![Wallet Map workbench](docs/assets/wallet-map-home.png)
 
-Wallet Map is pre-1.0 and suitable for local evaluation, fixture-mode demos, and early contributor review.
+Live application: [https://wm.ruochen.app](https://wm.ruochen.app)
 
-Implemented capabilities include:
+## Features
 
-- Next.js workbench with address input, progress, graph view, evidence, history, and report export.
-- Synthetic fixture mode that requires no private API keys or infrastructure.
-- Etherscan-like live ingestion for Ethereum, Arbitrum, Base, and BSC when provider keys are configured.
-- NodeReal and Solscan provider hooks for supported chains.
-- Core graph construction, default analyzers, multidimensional exposure scoring, and report exporters.
-- Optional PostgreSQL persistence, Redis job progress/cache, and a private label manager.
-
-Planned before a public stable release:
-
-- Additional live provider coverage and cache validation.
-- Public release checklist review.
-- Formal security contact and dependency update policy.
+- Address-group analysis for EVM wallets.
+- Interactive workbench with address input, progress tracking, graph exploration, evidence review, and report export.
+- Synthetic fixture mode for local demos, tests, and contributor onboarding without private API keys.
+- Live EVM ingestion through Etherscan-like providers, with NodeReal and Solscan provider hooks.
+- Relationship graph construction, default analyzer plugins, multidimensional exposure scoring, and evidence-backed findings.
+- Report export as PDF, Markdown, JSON, and CSV.
+- Optional PostgreSQL persistence for history and replay.
+- Optional Redis job state for serverless deployments.
+- Private label manager route, disabled by default.
 
 ## Workspace
 
 ```text
 apps/
-  web/                 Next.js UI
+  web/                 Next.js application and API routes
 packages/
-  core/                Shared domain models, graph types, scoring primitives
-  adapters/            Data-source and chain adapter interfaces
+  core/                Domain models, graph contracts, scoring primitives
+  adapters/            Chain and data-source adapters
   analyzers/           Relationship analyzer plugins
-  exporters/           Report/export interfaces
+  exporters/           Report exporters
   labels/              Label providers and enrichment
   storage/             Persistence contracts and SQL migrations
-docs/
-  architecture-map.md  Product and architecture map
-fixtures/              Public sample datasets for tests and demos
+docs/                  Bilingual project documentation
+fixtures/              Synthetic sample datasets for tests and demos
 ```
 
-## Commands
+## Quick Start
 
 ```bash
 pnpm install
-pnpm typecheck
-pnpm test
 pnpm dev
 ```
 
-## Environment
+Open the local app and run an analysis with the sample addresses in fixture mode. Fixture mode uses `fixtures/sample-events.json` and does not require API keys, PostgreSQL, or Redis.
 
-Copy the example file before local development:
+Useful checks:
+
+```bash
+pnpm typecheck
+pnpm test
+pnpm --filter @wallet-map/web build
+```
+
+## Configuration
+
+Copy the example files before local development:
 
 ```bash
 cp .env.example .env.local
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-Do not commit real `.env` files, API keys, RPC URLs with credentials, or private wallet data.
+Do not commit real `.env` files, API keys, RPC URLs with credentials, private wallet data, or user-provided wallet addresses.
 
-The Next.js app reads runtime secrets from `apps/web/.env.local`.
+### Data Sources
 
-## Local Infrastructure
+- `Auto`: uses live provider data when configured, otherwise falls back to fixture data.
+- `Fixture`: always uses the synthetic sample dataset.
+- `Live`: requires the selected provider credentials and returns a clear error when missing.
 
-PostgreSQL and Redis are optional for local development. The application can run in fixture mode without either service, which is the recommended default for first-time setup.
+Provider environment variables include `ETHERSCAN_API_KEY`, `NODEREAL_API_KEY`, `NODEREAL_BSC_API_KEY`, `SOLSCAN_API_KEY`, and `CHAINBASE_API_KEY`.
 
-Enable local PostgreSQL and Redis only when you want persisted history, multi-instance job progress, Redis-backed label cache, or private label management.
+### Storage
 
-For Vercel preview and production deployments, configure managed Redis before opening the analysis flow to users. The current implementation expects `STORAGE_REDIS_ENABLED=true` plus either Upstash REST variables or a Redis URL. See [Vercel Deployment](docs/vercel-deployment.md).
+PostgreSQL and Redis are optional for local development.
 
-If you use Colima on macOS:
-
-```bash
-colima start
-docker-compose up -d
-```
-
-Check services:
+Redis is recommended for Vercel preview and production deployments so analysis job state can survive across serverless function instances. The job store supports Upstash REST variables and Redis protocol URLs:
 
 ```bash
-docker-compose ps
+STORAGE_REDIS_ENABLED=true
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
+# or REDIS_URL=rediss://...
 ```
 
-Stop services:
+PostgreSQL is required only for persisted history, replay, and database-backed label management:
 
 ```bash
-docker-compose down
+STORAGE_POSTGRES_ENABLED=true
+DATABASE_URL=postgresql://...
+pnpm db:migrate
 ```
 
-Remove local database and Redis data:
+The label manager is disabled unless explicitly enabled:
 
 ```bash
-docker-compose down -v
+NEXT_PUBLIC_LABEL_MANAGER_ENABLED=false
 ```
 
-## Database Migrations
+## Deployment
 
-After PostgreSQL is running, apply:
+The production deployment is hosted on Vercel:
 
-```bash
-psql "$DATABASE_URL" -f packages/storage/migrations/0001_initial_schema.sql
-psql "$DATABASE_URL" -f packages/storage/migrations/0002_analysis_job_metadata.sql
-psql "$DATABASE_URL" -f packages/storage/migrations/0003_scoped_event_and_job_subjects.sql
-```
+- App: [https://wm.ruochen.app](https://wm.ruochen.app)
+- Build command: `pnpm --filter @wallet-map/web build`
+- Install command: `pnpm install --frozen-lockfile`
+- Output directory: `apps/web/.next`
 
-Analysis jobs persist to PostgreSQL only when `STORAGE_POSTGRES_ENABLED=true`
-and `DATABASE_URL` is configured. In-flight progress is stored in Redis only
-when `STORAGE_REDIS_ENABLED=true` and `REDIS_URL` is configured; otherwise the
-web app uses an in-memory job store suitable for a single local or preview
-instance.
-
-Known labels use PostgreSQL only when `LABEL_DATABASE_ENABLED=true`. The
-private label manager route `/labels` is hidden and returns 404 unless
-`NEXT_PUBLIC_LABEL_MANAGER_ENABLED=true`. Keep it disabled for public
-deployments unless the maintainer intends to manage labels through the app.
-
-The analysis label stack also includes a built-in `known-entity-labels`
-provider for public services such as exchange hot wallets, bridges, DEX
-contracts, infrastructure, and canonical token contracts. Live Chainbase and
-Etherscan nametag providers can enrich or override those seeds when configured,
-and `normalized-event-asset` labels fill in token symbols from analyzed events.
-
-## MVP Flow
-
-The current MVP can run fully in fixture mode without private configuration:
-
-- Open the workbench with `pnpm dev`.
-- Use the sample wallet addresses on the homepage.
-- Submit the analysis form.
-- The app calls `/api/analyze`, builds a relationship graph, runs the default analyzers, and returns findings with evidence.
-- Address import accepts `.txt`, `.csv`, and `.tsv` files, deduplicates EVM addresses, and reports invalid rows before analysis.
-
-`fixtures/sample-events.json` is a synthetic public demo dataset. It intentionally
-uses placeholder addresses and covers direct transfers, shared funding,
-shared withdrawal destinations, same-contract interactions, multi-hop transfer
-paths, temporal patterns, and bridge correlation signals.
-
-Data source modes:
-
-- `Auto`: uses live Etherscan API V2 data only when `ETHERSCAN_API_KEY` is present, otherwise falls back to fixture data.
-- `Fixture`: always uses `fixtures/sample-events.json`.
-- `Live`: requires the relevant scan API key and returns a clear error if it is missing.
-
-Provider API keys can stay empty while developing in fixture mode.
-Live mode fetches wallet addresses with a small concurrency guard. Set
-`ANALYZE_LIVE_ADDRESS_CONCURRENCY` in `apps/web/.env.local` to tune this value;
-it defaults to `2` and is capped at `8` to reduce provider rate-limit pressure.
-Each live provider HTTP request also has a timeout guard. Set
-`ANALYZE_LIVE_PROVIDER_TIMEOUT_MS` to tune it; it defaults to `30000` and is
-capped at `120000`. When a primary provider times out, Auto provider mode uses
-the configured fallback provider for supported chains.
-In `Auto` provider mode, EVM chains use NodeReal first when it supports the
-selected chain and a NodeReal key is configured, with Etherscan V2 as the
-fallback when an Etherscan key is also available. Explicit Etherscan selection
-still uses Etherscan V2 first, but can fall back to NodeReal on supported EVM
-chains when a NodeReal key is configured. Solana uses Solscan when
-`SOLSCAN_API_KEY` is configured.
-
-With `ETHERSCAN_API_KEY` configured locally, the current live pipeline supports:
-
-- Ethereum (`chainId=1`)
-- Arbitrum (`chainId=42161`)
-- Base (`chainId=8453`)
-- BSC (`chainId=56`)
-
-The adapter currently ingests:
-
-- native transfers
-- internal native transfers
-- ERC20 transfers
-- ERC721 transfers
-
-Completed runs can be exported from the workbench summary panel as PDF,
-Markdown, JSON, or CSV evidence files. Markdown is intended for human review,
-JSON for secondary analysis, CSV for spreadsheet review, and PDF for shareable
-audit snapshots.
-
-## Product Tiers
-
-The workbench now exposes a typed product boundary so capacity, history, export,
-provider, and label behavior can be gated consistently as Wallet Map moves
-toward a professional edition:
-
-- `Anonymous`: session-scoped trial with optional anonymous analysis limits,
-  capped at 10 addresses per analysis request.
-- `Free`: signed-in personal workspace with wallet-scoped history replay,
-  capped at 25 addresses per analysis request.
-- `Pro`: larger async batches up to 100 addresses, extended history,
-  multi-provider depth, report templates, and private label sets.
-- `Team`: shared review, label governance, managed retention, deployment
-  controls, and up to 200 addresses per analysis request.
-
-The current UI shows the active plan boundary beside analysis setup. The model
-lives in `apps/web/app/pro-plan.ts` and `/api/analyze` enforces the matching
-address-count and request-size limits before creating a job.
+See [Vercel Deployment](docs/vercel-deployment.md) for environment variables and managed Redis guidance.
 
 ## Project Docs
 

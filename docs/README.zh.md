@@ -14,9 +14,8 @@ English version: [docs/README.md](README.md)
 6. [开源规范](open-source.zh.md)
 7. [发布流程](release-process.zh.md)
 
-## 当前发布说明
+## 发布说明
 
-- 仓库仍处于 pre-1.0 阶段。
 - fixture 模式是本地演示和贡献者快速上手的默认路径。
 - Vercel Preview 和 Production 部署建议使用托管 Redis 保存分析 job 状态。
 - PostgreSQL、Redis、标签持久化、标签缓存和标签管理页面均为可选运行时能力。
