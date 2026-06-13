@@ -15,21 +15,7 @@ Wallet Map is a local-first wallet relationship audit workbench for individuals,
 
 The project must remain open-source friendly, privacy-conscious, pluggable, and multi-chain ready. It must not provide private-key handling, signing, automated wallet operations, or instructions for evading third-party review systems.
 
-## 2. Current Scope
-
-The current pre-1.0 implementation includes:
-
-- Next.js workbench and route handlers.
-- Fixture, auto, and live data modes.
-- Etherscan-like EVM ingestion for Ethereum, Arbitrum, Base, and BSC when configured.
-- NodeReal and Solscan provider hooks for supported chains.
-- Normalized event model in `@wallet-map/core`.
-- Relationship graph construction and `GraphViewModel` response shape.
-- Default analyzers for direct transfer, shared counterparty, same-contract interaction, shared flows, multi-hop paths, temporal patterns, and bridge correlation.
-- Multidimensional exposure scoring.
-- Markdown, JSON, CSV, and PDF report export.
-- Optional PostgreSQL persistence and optional Redis job/cache support.
-- Optional private label manager, disabled by default.
+## 2. Product Boundary
 
 Out of scope:
 
@@ -202,11 +188,3 @@ Future work may introduce additional provider packages, graph slicing endpoints,
 - Public examples must use synthetic addresses.
 - Reports should support redaction before sharing.
 - The product should describe “relationship signals” and “review priority,” not ownership proof.
-
-## 7. Near-Term Priorities
-
-- Add CI for typecheck, test, lint, and build.
-- Validate storage-disabled Vercel deployments.
-- Add a second live provider path where useful.
-- Continue improving graph/evidence linkage.
-- Keep bilingual documentation synchronized for release preparation.

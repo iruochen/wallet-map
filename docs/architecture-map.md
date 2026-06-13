@@ -13,11 +13,7 @@ English version: [architecture-map.en.md](architecture-map.en.md)
 
 项目应保持“本地优先、可开源、可插拔、多链扩展”的方向。工具可以帮助用户理解链上可见关联和隐私暴露，但不应内置规避平台风控、批量绕过规则或自动化滥用流程。
 
-## 2. MVP 范围
-
-当前仓库已经从早期 MVP 规划进入 pre-1.0 工作台阶段。已实现的核心能力包括：fixture/auto/live 分析模式、Etherscan-like EVM 数据接入、NodeReal/Solscan provider 接入点、normalized event、关系图构建、默认 analyzers、多维 Exposure Score、Cytoscape 图谱、证据表、历史记录、报告导出，以及可选 PostgreSQL/Redis 持久化和默认关闭的私有标签管理页面。
-
-公开发布时的默认运行路径应支持无 PostgreSQL、无 Redis 的 fixture 模式或单实例预览部署。PostgreSQL、Redis、标签持久化、标签缓存和 `/labels` 页面均应通过环境变量显式开启。
+## 2. 产品边界
 
 第一版先做小而清晰：
 
@@ -292,69 +288,3 @@ docs/
 - 报告默认脱敏选项：隐藏部分地址、金额区间化。
 - 不保存私钥，不请求签名。
 - 开源 README 中明确项目边界：用于个人链上足迹审计、研究和合规分析。
-
-## 8. 任务清单
-
-### 产品与边界
-
-- [ ] 确认 MVP 支持哪些链。
-- [ ] 确认第一版只做本地分析还是支持部署版。
-- [ ] 定义项目使用边界和开源免责声明。
-- [ ] 定义报告里“关联”“风险”“证据”的措辞。
-
-### 数据层
-
-- [ ] 设计标准事件模型。
-- [ ] 设计 PostgreSQL schema。
-- [ ] 实现 EVM 地址校验和 checksum。
-- [x] 实现 Etherscan-like adapter。
-- [ ] 实现 RPC log adapter。
-- [ ] 支持 CSV 导入。
-
-### 分析层
-
-- [ ] 实现 Direct Transfer Analyzer。
-- [ ] 实现 Multi-hop Path Analyzer。
-- [ ] 实现 Shared Counterparty Analyzer。
-- [ ] 实现 Same Contract Interaction Analyzer。
-- [ ] 实现 Temporal Pattern Analyzer。
-- [ ] 实现评分器和解释器。
-- [ ] 为每个 finding 保存证据交易。
-
-### UI 层
-
-- [ ] 地址输入页。
-- [ ] 分析任务状态页。
-- [ ] 总览页。
-- [ ] 图谱浏览器。
-- [ ] 证据表格。
-- [ ] 报告导出。
-
-### 工程化
-
-- [ ] 初始化 monorepo。
-- [ ] 配置 lint、format、typecheck。
-- [ ] 配置测试框架。
-- [ ] 增加 fixture 数据。
-- [ ] 写贡献指南。
-- [ ] 写 README 和 Roadmap。
-
-### 可并行推进
-
-- [ ] A 线：产品边界、README、术语定义。
-- [ ] B 线：数据模型、数据库 schema、adapter 接口。
-- [ ] C 线：分析器接口、评分模型、fixture 测试。
-- [ ] D 线：UI 原型、图谱交互、报告布局。
-- [ ] E 线：开源工程化、CI、贡献指南。
-
-## 9. 第一阶段交付物
-
-第一阶段完成后应该有：
-
-- 可输入多个钱包地址。
-- 可选择 EVM 链和时间范围。
-- 可拉取并缓存交易数据。
-- 可输出地址关系图。
-- 可列出直接交易、多跳路径、共同交互对象。
-- 可导出 Markdown/JSON 报告。
-- 有一组公开 fixture 测试数据，方便开源贡献者验证。

@@ -51,3 +51,8 @@ docs/project-readiness.md
 docs/project-readiness.zh.md
 docs/graph-visualization.md
 docs/graph-visualization.zh.md
+docs/implementation-status.md
+docs/implementation-status.zh.md
+
+# Next.js generated app types
+apps/web/next-env.d.ts
