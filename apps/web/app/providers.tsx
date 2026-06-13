@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { WagmiProvider } from "wagmi";
 import { arbitrum, base, bsc, mainnet, optimism, polygon } from "wagmi/chains";
+import { I18nProvider } from "../components/i18n/i18n-provider";
 
 const walletConnectProjectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID?.trim() || "wallet-map-local";
@@ -62,10 +63,12 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <WagmiProvider config={walletConfig} reconnectOnMount>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider modalSize="compact">{children}</RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <I18nProvider>
+      <WagmiProvider config={walletConfig} reconnectOnMount>
+        <QueryClientProvider client={queryClient}>
+          <RainbowKitProvider modalSize="compact">{children}</RainbowKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
+    </I18nProvider>
   );
 }

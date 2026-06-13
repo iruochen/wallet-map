@@ -435,14 +435,16 @@ button:disabled {
 }
 
 .walletHeaderButton,
-.walletHeaderIconButton {
+.walletHeaderIconButton,
+.languageSwitch {
   border: 1px solid #cbd8cd;
   background: #ffffff;
   color: var(--brand);
   box-shadow: 0 1px 0 rgba(31, 61, 44, 0.04);
 }
 
-.walletHeaderButton {
+.walletHeaderButton,
+.languageSwitch {
   min-height: 32px;
   max-width: 178px;
   padding: 0 12px;
@@ -450,6 +452,19 @@ button:disabled {
   font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.languageSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.languageSwitch:hover {
+  border-color: #aebfaf;
+  background: #f7faf4;
 }
 
 .walletHeaderButtonPrimary {
@@ -5148,7 +5163,8 @@ code {
     gap: 6px;
   }
 
-  .walletHeaderButton {
+  .walletHeaderButton,
+  .languageSwitch {
     max-width: 132px;
     padding: 0 10px;
   }

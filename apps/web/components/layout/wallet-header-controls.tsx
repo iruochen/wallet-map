@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount, useDisconnect, useSignMessage } from "wagmi";
 import { readJsonResponse } from "../api/read-json-response";
+import { useI18n } from "../i18n/i18n-provider";
 import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
 
 export function WalletHeaderControls() {
+  const { t } = useI18n();
   const router = useRouter();
   const { address, isConnected, status: walletStatus } = useAccount();
   const { disconnectAsync } = useDisconnect();
@@ -76,7 +78,7 @@ export function WalletHeaderControls() {
 
     try {
       if (!address || !isConnected) {
-        throw new Error("请先连接钱包。");
+        throw new Error(t("wallet.connectFirst"));
       }
 
       const normalizedAddress = address.toLowerCase();
@@ -84,7 +86,7 @@ export function WalletHeaderControls() {
       const challenge = await readJsonResponse<{ message?: string; error?: string }>(challengeResponse);
 
       if (!challengeResponse.ok || !challenge.message) {
-        throw new Error(challenge.error ?? "无法创建登录挑战。");
+        throw new Error(challenge.error ?? t("wallet.challengeFailed"));
       }
 
       const signature = await signMessageAsync({ message: challenge.message });
@@ -96,7 +98,7 @@ export function WalletHeaderControls() {
       const login = await readJsonResponse<{ error?: string }>(loginResponse);
 
       if (!loginResponse.ok) {
-        throw new Error(login.error ?? "钱包登录失败。");
+        throw new Error(login.error ?? t("wallet.loginFailed"));
       }
 
       autoSignAttemptRef.current = normalizedAddress;
@@ -105,11 +107,11 @@ export function WalletHeaderControls() {
       if (address) {
         autoSignAttemptRef.current = address.toLowerCase();
       }
-      setError(caught instanceof Error ? caught.message : "钱包登录失败。");
+      setError(caught instanceof Error ? caught.message : t("wallet.loginFailed"));
     } finally {
       setIsBusy(false);
     }
-  }, [address, isConnected, refreshAuthState, signMessageAsync]);
+  }, [address, isConnected, refreshAuthState, signMessageAsync, t]);
 
   useEffect(() => {
     if (!needsWalletSignIn || isBusy || !connectedAddress) {
@@ -154,7 +156,7 @@ export function WalletHeaderControls() {
         title={ensName && displayAddress ? displayAddress : undefined}
       >
         <CheckCircle2 size={14} aria-hidden="true" />
-        已登录 {displayName ?? displayAddress}
+        {t("wallet.signedIn")} {displayName ?? displayAddress}
       </span>
     );
   }
@@ -163,11 +165,11 @@ export function WalletHeaderControls() {
     <div className="walletHeaderControl">
       {!authLoaded ? (
         <span className="headerChip walletHeaderLoadingChip" aria-busy="true">
-          加载中
+          {t("wallet.loading")}
         </span>
       ) : hasServerSession && isWalletRestoring ? (
         <span className="headerChip walletHeaderLoadingChip" aria-busy="true">
-          加载中
+          {t("wallet.loading")}
         </span>
       ) : hasServerSession && (!isConnected || walletMatchesSession) ? (
         <>
@@ -182,12 +184,12 @@ export function WalletHeaderControls() {
                   disabled={!mounted || isBusy}
                 >
                   <Wallet size={14} aria-hidden="true" />
-                  重连钱包
+                  {t("wallet.reconnect")}
                 </button>
               )}
             </ConnectButton.Custom>
           ) : null}
-          <button className="walletHeaderIconButton" type="button" onClick={disconnect} disabled={isBusy} title="退出登录">
+          <button className="walletHeaderIconButton" type="button" onClick={disconnect} disabled={isBusy} title={t("wallet.signOut")}>
             <LogOut size={15} aria-hidden="true" />
           </button>
         </>
@@ -196,7 +198,7 @@ export function WalletHeaderControls() {
           {isBusy ? (
             <span className="headerChip walletHeaderLoadingChip" aria-busy="true">
               <CheckCircle2 size={14} aria-hidden="true" />
-              等待钱包签名…
+              {t("wallet.waitingSignature")}
             </span>
           ) : error ? (
             <button
@@ -206,15 +208,15 @@ export function WalletHeaderControls() {
               disabled={isBusy}
             >
               <CheckCircle2 size={15} aria-hidden="true" />
-              重试签名
+              {t("wallet.retrySignature")}
             </button>
           ) : (
             <span className="headerChip walletHeaderLoadingChip" aria-busy="true">
               <CheckCircle2 size={14} aria-hidden="true" />
-              准备登录…
+              {t("wallet.readyToSignIn")}
             </span>
           )}
-          <button className="walletHeaderIconButton" type="button" onClick={disconnect} disabled={isBusy} title="断开钱包">
+          <button className="walletHeaderIconButton" type="button" onClick={disconnect} disabled={isBusy} title={t("wallet.disconnect")}>
             <LogOut size={15} aria-hidden="true" />
           </button>
         </>
@@ -228,7 +230,7 @@ export function WalletHeaderControls() {
               disabled={!mounted || isBusy}
             >
               <Wallet size={15} aria-hidden="true" />
-              连接钱包
+              {t("wallet.connect")}
             </button>
           )}
         </ConnectButton.Custom>

@@ -33,6 +33,7 @@ import {
 } from "../../app/format";
 import type { GraphExplorerEdge, GraphExplorerNode, ResolvedNode } from "./graph-types";
 import { buildLayoutOptions, fitOverviewViewport, runLayout } from "./graph-layout";
+import { useI18n } from "../i18n/i18n-provider";
 import {
   buildElements,
   buildEdgeLabel,
@@ -90,6 +91,7 @@ export function GraphExplorer({
   totalEdges,
   truncated,
 }: GraphExplorerProps) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<Core | null>(null);
   const layoutRunningRef = useRef(false);
@@ -402,8 +404,8 @@ export function GraphExplorer({
   if (nodes.length === 0) {
     return (
       <div className="graphExplorerEmpty">
-        <strong>暂无可视化节点</strong>
-        <p>当前结果没有产生关系图。</p>
+        <strong>{t("graph.empty.title")}</strong>
+        <p>{t("graph.empty.body")}</p>
       </div>
     );
   }
@@ -414,23 +416,23 @@ export function GraphExplorer({
     walletFilter === "all" ? "ALL" : shortenAddress(walletFilter);
   const filteredEmptyTitle =
     walletFilter !== "all" && chainFilter !== "all"
-      ? `${activeWalletLabel} 在 ${activeChainLabel} 上暂无关联边`
+      ? t("graph.filtered.emptyCombined", { wallet: activeWalletLabel, chain: activeChainLabel })
       : walletFilter !== "all"
-        ? `${activeWalletLabel} 暂无关联边`
+        ? t("graph.filtered.emptyWallet", { wallet: activeWalletLabel })
         : chainFilter !== "all"
-          ? `${activeChainLabel} 暂无关联边`
-          : "当前筛选条件下暂无关联边";
+          ? t("graph.filtered.emptyChain", { chain: activeChainLabel })
+          : t("graph.filtered.emptyDefault");
   const filteredEmptyHint =
     walletFilter !== "all" || chainFilter !== "all"
-      ? "切换到 ALL 或其他筛选项查看完整关系图谱。"
-      : "切换其他链，或选择 ALL 查看完整 EVM 聚合图谱。";
+      ? t("graph.filtered.hintFiltered")
+      : t("graph.filtered.hintDefault");
 
   return (
     <div className="graphExplorer">
       <div className="graphToolbar">
         {showWalletFilter ? (
-          <div className="graphChainFilter" aria-label="钱包筛选">
-            <span className="graphChainFilterLabel">钱包筛选</span>
+          <div className="graphChainFilter" aria-label={t("graph.walletFilter")}>
+            <span className="graphChainFilterLabel">{t("graph.walletFilter")}</span>
             <button
               type="button"
               className={`graphChipButton ${walletFilter === "all" ? "graphChipButtonOn" : ""}`}
@@ -454,8 +456,8 @@ export function GraphExplorer({
           </div>
         ) : null}
         {showChainFilter ? (
-          <div className="graphChainFilter" aria-label="链筛选">
-            <span className="graphChainFilterLabel">链筛选</span>
+          <div className="graphChainFilter" aria-label={t("graph.chainFilter")}>
+            <span className="graphChainFilterLabel">{t("graph.chainFilter")}</span>
             <button
               type="button"
               className={`graphChipButton ${chainFilter === "all" ? "graphChipButtonOn" : ""}`}
@@ -478,7 +480,7 @@ export function GraphExplorer({
           </div>
         ) : null}
         <div className="graphToolbarMain">
-        <div className="graphLegend" aria-label="Edge kind filter">
+        <div className="graphLegend" aria-label={t("graph.edgeKindFilter")}>
           {edgeKinds.map((kind) => {
             const hidden = hiddenKinds.has(kind);
             return (
@@ -489,7 +491,7 @@ export function GraphExplorer({
                 className={`graphLegendItem ${hidden ? "graphLegendItemHidden" : ""}`}
                 style={{ "--legend-color": edgePalette[kind] } as React.CSSProperties}
                 aria-pressed={!hidden}
-                title={hidden ? "点击重新显示" : "点击隐藏此类边"}
+                title={hidden ? t("graph.showAgain") : t("graph.hideKind")}
               >
                 <span className="graphLegendSwatch" aria-hidden="true" />
                 {formatEdgeKindLabel(kind)}
@@ -503,21 +505,24 @@ export function GraphExplorer({
             className={`graphChipButton ${showEdgeLabels ? "graphChipButtonOn" : ""}`}
             onClick={() => setShowEdgeLabels((value) => !value)}
             aria-pressed={showEdgeLabels}
-            title="切换边标签"
+            title={t("graph.toggleEdgeLabels")}
           >
-            {showEdgeLabels ? "边标签 ON" : "边标签 OFF"}
+            {showEdgeLabels ? t("graph.edgeLabelsOn") : t("graph.edgeLabelsOff")}
           </button>
-          <button type="button" className="graphChipButton" onClick={handleRelayout} title="重新计算节点位置，并保留当前缩放">
-            重新布局
+          <button type="button" className="graphChipButton" onClick={handleRelayout} title={t("graph.relayoutTitle")}>
+            {t("graph.relayout")}
           </button>
-          <button type="button" className="graphChipButton" onClick={handleResetView} title="适配画布，回到全图视角">
-            回到全图
+          <button type="button" className="graphChipButton" onClick={handleResetView} title={t("graph.resetTitle")}>
+            {t("graph.reset")}
           </button>
           <span className="graphSummary">
-            {visibleNodes.length} 节点 · {visibleEdgeCount}/{visibleEdges.length} 条边
+            {t("graph.nodes", { count: visibleNodes.length })} · {t("graph.edges", {
+              visible: visibleEdgeCount,
+              total: visibleEdges.length,
+            })}
             {showWalletFilter && walletFilter !== "all" ? ` · ${activeWalletLabel}` : ""}
             {showChainFilter && chainFilter !== "all" ? ` · ${activeChainLabel}` : ""}
-            {truncated ? " · 已截断" : ""}
+            {truncated ? ` · ${t("graph.truncated")}` : ""}
           </span>
         </div>
         </div>
@@ -527,7 +532,7 @@ export function GraphExplorer({
           ref={containerRef}
           className={`graphCanvas ${layoutReady ? "graphCanvasReady" : "graphCanvasLoading"}`}
           role="region"
-          aria-label="Relationship graph canvas"
+          aria-label={t("graph.canvas")}
         />
         {visibleEdges.length === 0 ? (
           <div className="graphExplorerEmpty graphExplorerEmptyFiltered">
@@ -536,21 +541,21 @@ export function GraphExplorer({
           </div>
         ) : (
           <>
-        <div className="graphZoomControls" aria-label="Graph zoom controls">
-          <button type="button" className="graphZoomButton" onClick={handleZoomIn} title="放大">
+        <div className="graphZoomControls" aria-label={t("graph.zoom")}>
+          <button type="button" className="graphZoomButton" onClick={handleZoomIn} title={t("graph.zoomIn")}>
             <Plus size={16} strokeWidth={2.2} />
           </button>
-          <button type="button" className="graphZoomButton" onClick={handleZoomOut} title="缩小">
+          <button type="button" className="graphZoomButton" onClick={handleZoomOut} title={t("graph.zoomOut")}>
             <Minus size={16} strokeWidth={2.2} />
           </button>
-          <button type="button" className="graphZoomButton" onClick={handleResetView} title="回到全图">
+          <button type="button" className="graphZoomButton" onClick={handleResetView} title={t("graph.reset")}>
             <ScanSearch size={16} strokeWidth={2} />
           </button>
         </div>
         {!layoutReady ? (
           <div className="graphLayoutOverlay" aria-live="polite">
             <span className="buttonSpinner" aria-hidden="true" />
-            正在计算力导向布局…
+            {t("graph.layouting")}
           </div>
         ) : null}
         <SelectionDetail
@@ -567,14 +572,16 @@ export function GraphExplorer({
       </div>
       <p className="graphFootnote">
         {denseGraph
-          ? "大图模式：默认保留标签并按 watched 关联分区铺开，单击节点或边可局部聚焦，点空白处回到全图。"
-          : "默认只展示命中分析器的关联子图 · 单击聚焦并查看解释 · 双击跳转 explorer。"}
-        {totalNodes > visibleNodes.length ? ` 当前展示前 ${visibleNodes.length} / ${totalNodes} 节点。` : ""}
+          ? t("graph.footnote.dense")
+          : t("graph.footnote.default")}
+        {totalNodes > visibleNodes.length
+          ? ` ${t("graph.footnote.visibleNodes", { visible: visibleNodes.length, total: totalNodes })}`
+          : ""}
         {showChainFilter && chainFilter !== "all"
-          ? ` 当前仅显示 ${activeChainLabel} 链上的关联子图。`
+          ? ` ${t("graph.footnote.chainOnly", { chain: activeChainLabel })}`
           : ""}
         {showWalletFilter && walletFilter !== "all"
-          ? ` 当前仅显示 ${activeWalletLabel} 的一跳关联子图。`
+          ? ` ${t("graph.footnote.walletOnly", { wallet: activeWalletLabel })}`
           : ""}
       </p>
     </div>
@@ -590,6 +597,7 @@ interface SelectionDetailProps {
 }
 
 function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: SelectionDetailProps) {
+  const { t } = useI18n();
   const [showAllTransactions, setShowAllTransactions] = useState(false);
 
   useEffect(() => {
@@ -611,7 +619,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
       <div className="graphDetailCard" role="status">
         <div className="graphDetailHeader">
           <span className={`graphDetailRole graphDetailRole-${node.role}`}>{formatNodeRoleLabel(node.role)}</span>
-          <button type="button" className="graphDetailClose" onClick={onClose} aria-label="关闭">
+          <button type="button" className="graphDetailClose" onClick={onClose} aria-label={t("graph.detail.close")}>
             <X size={16} strokeWidth={2.4} />
           </button>
         </div>
@@ -624,12 +632,12 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
           </code>
           <dl className="graphDetailMetrics">
             <div>
-              <dt>邻边</dt>
+              <dt>{t("graph.detail.neighborEdges")}</dt>
               <dd>{node.degree}</dd>
             </div>
             {node.label ? (
               <div>
-                <dt>标签</dt>
+                <dt>{t("graph.detail.label")}</dt>
                 <dd title={labelTitle}>{node.shortLabel}</dd>
               </div>
             ) : null}
@@ -642,7 +650,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
                 target="_blank"
                 rel="noreferrer noopener"
               >
-                <ArrowUpRight size={14} strokeWidth={2.1} /> 在 explorer 中查看
+                <ArrowUpRight size={14} strokeWidth={2.1} /> {t("graph.detail.viewExplorer")}
               </a>
             </div>
           ) : null}
@@ -687,7 +695,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
           {formatEdgeKindLabel(edge.kind)}
         </span>
         <span className="chainBadge">{formatChainShortName(edgeChainId)}</span>
-        <button type="button" className="graphDetailClose" onClick={onClose} aria-label="关闭">
+        <button type="button" className="graphDetailClose" onClick={onClose} aria-label={t("graph.detail.close")}>
           <X size={16} strokeWidth={2.4} />
         </button>
       </div>
@@ -710,7 +718,9 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
           </div>
         ) : null}
         {(edge.metadata?.txCount ?? 1) > 1 ? (
-          <div className="graphDetailTxCount">{edge.metadata?.txCount} 笔同类交易已聚合展示</div>
+          <div className="graphDetailTxCount">
+            {t("graph.detail.aggregatedTx", { count: edge.metadata?.txCount ?? 0 })}
+          </div>
         ) : null}
         {edge.metadata?.methodId ? (
           <div className="graphDetailMethodBlock">
@@ -723,8 +733,8 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
         {transactions.length > 0 ? (
           <div className="graphTxListCard">
             <div className="graphTxListHeader">
-              <strong>关联交易</strong>
-              <span>{transactions.length} 笔</span>
+              <strong>{t("graph.detail.relatedTx")}</strong>
+              <span>{t("graph.detail.txCount", { count: transactions.length })}</span>
             </div>
             <div className="graphTxList">
               {visibleTransactions.map((transaction) => (
@@ -752,7 +762,9 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
                   strokeWidth={2.2}
                   className={`graphTxListToggleIcon ${showAllTransactions ? "graphTxListToggleIconOpen" : ""}`}
                 />
-                {showAllTransactions ? "收起交易列表" : `展开剩余 ${transactions.length - 4} 笔`}
+                {showAllTransactions
+                  ? t("graph.detail.collapseTx")
+                  : t("graph.detail.expandTx", { count: transactions.length - 4 })}
               </button>
             ) : null}
           </div>
@@ -775,7 +787,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
           ) : null}
         </div>
         <p className="graphDetailHint">
-          {describeEdgeKind(edge.kind)} · 双击节点或边可直接跳转 explorer
+          {t("graph.detail.hint", { description: describeEdgeKind(edge.kind) })}
         </p>
       </div>
     </div>

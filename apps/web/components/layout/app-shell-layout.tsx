@@ -1,27 +1,32 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useI18n, type I18nKey } from "../i18n/i18n-provider";
 import { AppHeader } from "./app-header";
 
 const labelsEnabled = process.env.NEXT_PUBLIC_LABEL_MANAGER_ENABLED === "true";
 
-const shellConfig = {
+const shellConfig: Record<
+  "/history" | "/labels" | "/",
+  { subtitleKey: I18nKey; activeNav: "workbench" | "history" | "labels" }
+> = {
   "/": {
-    subtitle: "钱包关联分析工作台",
+    subtitleKey: "app.subtitle.workbench",
     activeNav: "workbench" as const,
   },
   "/history": {
-    subtitle: "历史分析记录",
+    subtitleKey: "app.subtitle.history",
     activeNav: "history" as const,
   },
   "/labels": {
-    subtitle: "本地标签库管理",
+    subtitleKey: "app.subtitle.labels",
     activeNav: "labels" as const,
   },
 };
 
 export function AppShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const config =
     pathname === "/history"
       ? shellConfig["/history"]
@@ -32,7 +37,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="appShell">
       <AppHeader
-        subtitle={config.subtitle}
+        subtitle={t(config.subtitleKey)}
         activeNav={config.activeNav}
         labelsEnabled={labelsEnabled}
       />

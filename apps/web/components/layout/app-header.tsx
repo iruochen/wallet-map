@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { LanguageSwitch } from "../i18n/language-switch";
+import { useI18n } from "../i18n/i18n-provider";
 import { WalletHeaderControls } from "./wallet-header-controls";
 
 export interface AppHeaderProps {
@@ -8,9 +12,11 @@ export interface AppHeaderProps {
 }
 
 export function AppHeader({ subtitle, activeNav, labelsEnabled = false }: AppHeaderProps) {
+  const { t } = useI18n();
+
   return (
-    <header className="appHeader" aria-label="Wallet Map header">
-      <Link className="appBrand" href="/" aria-label="返回工作台首页">
+    <header className="appHeader" aria-label={t("app.header.aria")}>
+      <Link className="appBrand" href="/" aria-label={t("app.header.homeAria")}>
         <span className="appBrandMark" aria-hidden="true">
           WM
         </span>
@@ -20,39 +26,31 @@ export function AppHeader({ subtitle, activeNav, labelsEnabled = false }: AppHea
         </div>
       </Link>
       <div className="appHeaderStatus">
-        <nav className="appHeaderNav" aria-label="主导航">
+        <nav className="appHeaderNav" aria-label={t("app.nav.main")}>
           <Link
             className={`headerNavLink ${activeNav === "workbench" ? "headerNavLinkActive" : ""}`}
             href="/"
           >
-            工作台
+            {t("app.nav.workbench")}
           </Link>
           <Link
             className={`headerNavLink ${activeNav === "history" ? "headerNavLinkActive" : ""}`}
             href="/history"
           >
-            历史分析
+            {t("app.nav.history")}
           </Link>
           {labelsEnabled ? (
             <Link
               className={`headerNavLink ${activeNav === "labels" ? "headerNavLinkActive" : ""}`}
               href="/labels"
             >
-              标签库
+              {t("app.nav.labels")}
             </Link>
           ) : null}
         </nav>
+        <LanguageSwitch />
         <WalletHeaderControls />
       </div>
     </header>
-  );
-}
-
-export function readLiveConfigured(): boolean {
-  return Boolean(
-    process.env.NODEREAL_API_KEY?.trim() ||
-      process.env.NODEREAL_BSC_API_KEY?.trim() ||
-      process.env.ETHERSCAN_API_KEY?.trim() ||
-      process.env.SOLSCAN_API_KEY?.trim(),
   );
 }

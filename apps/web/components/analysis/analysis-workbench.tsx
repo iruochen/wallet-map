@@ -19,7 +19,9 @@ import {
   evmAggregateChainId,
   getEvmAggregateChains,
 } from "../../app/chains";
+import { ANALYSIS_PHASE_ORDER } from "../../app/api/analyze/progress";
 import { readJsonResponse } from "../api/read-json-response";
+import { useI18n } from "../i18n/i18n-provider";
 import { AnalysisEvidencePanel } from "./analysis-evidence-panel";
 import { parseAddressImport, type AddressImportSummary } from "./address-import";
 import {
@@ -52,18 +54,8 @@ const sampleAddresses = [
 
 const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";
 
-const dataModeOptions = [
-  { value: "auto", label: "Auto", description: "自动选择" },
-  { value: "fixture", label: "Fixture", description: "本地样本" },
-  { value: "live", label: "Live", description: "实时数据" },
-] as const;
-
-const dataProviderOptions = [
-  { value: "auto", label: "Auto", description: "优先 NodeReal" },
-  { value: "nodereal", label: "NodeReal", description: "强制 NodeReal" },
-  { value: "etherscan", label: "Etherscan", description: "优先 Etherscan V2" },
-  { value: "solscan", label: "Solscan", description: "Solana 专用" },
-] as const;
+type DataModeOptionValue = "auto" | "fixture" | "live";
+type DataProviderOptionValue = "auto" | "nodereal" | "etherscan" | "solscan";
 
 function readActiveAnalysisJobId(): string | null {
   if (typeof window === "undefined") {
@@ -109,6 +101,7 @@ export function AnalysisWorkbench({
   initialAddresses,
   anonymousAnalysisQuota,
 }: AnalysisWorkbenchProps) {
+  const { t } = useI18n();
   const defaultAddresses = initialAddresses?.trim() ? initialAddresses : sampleAddresses;
   const [addresses, setAddresses] = useState(defaultAddresses);
   const [chainId, setChainId] = useState("1");
@@ -131,6 +124,25 @@ export function AnalysisWorkbench({
   const restoredJobIdRef = useRef<string | null>(null);
   const searchParams = useSearchParams();
   const evmAggregateChains = useMemo(() => getEvmAggregateChains(), []);
+  const dataModeOptions = useMemo(
+    () =>
+      [
+        { value: "auto", label: "Auto", description: t("analysis.mode.auto.description") },
+        { value: "fixture", label: "Fixture", description: t("analysis.mode.fixture.description") },
+        { value: "live", label: "Live", description: t("analysis.mode.live.description") },
+      ] satisfies Array<{ value: DataModeOptionValue; label: string; description: string }>,
+    [t],
+  );
+  const dataProviderOptions = useMemo(
+    () =>
+      [
+        { value: "auto", label: "Auto", description: t("analysis.provider.auto.description") },
+        { value: "nodereal", label: "NodeReal", description: t("analysis.provider.nodereal.description") },
+        { value: "etherscan", label: "Etherscan", description: t("analysis.provider.etherscan.description") },
+        { value: "solscan", label: "Solscan", description: t("analysis.provider.solscan.description") },
+      ] satisfies Array<{ value: DataProviderOptionValue; label: string; description: string }>,
+    [t],
+  );
   const effectiveChainIds = useMemo(
     () =>
       chainId === String(evmAggregateChainId)
@@ -153,32 +165,28 @@ export function AnalysisWorkbench({
     () => (chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"),
     [chainId, selectedChain],
   );
-  const inputScopeSummary = useMemo(
-    () => `${inputScopeLabel} · ${addressCount} addresses`,
-    [addressCount, inputScopeLabel],
-  );
   const submitScopeSummary = useMemo(
-    () => `${inputScopeLabel} · ${addressCount} 地址`,
-    [addressCount, inputScopeLabel],
+    () => t("analysis.address.scope", { scope: inputScopeLabel, count: addressCount }),
+    [addressCount, inputScopeLabel, t],
   );
   const submitStatusHint = isRunning
-    ? "正在按阶段处理链上数据和标签"
-    : "确认配置后生成关系分析任务";
+    ? t("analysis.submit.running")
+    : t("analysis.submit.ready");
   const modeDescription = useMemo(() => {
     if (dataMode === "live") {
       return liveConfigured
-        ? "直接拉取所选 provider 的实时数据。"
-        : "当前会请求实时数据；如果本地还没加载 key，这次运行会直接报错。";
+        ? t("analysis.mode.liveReady")
+        : t("analysis.mode.liveMissing");
     }
 
     if (dataMode === "fixture") {
-      return "固定使用本地 fixture 数据，适合演示和回归测试。";
+      return t("analysis.mode.fixture");
     }
 
     return liveConfigured
-      ? "优先走实时数据；Auto provider 会先试 NodeReal，再按链使用备用 provider。"
-      : "当前会自动回退到 fixture，直到本地环境加载了 API key。";
-  }, [dataMode, liveConfigured]);
+      ? t("analysis.mode.autoLive")
+      : t("analysis.mode.autoFixture");
+  }, [dataMode, liveConfigured, t]);
 
   useEffect(() => {
     const replayJobId = searchParams.get("job");
@@ -316,7 +324,7 @@ export function AnalysisWorkbench({
           }
         }
 
-        throw new Error("error" in body && body.error ? body.error : "Failed to load saved analysis.");
+        throw new Error("error" in body && body.error ? body.error : t("analysis.error.loadSaved"));
       }
 
       const poll = body as AnalysisJobPollResponse;
@@ -333,7 +341,7 @@ export function AnalysisWorkbench({
 
       if (poll.status === "failed") {
         forgetActiveAnalysisJob(jobId);
-        throw new Error(poll.error ?? "Analysis failed.");
+        throw new Error(poll.error ?? t("analysis.error.generic"));
       }
 
       const controller = new AbortController();
@@ -345,7 +353,7 @@ export function AnalysisWorkbench({
       rememberActiveAnalysisJob(jobId);
       setResult(analysisResult);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Failed to load saved analysis.");
+      setError(caught instanceof Error ? caught.message : t("analysis.error.loadSaved"));
     } finally {
       setIsRunning(false);
       setJobProgress(null);
@@ -359,7 +367,7 @@ export function AnalysisWorkbench({
       const body = await readJsonResponse<AnalysisJobPollResponse | { error?: string }>(response);
 
       if (!response.ok) {
-        throw new Error("error" in body && body.error ? body.error : "Failed to poll analysis job.");
+        throw new Error("error" in body && body.error ? body.error : t("analysis.error.poll"));
       }
 
       const poll = body as AnalysisJobPollResponse;
@@ -367,17 +375,41 @@ export function AnalysisWorkbench({
       setAnalysisStartedAt(resolveAnalysisStartedAt(poll, analysisStartedAt));
 
       if (poll.status === "completed" && poll.result) {
+        await revealCompletedProgress(poll.progress);
         return poll.result;
       }
 
       if (poll.status === "failed") {
-        throw new Error(poll.error ?? "Analysis failed.");
+        throw new Error(poll.error ?? t("analysis.error.generic"));
       }
 
       await new Promise((resolve) => window.setTimeout(resolve, 500));
     }
 
-    throw new Error("Analysis cancelled.");
+    throw new Error(t("analysis.error.cancelled"));
+  }
+
+  async function revealCompletedProgress(progress: AnalysisJobProgress) {
+    const missingPhases = ANALYSIS_PHASE_ORDER.filter((phase) => !progress.completedPhases.includes(phase));
+
+    if (missingPhases.length === 0) {
+      setJobProgress({
+        phase: null,
+        completedPhases: [...ANALYSIS_PHASE_ORDER],
+      });
+      await sleep(260);
+      return;
+    }
+
+    let completedPhases = [...progress.completedPhases];
+
+    for (const phase of missingPhases) {
+      setJobProgress({ phase, completedPhases });
+      await sleep(260);
+      completedPhases = completedPhases.includes(phase) ? completedPhases : [...completedPhases, phase];
+      setJobProgress({ phase: null, completedPhases });
+      await sleep(180);
+    }
   }
 
   async function runAnalysis() {
@@ -411,11 +443,11 @@ export function AnalysisWorkbench({
       const body = await readJsonResponse<AnalysisJobStartResponse | { error?: string }>(response);
 
       if (!response.ok) {
-        throw new Error("error" in body && body.error ? body.error : "Analysis failed.");
+        throw new Error("error" in body && body.error ? body.error : t("analysis.error.generic"));
       }
 
       if (!("jobId" in body) || !body.jobId) {
-        throw new Error("Analysis job was not created.");
+        throw new Error(t("analysis.error.noJob"));
       }
 
       jobId = body.jobId;
@@ -430,7 +462,7 @@ export function AnalysisWorkbench({
       }
 
       forgetActiveAnalysisJob(jobId);
-      setError(caught instanceof Error ? caught.message : "Analysis failed.");
+      setError(caught instanceof Error ? caught.message : t("analysis.error.generic"));
     } finally {
       setIsRunning(false);
       setJobProgress(null);
@@ -524,10 +556,10 @@ export function AnalysisWorkbench({
         >
           <div className="inputPanelHero">
             <div className="inputPanelHeroCopy">
-              <span className="panelEyebrow">Analysis job</span>
-              <h2>分析输入</h2>
+              <span className="panelEyebrow">{t("analysis.input.eyebrow")}</span>
+              <h2>{t("analysis.input.title")}</h2>
               <p className="inputPanelSubtitle">
-                {inputScopeLabel} · {addressCount} 个地址
+                {t("analysis.address.scope", { scope: inputScopeLabel, count: addressCount })}
               </p>
             </div>
           </div>
@@ -536,7 +568,7 @@ export function AnalysisWorkbench({
             <div className="addressInputCardHeader">
               <div className="addressInputCardTitle">
                 <label id="addresses-label" htmlFor="addresses">
-                  钱包地址
+                  {t("analysis.address.label")}
                 </label>
                 <span className="addressCountBadge">{addressCount}</span>
               </div>
@@ -551,7 +583,7 @@ export function AnalysisWorkbench({
                   }}
                 >
                   <ClipboardList size={14} strokeWidth={2.1} />
-                  示例
+                  {t("analysis.address.sample")}
                 </button>
                 <button
                   type="button"
@@ -560,7 +592,7 @@ export function AnalysisWorkbench({
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload size={14} strokeWidth={2.1} />
-                  导入
+                  {t("analysis.address.import")}
                 </button>
               </div>
             </div>
@@ -591,22 +623,27 @@ export function AnalysisWorkbench({
                 value={addresses}
               />
             </div>
-            <p className="addressInputHint">每行一个地址，或用空格 / CSV 分隔。</p>
+            <p className="addressInputHint">{t("analysis.address.hint")}</p>
             {addressImportSummary ? (
               <div className="addressImportSummary" role="status">
                 <strong>
-                  已导入 {addressImportSummary.validCount} 个地址
-                  {addressImportSummary.duplicateCount > 0 ? ` · 跳过 ${addressImportSummary.duplicateCount} 个重复项` : ""}
+                  {t("analysis.import.valid", { count: addressImportSummary.validCount })}
+                  {addressImportSummary.duplicateCount > 0
+                    ? ` · ${t("analysis.import.duplicates", { count: addressImportSummary.duplicateCount })}`
+                    : ""}
                 </strong>
                 {addressImportSummary.invalidRows.length > 0 ? (
                   <span>
-                    {addressImportSummary.invalidRows.length} 行无效：
+                    {t("analysis.import.invalidPrefix", { count: addressImportSummary.invalidRows.length })}
                     {" "}
-                    {addressImportSummary.invalidRows.slice(0, 3).map((item) => `第 ${item.row} 行`).join("、")}
+                    {addressImportSummary.invalidRows
+                      .slice(0, 3)
+                      .map((item) => t("analysis.import.invalidRow", { row: item.row }))
+                      .join("、")}
                     {addressImportSummary.invalidRows.length > 3 ? "…" : ""}
                   </span>
                 ) : (
-                  <span>未发现无效地址。</span>
+                  <span>{t("analysis.import.noInvalid")}</span>
                 )}
               </div>
             ) : null}
@@ -617,26 +654,29 @@ export function AnalysisWorkbench({
               className={`stateBanner stateBannerCompact ${liveConfigured ? "stateBannerSuccess" : "stateBannerInfo"}`}
               aria-live="polite"
             >
-              <strong>{liveConfigured ? "实时数据已就绪" : "当前默认走本地 fixture"}</strong>
+              <strong>{liveConfigured ? t("analysis.status.liveReady") : t("analysis.status.fixtureDefault")}</strong>
               <span>{modeDescription}</span>
             </div>
             {anonymousAnalysisQuota ? (
               <div className="stateBanner stateBannerCompact stateBannerInfo" aria-live="polite">
-                <strong>未登录分析额度</strong>
+                <strong>{t("analysis.quota.title")}</strong>
                 <span>
-                  剩余 {anonymousAnalysisQuota.remaining} / {anonymousAnalysisQuota.limit} 次；连接钱包登录后不受此限制。
+                  {t("analysis.quota.body", {
+                    remaining: anonymousAnalysisQuota.remaining,
+                    limit: anonymousAnalysisQuota.limit,
+                  })}
                 </span>
               </div>
             ) : null}
           </div>
 
-          <div className="inputSectionLabel">分析配置</div>
+          <div className="inputSectionLabel">{t("analysis.config.title")}</div>
           <div className="controlStack">
             <div className="controlGroup controlCard">
               <div className="controlLabelRow">
                 <span>
                   <Layers3 size={15} strokeWidth={2.2} />
-                  链
+                  {t("analysis.config.chain")}
                 </span>
                 <small>{selectedChain?.explorerName ?? "Explorer"}</small>
               </div>
@@ -653,7 +693,7 @@ export function AnalysisWorkbench({
                   }}
                   role="radio"
                   aria-checked={chainId === String(evmAggregateChainId)}
-                  title="跨 Ethereum、Arbitrum、Base、Optimism、Polygon、BSC 聚合分析"
+                  title={t("analysis.config.evmAllTitle")}
                 >
                   <small>EVM</small>
                   <span>EVM ALL</span>
@@ -685,7 +725,7 @@ export function AnalysisWorkbench({
               <div className="controlLabelRow">
                 <span>
                   <Globe2 size={15} strokeWidth={2.2} />
-                  Provider
+                  {t("analysis.config.provider")}
                 </span>
                 <small>{dataProviderOptions.find((option) => option.value === dataProvider)?.description}</small>
               </div>
@@ -711,9 +751,9 @@ export function AnalysisWorkbench({
               <div className="controlLabelRow">
                 <span>
                   <Database size={15} strokeWidth={2.2} />
-                  数据源
+                  {t("analysis.config.dataSource")}
                 </span>
-                <small>{dataMode === "live" ? "强制实时" : dataMode === "fixture" ? "固定样本" : "智能选择"}</small>
+                <small>{dataMode === "live" ? t("analysis.data.live") : dataMode === "fixture" ? t("analysis.data.fixture") : t("analysis.data.auto")}</small>
               </div>
               <div className="segmentedControl segmentedControlModes" role="radiogroup" aria-label="选择数据源">
                 {dataModeOptions.map((option) => (
@@ -739,15 +779,15 @@ export function AnalysisWorkbench({
         <section className="resultPanel summaryPanel">
           <div className="resultHeader">
             <div>
-              <span className="panelEyebrow">Relationship verdict</span>
-              <h2>分析摘要</h2>
+              <span className="panelEyebrow">{t("analysis.summary.eyebrow")}</span>
+              <h2>{t("analysis.summary.title")}</h2>
               <p>
                 {result
                   ? result.sourceLabel ??
                     `${result.meta.chainName} · ${
                       result.meta.resolvedMode === "live" ? "Live" : "Fixture"
                     }`
-                  : "等待任务运行"}
+                  : t("analysis.summary.waiting")}
               </p>
             </div>
             {result ? (
@@ -767,8 +807,8 @@ export function AnalysisWorkbench({
           </div>
           {isRunning ? (
             <div className="emptyStateBlock emptyStateRunning">
-              <strong>任务正在运行</strong>
-              <p>主画布会展示后端实时阶段进度；分析完成后这里会显示评分、钱包对洞察和信号摘要。</p>
+              <strong>{t("analysis.summary.runningTitle")}</strong>
+              <p>{t("analysis.summary.runningBody")}</p>
             </div>
           ) : result && graphSummary ? (
             <>
@@ -788,16 +828,16 @@ export function AnalysisWorkbench({
               />
               {result.meta.fallbackReason ? (
                 <div className="stateBanner stateBannerInfo">
-                  <strong>本次用了 fixture 回退</strong>
+                  <strong>{t("analysis.summary.fixtureFallback")}</strong>
                   <span>{result.meta.fallbackReason}</span>
                 </div>
               ) : null}
               {result.meta.warnings?.length ? (
                 <div className="stateBanner stateBannerWarning">
-                  <strong>部分链已跳过</strong>
+                  <strong>{t("analysis.summary.skippedChains")}</strong>
                   <span>{formatSkippedChainSummary(result.meta.warnings)}</span>
                   <details className="warningDetails">
-                    <summary>查看详情</summary>
+                    <summary>{t("analysis.summary.details")}</summary>
                     <ul>
                       {result.meta.warnings.map((warning) => (
                         <li key={warning}>{warning}</li>
@@ -814,7 +854,9 @@ export function AnalysisWorkbench({
                         <Sparkles size={14} strokeWidth={2.1} />
                         {formatVerdictLabel(result.summary.verdict)}
                       </span>
-                      <span className="verdictSubtle">{result.summary.pairInsights.length} 个钱包对命中关联规则</span>
+                      <span className="verdictSubtle">
+                        {t("analysis.summary.walletPairHits", { count: result.summary.pairInsights.length })}
+                      </span>
                     </div>
                     <strong>{result.summary.headline}</strong>
                     <p className="verdictNarrative">{result.summary.narrative}</p>
@@ -831,8 +873,8 @@ export function AnalysisWorkbench({
                         </div>
                         <p>{pair.reasons.join(" · ")}</p>
                         <div className="pairInsightMeta">
-                          <span>{pair.signalCount} 个信号</span>
-                          <span>{formatVerdictLabel(pair.strength)}结论</span>
+                          <span>{t("analysis.summary.signalCount", { count: pair.signalCount })}</span>
+                          <span>{formatVerdictLabel(pair.strength)}{t("analysis.summary.verdictSuffix")}</span>
                           <span>{formatConfidenceLabel(pair.confidence)}</span>
                         </div>
                       </div>
@@ -840,7 +882,7 @@ export function AnalysisWorkbench({
                   </div>
                   {result.summary.signalHighlights.length > 0 ? (
                     <div className="signalSummaryCard">
-                      <strong>命中信号分组</strong>
+                      <strong>{t("analysis.summary.signalGroups")}</strong>
                       <ul className="reasonList">
                         {result.summary.signalHighlights.map((signal) => (
                           <li key={`${signal.analyzerId}:${signal.title}`}>
@@ -853,8 +895,8 @@ export function AnalysisWorkbench({
                 </>
               ) : (
                 <div className="emptyStateBlock emptyStatePositive">
-                  <strong>没有命中任何关联规则</strong>
-                  <p>当前分析器没有发现 watched 钱包之间的直接或间接关联。</p>
+                  <strong>{t("analysis.summary.noSignalsTitle")}</strong>
+                  <p>{t("analysis.summary.noSignalsBody")}</p>
                 </div>
               )}
               <div className="metricGrid">
@@ -878,8 +920,8 @@ export function AnalysisWorkbench({
             </>
           ) : (
             <div className="emptyStateBlock">
-              <strong>还没有分析结果</strong>
-              <p>运行一次分析后，这里会显示评分、置信度和图谱摘要。</p>
+              <strong>{t("analysis.summary.emptyTitle")}</strong>
+              <p>{t("analysis.summary.emptyBody")}</p>
             </div>
           )}
         </section>
@@ -888,7 +930,7 @@ export function AnalysisWorkbench({
         <div className="analysisSubmitDock" aria-live="polite">
           {error ? (
             <div className="stateBanner stateBannerError analysisSubmitError" role="alert">
-              <strong>分析失败</strong>
+              <strong>{t("analysis.error.title")}</strong>
               <span>{error}</span>
             </div>
           ) : null}
@@ -908,7 +950,7 @@ export function AnalysisWorkbench({
               disabled={isRunning}
             >
               {isRunning ? <span className="buttonSpinner" aria-hidden="true" /> : <Play size={15} strokeWidth={2.4} />}
-              {isRunning ? "分析中..." : "生成分析任务"}
+              {isRunning ? t("analysis.submit.runningButton") : t("analysis.submit.button")}
             </button>
           </div>
         </div>
@@ -917,11 +959,11 @@ export function AnalysisWorkbench({
       <section className="workbenchColumn workbenchGraph">
         <header className="workbenchColumnHeader">
           <div>
-            <h2>关系图谱</h2>
+            <h2>{t("analysis.graph.title")}</h2>
             <p>
               {result
-                ? `${result.meta.graphWalletCount} wallets · ${result.meta.graphContractCount} contracts · ${(result.graphView ?? result.graph).totalEdges} 条关联边`
-                : "仅展示命中分析器的关联子图 · 点击节点查看解释"}
+                ? `${result.meta.graphWalletCount} wallets · ${result.meta.graphContractCount} contracts · ${t("analysis.graph.edgeCount", { count: (result.graphView ?? result.graph).totalEdges })}`
+                : t("analysis.graph.placeholderMeta")}
             </p>
           </div>
         </header>
@@ -950,11 +992,11 @@ export function AnalysisWorkbench({
               <div className="graphPlaceholderIcon" aria-hidden="true">
                 <Activity size={26} strokeWidth={2.1} />
               </div>
-              <strong>{result ? "当前没有形成关联子图" : "提交一次分析就能看到图谱"}</strong>
+              <strong>{result ? t("analysis.graph.emptyWithResult") : t("analysis.graph.emptyBeforeRun")}</strong>
               <p>
                 {result
-                  ? "现有分析器没有命中可以归因为钱包关联的边，所以图谱区域保持为空。"
-                  : "左侧填入钱包地址、选择链和数据源，然后点击 “生成分析任务”。"}
+                  ? t("analysis.graph.emptyWithResultBody")
+                  : t("analysis.graph.emptyBeforeRunBody")}
               </p>
             </div>
           )}
@@ -964,7 +1006,7 @@ export function AnalysisWorkbench({
       <aside className="workbenchColumn workbenchFindings">
         <header className="workbenchColumnHeader workbenchFindingsHeader">
           <div className="workbenchFindingsTitle">
-            <div className="panelTabs" role="tablist" aria-label="Evidence panels">
+            <div className="panelTabs" role="tablist" aria-label={t("analysis.evidence.tabs")}>
               <button
                 type="button"
                 role="tab"
@@ -972,7 +1014,7 @@ export function AnalysisWorkbench({
                 className={`panelTab ${evidenceTab === "findings" ? "panelTabActive" : ""}`}
                 onClick={() => setEvidenceTab("findings")}
               >
-                Findings
+                {t("analysis.evidence.findings")}
                 {result ? <span className="panelTabCount">{result.findings.length}</span> : null}
               </button>
               <button
@@ -982,16 +1024,16 @@ export function AnalysisWorkbench({
                 className={`panelTab ${evidenceTab === "edges" ? "panelTabActive" : ""}`}
                 onClick={() => setEvidenceTab("edges")}
               >
-                Related Edges
+                {t("analysis.evidence.edges")}
                 {result ? <span className="panelTabCount">{result.graph.totalEdges}</span> : null}
               </button>
             </div>
             <p>
               {result
                 ? evidenceTab === "findings"
-                  ? `${result.meta.chainName} · 分析器信号`
-                  : `${result.graph.totalEdges} 条已命中的关联边`
-                : "分析器证据流"}
+                  ? `${result.meta.chainName} · ${t("analysis.evidence.signalMeta")}`
+                  : t("analysis.evidence.edgeMeta", { count: result.graph.totalEdges })
+                : t("analysis.evidence.stream")}
             </p>
           </div>
         </header>
@@ -1031,4 +1073,8 @@ function resolveAnalysisStartedAt(
   const parsed = Date.parse(timestamp);
 
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

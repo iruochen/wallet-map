@@ -4,35 +4,13 @@ import { CheckCircle2, CircleDashed, Clock3, Database, LoaderCircle, Network, Ro
 import { useEffect, useState } from "react";
 import type { AnalysisJobProgress, AnalysisPhaseId } from "../../app/api/analyze/progress";
 import { getProgressPercent, resolveStepState } from "../../app/api/analyze/progress";
+import { useI18n } from "../i18n/i18n-provider";
 
 export interface AnalysisProgressStep {
   id: AnalysisPhaseId;
   label: string;
   detail: string;
 }
-
-export const defaultAnalysisSteps: AnalysisProgressStep[] = [
-  {
-    id: "fetch",
-    label: "拉取链上事件",
-    detail: "读取 watched wallets 的 native、token、NFT 与 internal 记录",
-  },
-  {
-    id: "graph",
-    label: "构建关系图谱",
-    detail: "归一化钱包、合约、实体节点与证据边",
-  },
-  {
-    id: "labels",
-    label: "识别地址标签",
-    detail: "查询 Redis/PG 缓存，未命中时尝试 Chainbase live labels",
-  },
-  {
-    id: "analysis",
-    label: "运行分析器",
-    detail: "计算直接转账、共享对手方和共同合约交互信号",
-  },
-];
 
 const stepIcons = [Network, Route, Database, Sparkles] as const;
 
@@ -41,7 +19,7 @@ export function AnalysisProgress({
   chainName,
   addressCount,
   startedAt,
-  steps = defaultAnalysisSteps,
+  steps,
   variant = "panel",
 }: {
   progress: AnalysisJobProgress | null;
@@ -51,9 +29,32 @@ export function AnalysisProgress({
   steps?: AnalysisProgressStep[];
   variant?: "panel" | "hero";
 }) {
+  const { t } = useI18n();
+  const resolvedSteps = steps ?? [
+    {
+      id: "fetch" as const,
+      label: t("progress.step.fetch.label"),
+      detail: t("progress.step.fetch.detail"),
+    },
+    {
+      id: "graph" as const,
+      label: t("progress.step.graph.label"),
+      detail: t("progress.step.graph.detail"),
+    },
+    {
+      id: "labels" as const,
+      label: t("progress.step.labels.label"),
+      detail: t("progress.step.labels.detail"),
+    },
+    {
+      id: "analysis" as const,
+      label: t("progress.step.analysis.label"),
+      detail: t("progress.step.analysis.detail"),
+    },
+  ];
   const percent = getProgressPercent(progress);
   const [now, setNow] = useState(() => Date.now());
-  const activeStep = steps.find((step) => step.id === progress?.phase);
+  const activeStep = resolvedSteps.find((step) => step.id === progress?.phase);
   const elapsedMs = startedAt ? Math.max(0, now - startedAt) : 0;
 
   useEffect(() => {
@@ -71,12 +72,12 @@ export function AnalysisProgress({
     <div className={`analysisProgressPanel analysisProgressPanel-${variant}`} role="status" aria-live="polite">
       <div className="analysisProgressHeader">
         <div>
-          <span className="panelEyebrow">Running analysis</span>
-          <strong>{chainName} · {addressCount} 地址</strong>
+          <span className="panelEyebrow">{t("progress.eyebrow")}</span>
+          <strong>{chainName} · {t("progress.addressCount", { count: addressCount })}</strong>
           {variant === "hero" ? (
-            <p>正在读取链上事件、补全地址标签并构建证据图谱。结果完成后会自动切换到关系视图。</p>
+            <p>{t("progress.heroBody")}</p>
           ) : null}
-          <small className="analysisProgressHint">进度由后端分阶段推送，已完成步骤会标记为完成。</small>
+          <small className="analysisProgressHint">{t("progress.hint")}</small>
         </div>
         <div className="analysisProgressStatus">
           <span className="analysisProgressValue">
@@ -85,10 +86,10 @@ export function AnalysisProgress({
           </span>
           <span className="analysisProgressTime">
             <Clock3 size={13} strokeWidth={2.2} aria-hidden="true" />
-            {startedAt ? `已运行 ${formatElapsedTime(elapsedMs)}` : "准备中"}
+            {startedAt ? t("progress.elapsed", { time: formatElapsedTime(elapsedMs) }) : t("progress.ready")}
           </span>
           <span className="analysisProgressPhase">
-            {activeStep ? activeStep.label : "排队中"}
+            {activeStep ? activeStep.label : t("progress.queued")}
           </span>
         </div>
       </div>
@@ -99,7 +100,7 @@ export function AnalysisProgress({
         <span style={{ width: `${percent}%` }} />
       </div>
       <ol className="analysisProgressSteps">
-        {steps.map((step, index) => {
+        {resolvedSteps.map((step, index) => {
           const Icon = stepIcons[index] ?? CircleDashed;
           const state = resolveStepState(step.id, progress);
 
@@ -138,7 +139,7 @@ function formatElapsedTime(elapsedMs: number): string {
 
 export function LoadingResult() {
   return (
-    <div className="loadingStack" aria-label="分析任务运行中">
+    <div className="loadingStack" aria-label="Analysis job running">
       <div className="skeletonBlock skeletonTall" />
       <div className="skeletonGrid">
         <div className="skeletonBlock" />

@@ -8,6 +8,7 @@ import {
 } from "./analysis-formatters";
 import { LoadingList } from "./analysis-progress";
 import type { AnalysisResponse, GraphEdge, GraphNode } from "./analysis-types";
+import { useI18n } from "../i18n/i18n-provider";
 
 interface FindingGroup {
   title: string;
@@ -47,6 +48,8 @@ export function AnalysisEvidencePanel({
   isEdgeGroupOpen,
   toggleEdgeGroup,
 }: AnalysisEvidencePanelProps) {
+  const { t } = useI18n();
+
   if (isRunning) {
     return <LoadingList />;
   }
@@ -54,8 +57,8 @@ export function AnalysisEvidencePanel({
   if (!result) {
     return (
       <div className="emptyStateBlock">
-        <strong>暂无证据</strong>
-        <p>分析完成后这里会列出 findings 和 graph edges，各自独立滚动，不会挤占图谱区域。</p>
+        <strong>{t("analysis.evidence.emptyTitle")}</strong>
+        <p>{t("analysis.evidence.emptyBody")}</p>
       </div>
     );
   }
@@ -71,8 +74,8 @@ export function AnalysisEvidencePanel({
       />
     ) : (
       <div className="emptyStateBlock emptyStatePositive">
-        <strong>没有明显关联信号</strong>
-        <p>分析器没有发现 watched 钱包之间的直接转账、共享 counterparty 或同合约交互。</p>
+        <strong>{t("analysis.evidence.noSignalTitle")}</strong>
+        <p>{t("analysis.evidence.noSignalBody")}</p>
       </div>
     );
   }
@@ -88,8 +91,8 @@ export function AnalysisEvidencePanel({
     />
   ) : (
     <div className="emptyStateBlock">
-      <strong>暂无关联边</strong>
-      <p>当前分析没有产出命中分析器规则的关系边。</p>
+      <strong>{t("analysis.evidence.noEdgesTitle")}</strong>
+      <p>{t("analysis.evidence.noEdgesBody")}</p>
     </div>
   );
 }
@@ -107,6 +110,8 @@ function FindingGroups({
   isOpen: (title: string, index: number) => boolean;
   onToggle: (title: string, index: number) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="groupedPanelList">
       {groups.map((group, index) => {
@@ -139,17 +144,20 @@ function FindingGroups({
                         <span className="findingMeta">
                           <FindingChainBadges finding={finding} fallbackChainId={result.meta.chainId} />
                           <span className={`severityPill severity-${finding.severity}`}>
-                            风险 {formatFindingRiskLabel(finding.severity)}
+                            {t("analysis.evidence.risk")} {formatFindingRiskLabel(finding.severity)}
                           </span>
                           <span className={`confidencePill confidence-${finding.confidence}`}>
-                            置信 {formatFindingConfidenceText(finding.confidence)}
+                            {t("analysis.evidence.confidence")} {formatFindingConfidenceText(finding.confidence)}
                           </span>
                         </span>
                       </div>
                       <p>{finding.description}</p>
                       {finding.evidenceTruncated ? (
                         <p className="previewHint">
-                          仅展示前 {finding.evidence.length} 条证据，共 {finding.evidenceTotal} 条。
+                          {t("analysis.evidence.previewHint", {
+                            shown: finding.evidence.length,
+                            total: finding.evidenceTotal,
+                          })}
                         </p>
                       ) : null}
                       <div className="evidenceList">
