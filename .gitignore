@@ -43,3 +43,11 @@ yarn-error.log*
 # Local agent instructions and run records
 AGENTS.md
 agents/
+
+# Local planning documents
+docs/product-design-roadmap.md
+docs/product-design-roadmap.zh.md
+docs/project-readiness.md
+docs/project-readiness.zh.md
+docs/graph-visualization.md
+docs/graph-visualization.zh.md
