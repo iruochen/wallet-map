@@ -44,8 +44,8 @@ packages/
   adapters/            Data-source and chain adapter interfaces
   analyzers/           Relationship analyzer plugins
   exporters/           Report/export interfaces
+  labels/              Label providers and enrichment
   storage/             Persistence contracts and SQL migrations
-agents/                Parallel agent task records
 docs/
   architecture-map.md  Product and architecture map
 fixtures/              Public sample datasets for tests and demos
@@ -213,14 +213,10 @@ address-count and request-size limits before creating a job.
 - Commit Convention: [English](docs/commit-convention.md), [中文](docs/commit-convention.zh.md)
 - Documentation Style: [English](docs/documentation-style.md), [中文](docs/documentation-style.zh.md)
 - Database Schema: [English](docs/database-schema.md), [中文](docs/database-schema.zh.md)
-- Graph Visualization: [English](docs/graph-visualization.md), [中文](docs/graph-visualization.zh.md)
-- Product Design Roadmap: [English](docs/product-design-roadmap.md), [中文](docs/product-design-roadmap.zh.md)
 - Analysis Guidelines: [English](docs/analysis-guidelines.md), [中文](docs/analysis-guidelines.zh.md)
 - Open Source Guidelines: [English](docs/open-source.md), [中文](docs/open-source.zh.md)
 - Release Process: [English](docs/release-process.md), [中文](docs/release-process.zh.md)
-- Project Readiness: [English](docs/project-readiness.md), [中文](docs/project-readiness.zh.md)
 - Contributing: [English](CONTRIBUTING.md), [中文](CONTRIBUTING.zh.md)
 - Security Policy: [English](SECURITY.md), [中文](SECURITY.zh.md)
 - Code of Conduct: [English](CODE_OF_CONDUCT.md), [中文](CODE_OF_CONDUCT.zh.md)
 - Changelog: [English](CHANGELOG.md), [中文](CHANGELOG.zh.md)
-- Parallel Agent Work: [English](agents/README.md), [中文](agents/README.zh.md)

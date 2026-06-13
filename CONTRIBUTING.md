@@ -22,7 +22,6 @@ pnpm dev
 - [Analysis Guidelines](docs/analysis-guidelines.md)
 - [Open Source Guidelines](docs/open-source.md)
 - [Release Process](docs/release-process.md)
-- [Project Readiness](docs/project-readiness.md)
 
 ## What Good Contributions Look Like
 

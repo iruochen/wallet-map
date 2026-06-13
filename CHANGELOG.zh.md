@@ -21,9 +21,8 @@ Wallet Map 的重要变更会记录在此文件中。
 - JSON、Markdown、CSV 和 PDF 报告导出。
 - 历史分析和 job replay。
 - 已知实体标签、Chainbase/Etherscan label enrichment、Redis label cache 和本地标签管理初版。
-- 并行 agent 工作记录。
 - 开发、代码风格、分析、开源和环境安全文档。
-- README 与 docs 的英文/中文发布入口。
+- README、docs 和治理文件的英文/中文发布入口。
 
 ### Changed
 

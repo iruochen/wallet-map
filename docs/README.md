@@ -2,19 +2,16 @@
 
 中文版本：[docs/README.zh.md](README.zh.md)
 
-This directory contains the public project documentation for Wallet Map. The documentation is maintained in both English and Chinese so contributors can review architecture, product boundaries, and release requirements without private context.
+This directory contains the public project documentation for Wallet Map. The documentation is maintained in both English and Chinese so contributors can review architecture, product boundaries, and release requirements without private context. Internal roadmaps, agent run notes, and local assistant instructions are intentionally kept out of the public repository.
 
 ## Recommended Reading Order
 
 1. [Development Workflow](development-workflow.md)
 2. [Architecture Map](architecture-map.en.md)
-3. [Product Design Roadmap](product-design-roadmap.md)
-4. [Analysis Guidelines](analysis-guidelines.md)
-5. [Database Schema](database-schema.md)
-6. [Graph Visualization](graph-visualization.md)
-7. [Open Source Guidelines](open-source.md)
-8. [Release Process](release-process.md)
-9. [Project Readiness](project-readiness.md)
+3. [Analysis Guidelines](analysis-guidelines.md)
+4. [Database Schema](database-schema.md)
+5. [Open Source Guidelines](open-source.md)
+6. [Release Process](release-process.md)
 
 ## Current Publication Notes
 
@@ -34,9 +31,6 @@ This directory contains the public project documentation for Wallet Map. The doc
 | Commit convention | [commit-convention.md](commit-convention.md) | [commit-convention.zh.md](commit-convention.zh.md) |
 | Documentation style | [documentation-style.md](documentation-style.md) | [documentation-style.zh.md](documentation-style.zh.md) |
 | Database schema | [database-schema.md](database-schema.md) | [database-schema.zh.md](database-schema.zh.md) |
-| Graph visualization | [graph-visualization.md](graph-visualization.md) | [graph-visualization.zh.md](graph-visualization.zh.md) |
-| Product roadmap | [product-design-roadmap.md](product-design-roadmap.md) | [product-design-roadmap.zh.md](product-design-roadmap.zh.md) |
 | Analysis guidelines | [analysis-guidelines.md](analysis-guidelines.md) | [analysis-guidelines.zh.md](analysis-guidelines.zh.md) |
 | Open source | [open-source.md](open-source.md) | [open-source.zh.md](open-source.zh.md) |
 | Release process | [release-process.md](release-process.md) | [release-process.zh.md](release-process.zh.md) |
-| Project readiness | [project-readiness.md](project-readiness.md) | [project-readiness.zh.md](project-readiness.zh.md) |

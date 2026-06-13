@@ -16,17 +16,15 @@ The format follows Keep a Changelog loosely, and the project uses semantic versi
 - Auto/live analysis data-source selection for Etherscan-like adapters.
 - Expanded fixture data to exercise direct transfers, shared counterparties, and same-contract interactions.
 - Improved workbench loading, error, empty, and result states.
-- Graph visualization tool-selection and scaling plan.
 - Etherscan API V2 live mode using one API key plus `chainid`.
 - Live-mode support for Ethereum, Arbitrum, Base, and BSC with throttled Etherscan V2 fetching, internal transfers, ERC20, and ERC721 ingestion.
 - Storage package contracts and initial PostgreSQL schema migration.
 - Etherscan-like adapter with mocked tests.
 - Shared counterparty and same-contract interaction analyzers.
 - Expanded JSON and Markdown exporters with address redaction.
-- Parallel agent task records.
 - Project documentation for development, code style, analysis, open source, and environment safety.
 - Result metadata and UI updates for live-vs-fixture status, chain support, and graph/evidence previews on large responses.
-- English and Chinese documentation entry points for README, docs, governance files, and agent work notes.
+- English and Chinese documentation entry points for README, docs, and governance files.
 
 ### Changed
 

@@ -38,3 +38,8 @@ yarn-error.log*
 .idea
 .vscode
 .vercel
+.claude
+
+# Local agent instructions and run records
+AGENTS.md
+agents/

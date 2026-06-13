@@ -46,7 +46,6 @@ packages/
   exporters/           报告和导出接口
   labels/              标签 provider 和 enrichment
   storage/             持久化接口与 SQL migrations
-agents/                并行 agent 工作记录
 docs/                  双语项目文档
 fixtures/              测试和演示用公开样本数据
 ```
@@ -127,12 +126,9 @@ Etherscan API key 可支持 Ethereum、Arbitrum、Base 和 BSC。NodeReal、Sols
 - 提交规范：[English](docs/commit-convention.md), [中文](docs/commit-convention.zh.md)
 - 文档风格：[English](docs/documentation-style.md), [中文](docs/documentation-style.zh.md)
 - 数据库结构：[English](docs/database-schema.md), [中文](docs/database-schema.zh.md)
-- 图谱可视化：[English](docs/graph-visualization.md), [中文](docs/graph-visualization.zh.md)
-- 产品路线图：[English](docs/product-design-roadmap.md), [中文](docs/product-design-roadmap.zh.md)
 - 分析规范：[English](docs/analysis-guidelines.md), [中文](docs/analysis-guidelines.zh.md)
 - 开源规范：[English](docs/open-source.md), [中文](docs/open-source.zh.md)
 - 发布流程：[English](docs/release-process.md), [中文](docs/release-process.zh.md)
-- 项目就绪清单：[English](docs/project-readiness.md), [中文](docs/project-readiness.zh.md)
 - 贡献指南：[English](CONTRIBUTING.md), [中文](CONTRIBUTING.zh.md)
 - 安全策略：[English](SECURITY.md), [中文](SECURITY.zh.md)
 - 行为准则：[English](CODE_OF_CONDUCT.md), [中文](CODE_OF_CONDUCT.zh.md)

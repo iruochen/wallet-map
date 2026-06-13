@@ -26,7 +26,6 @@ pnpm dev
 - [分析规范](docs/analysis-guidelines.zh.md)
 - [开源规范](docs/open-source.zh.md)
 - [发布流程](docs/release-process.zh.md)
-- [项目就绪清单](docs/project-readiness.zh.md)
 
 ## 好的贡献应具备
 
