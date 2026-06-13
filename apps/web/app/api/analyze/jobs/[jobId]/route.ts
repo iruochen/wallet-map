@@ -3,6 +3,7 @@ import { deleteAnalyzeJob, getAnalyzeJob } from "../../job-store";
 import { getProgressPercent } from "../../progress";
 import { getCurrentHistorySubject } from "../../../auth/session";
 
+// Poll job status, progress (fetch/graph/labels/analysis), and final result when done.
 export async function GET(
   _request: Request,
   context: { params: Promise<{ jobId: string }> },

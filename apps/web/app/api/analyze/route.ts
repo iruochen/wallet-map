@@ -8,6 +8,7 @@ import { parseAnalyzeRequest } from "./schema";
 import { getCurrentHistorySubject } from "../auth/session";
 import { getProductPlanLimits, type ProductPlanTier } from "../../pro-plan";
 
+// Validate request, start a background job, return 202 + jobId (not the final result).
 export async function POST(request: Request): Promise<Response> {
   try {
     const historySubject = await getCurrentHistorySubject();

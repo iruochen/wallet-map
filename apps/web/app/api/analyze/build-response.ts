@@ -11,6 +11,7 @@ const graphNodePreviewLimit = 200;
 const graphEdgePreviewLimit = 240;
 const findingEvidencePreviewLimit = 20;
 
+// Turn core AnalysisRunResult into frontend JSON (truncation, graphView, evidence previews).
 export function buildAnalyzeResponse(
   parsed: ParsedAnalyzeRequest,
   resolved: ResolveEventsResult,

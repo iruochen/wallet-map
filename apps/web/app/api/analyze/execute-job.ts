@@ -23,6 +23,7 @@ function mapPipelinePhase(phase: AnalysisPipelinePhase): AnalysisPhaseId {
   return phase;
 }
 
+// POST returns jobId right away; analysis runs in the background.
 export function startAnalyzeJob(parsed: ParsedAnalyzeRequest, subjectId?: string): string {
   const jobId = crypto.randomUUID();
   void initializeAndExecuteAnalyzeJob(jobId, parsed, subjectId);
@@ -70,10 +71,12 @@ export async function executeAnalyzeJob(jobId: string, parsed: ParsedAnalyzeRequ
   await storage?.markJobRunning(jobId).catch(() => undefined);
 
   try {
+    // Phase: fetch — pull chain events via adapters (or local fixture).
     await syncJobProgress(jobId, "fetch", "started", storage);
     const resolved = await resolveAnalyzeEvents(parsed);
     await syncJobProgress(jobId, "fetch", "completed", storage);
 
+    // Phases: graph -> labels -> analysis -> score (all inside runAnalysis).
     const labelStack = createAnalyzeLabelStack();
     const result = await runAnalysis({
       watchedAddresses: parsed.addresses,
@@ -97,6 +100,7 @@ export async function executeAnalyzeJob(jobId: string, parsed: ParsedAnalyzeRequ
 
     await persistDiscoveredGraphLabels(result.graph);
 
+    // Shape core result into the JSON the frontend reads from job polling.
     const response = buildAnalyzeResponse(parsed, resolved, result);
     await markAnalyzeJobCompleted(jobId, response);
 

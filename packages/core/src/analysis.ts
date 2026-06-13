@@ -62,7 +62,9 @@ export interface AnalysisRunResult {
   score: RelationshipScore;
 }
 
+// Analysis pipeline: build graph -> enrich labels -> run analyzers -> score findings.
 export async function runAnalysis(input: AnalysisRunInput): Promise<AnalysisRunResult> {
+  // Step 1: turn events into wallet/contract nodes and transfer edges.
   input.onProgress?.({ phase: "graph", status: "started" });
   let graph = buildRelationshipGraph({
     watchedAddresses: input.watchedAddresses,
@@ -70,6 +72,7 @@ export async function runAnalysis(input: AnalysisRunInput): Promise<AnalysisRunR
   });
   input.onProgress?.({ phase: "graph", status: "completed" });
 
+  // Step 2: attach labels to graph nodes (exchange names, token info, etc.).
   const enrichers = input.graphEnrichers ?? [];
   if (enrichers.length > 0) {
     input.onProgress?.({ phase: "labels", status: "started" });
@@ -79,6 +82,7 @@ export async function runAnalysis(input: AnalysisRunInput): Promise<AnalysisRunR
     input.onProgress?.({ phase: "labels", status: "completed" });
   }
 
+  // Step 3: run all analyzers in parallel; each returns relationship findings.
   input.onProgress?.({ phase: "analysis", status: "started" });
   const context: AnalysisContext = {
     graph,
@@ -87,6 +91,7 @@ export async function runAnalysis(input: AnalysisRunInput): Promise<AnalysisRunR
   const findings = (
     await Promise.all(input.analyzers.map((analyzer) => analyzer.run(context)))
   ).flat();
+  // Step 4: score comes from findings, not from the graph itself.
   const score = scoreFindings(findings);
   input.onProgress?.({ phase: "analysis", status: "completed" });
 

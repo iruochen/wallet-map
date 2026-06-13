@@ -49,6 +49,7 @@ const nodeRealEndpoints = new Map<ChainId, string>([
   [56, "https://bsc-mainnet.nodereal.io/v1/{apiKey}"],
 ]);
 
+// Fetch step entry point. Always returns NormalizedEvent[] for the analysis pipeline.
 export async function resolveAnalyzeEvents(
   input: ResolveEventsInput,
 ): Promise<ResolveEventsResult> {
@@ -72,6 +73,7 @@ export async function resolveAnalyzeEvents(
   );
   const hasAnyLiveProvider = livePlans.some((plan) => plan.provider !== null);
 
+  // No API keys (or explicit fixture mode) -> read from fixtures/sample-events.json.
   if (input.dataMode === "fixture" || (input.dataMode === "auto" && !hasAnyLiveProvider)) {
     const fallbackReason =
       input.dataMode === "auto" && !hasAnyLiveProvider
@@ -97,6 +99,7 @@ export async function resolveAnalyzeEvents(
   const warnings: string[] = [];
   const allowPartial = requestedChainIds.length > 1;
 
+  // Live mode: pick an adapter per chain, then call adapter.getEvents for each address.
   for (const plan of livePlans) {
     const config = getSupportedAnalysisChain(plan.chainId);
     if (!config) {
@@ -247,6 +250,7 @@ export function selectAnalyzeLiveProvider(
   return { chainId, provider: null };
 }
 
+// Factory: pick Etherscan, NodeReal, or Solscan adapter based on provider plan.
 function buildAdapter(input: {
   plan: LiveProviderPlan;
   configName: string;
