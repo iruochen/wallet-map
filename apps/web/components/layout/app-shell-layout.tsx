@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useI18n, type I18nKey } from "../i18n/i18n-provider";
 import { AppHeader } from "./app-header";
+import { AppMobileNav } from "./app-mobile-nav";
 
 const labelsEnabled = process.env.NEXT_PUBLIC_LABEL_MANAGER_ENABLED === "true";
 
@@ -42,6 +43,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
         labelsEnabled={labelsEnabled}
       />
       <main className="appMain">{children}</main>
+      <AppMobileNav activeNav={config.activeNav} labelsEnabled={labelsEnabled} />
     </div>
   );
 }

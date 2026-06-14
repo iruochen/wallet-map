@@ -18,6 +18,15 @@
   --accent: #b07410;
   --danger: #8d211b;
   --shadow-soft: 0 10px 30px rgba(31, 61, 44, 0.06);
+  --mobile-nav-height: 58px;
+  --workbench-mobile-nav-height: 54px;
+  --mobile-chrome-top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+  --mobile-chrome-bottom: calc(
+    var(--mobile-nav-height) + var(--workbench-mobile-nav-height) + 10px + env(safe-area-inset-bottom, 0px)
+  );
+  --bp-mobile: 768px;
+  --bp-tablet: 1040px;
+  --bp-desktop: 1200px;
 }
 
 * {
@@ -27,9 +36,18 @@
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.52) 0%, transparent 26%),
     #eef2ec;
+}
+
+.desktopOnly {
+  display: revert;
+}
+
+.mobileOnly {
+  display: none;
 }
 
 body [data-rk] div[role="dialog"]:not(.historyDialog):not(.labelDialog) button {
@@ -85,10 +103,13 @@ button:disabled {
 
 .appShell {
   height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .appMain {
@@ -5596,10 +5617,665 @@ code {
 }
 
 /* ============================================================
-   Responsive (narrow widths fall back to stacked)
+   Responsive (narrow widths fall back to stacked / mobile shell)
    ============================================================ */
 
-@media (max-width: 1200px) {
+.appMobileNav {
+  display: none;
+}
+
+.mobileControlSelect {
+  display: grid;
+  gap: 6px;
+  color: #4c5b51;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.mobileControlSelect select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #cbd8cd;
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.workbenchMobileNavWrap {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktopOnly {
+    display: none !important;
+  }
+
+  .mobileOnly {
+    display: revert;
+  }
+
+  .mobileOnly.graphToolbarMobileToggle,
+  .mobileOnly.appMobileNavLink {
+    display: inline-flex;
+  }
+
+  .mobileOnly.historyCardList {
+    display: grid;
+  }
+
+  .appHeaderNavDesktop {
+    display: none;
+  }
+
+  .appBrandText span {
+    display: none;
+  }
+
+  .appHeader {
+    gap: 8px;
+    height: 52px;
+    padding: 0 10px;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .appMain {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .appMain > .workbench,
+  .appMain > .historyPage {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .appMobileNav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    min-height: var(--mobile-nav-height);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid #dce2d8;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: saturate(140%) blur(8px);
+  }
+
+  .appMobileNav:has(.appMobileNavLink:nth-child(2):last-child) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .appMobileNavLink {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 4px 6px;
+    border-radius: 10px;
+    color: #64736a;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .appMobileNavLinkActive {
+    background: #edf6ef;
+    color: #183d30;
+  }
+
+  .workbench {
+    position: relative;
+    display: flex !important;
+    flex-direction: column;
+    gap: 0;
+    flex: 1 1 0;
+    min-height: 0;
+    height: 0;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+    grid-template-columns: unset !important;
+    grid-template-rows: unset !important;
+  }
+
+  .workbenchColumn {
+    flex: 1 1 0;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    overflow: hidden;
+  }
+
+  .workbenchMobilePanel-input .workbenchGraph,
+  .workbenchMobilePanel-input .workbenchFindings,
+  .workbenchMobilePanel-graph .workbenchInput,
+  .workbenchMobilePanel-graph .workbenchFindings,
+  .workbenchMobilePanel-evidence .workbenchInput,
+  .workbenchMobilePanel-evidence .workbenchGraph {
+    display: none !important;
+  }
+
+  .workbenchMobilePanel-input .workbenchInput,
+  .workbenchMobilePanel-graph .workbenchGraph,
+  .workbenchMobilePanel-evidence .workbenchFindings {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none !important;
+    overflow: hidden;
+  }
+
+  .workbenchInputBody {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 10px 12px;
+  }
+
+  .workbenchMobilePanel-input .analysisSubmitDock {
+    position: relative;
+    flex: 0 0 auto;
+    z-index: 6;
+    margin-top: 0;
+    padding: 10px 10px calc(var(--workbench-mobile-nav-height) + 10px);
+    background: #f7faf6;
+    border-top: 1px solid #e2ebe3;
+  }
+
+  .workbenchMobilePanel-graph .workbenchColumnHeader {
+    display: none;
+  }
+
+  .workbenchGraphBody {
+    display: flex;
+    flex: 1;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 8px 8px 0;
+    overflow: hidden;
+  }
+
+  .graphLoadingState {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px;
+    padding-bottom: calc(var(--workbench-mobile-nav-height) + 10px);
+    border-radius: 10px;
+  }
+
+  .graphLoadingState .analysisProgressPanel-hero {
+    width: 100%;
+    max-width: none;
+    gap: 12px;
+    padding: 14px;
+    box-shadow: 0 10px 28px rgba(31, 61, 44, 0.08);
+  }
+
+  .graphLoadingState .analysisProgressPanel-hero .analysisProgressHeader p,
+  .graphLoadingState .analysisProgressPanel-hero .analysisProgressHint {
+    display: none;
+  }
+
+  .graphLoadingState .analysisProgressPanel-hero .analysisProgressHeader {
+    display: grid;
+    gap: 8px;
+  }
+
+  .graphLoadingState .analysisProgressPanel-hero .analysisProgressStatus {
+    justify-items: start;
+  }
+
+  .graphLoadingState .analysisProgressPanel-hero .analysisProgressSteps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .graphLoadingState .analysisProgressPanel-hero .analysisProgressStep {
+    min-height: 0;
+    padding: 10px;
+  }
+
+  .workbenchFindings {
+    border-top: 0;
+    max-height: none !important;
+    grid-column: auto !important;
+  }
+
+  .workbenchMobilePanel-evidence .workbenchFindingsHeader {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 3;
+    padding: 8px 10px 6px;
+    border-bottom: 1px solid #e7ece4;
+    background: #ffffff;
+  }
+
+  .workbenchMobilePanel-evidence .workbenchFindingsHeader p {
+    margin: 0;
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  .workbenchFindings .workbenchScroll {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 10px 10px calc(var(--workbench-mobile-nav-height) + 28px);
+  }
+
+  .workbenchFindings .workbenchScrollScrolling {
+    mask-image: none;
+  }
+
+  .workbenchFindings .groupedPanelList {
+    gap: 8px;
+    padding-top: 0;
+    width: 100%;
+    align-content: start;
+  }
+
+  /* Mobile: avoid 0fr collapse + overflow:visible inflating scroll height */
+  .workbenchFindings .groupedPanelBody {
+    display: none;
+    grid-template-rows: none;
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .workbenchFindings .groupedPanelOpen .groupedPanelBody {
+    display: block;
+  }
+
+  .workbenchFindings .groupedPanelBodyInner {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .workbenchFindings .groupedPanelSummary {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    width: 100%;
+    margin: 0;
+  }
+
+  .analysisSubmitDock {
+    position: relative;
+    z-index: 2;
+    margin-top: 0;
+    background: #f7faf6;
+    border-top: 1px solid #e2ebe3;
+  }
+
+  .workbenchMobileNavWrap {
+    position: fixed;
+    right: 10px;
+    bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+    left: 10px;
+    z-index: 25;
+    display: grid;
+    gap: 6px;
+  }
+
+  .workbenchMobileHint {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid #c8dfd0;
+    border-radius: 10px;
+    background: #edf6ef;
+    color: #183d30;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .workbenchMobileHint strong {
+    color: #1f6b3d;
+    font-size: 0.74rem;
+  }
+
+  .workbenchMobileNav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid #dce2d8;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .workbenchMobileNavLink {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 4px 6px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #64736a;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .workbenchMobileNavLabel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    line-height: 1.2;
+  }
+
+  .workbenchMobileNavLinkActive {
+    background: #edf6ef;
+    color: #183d30;
+  }
+
+  .workbenchMobileNavBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #dce8df;
+    color: #183d30;
+    font-size: 0.62rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .workbenchMobileNavLinkActive .workbenchMobileNavBadge {
+    background: #183d30;
+    color: #ffffff;
+  }
+
+  .graphExplorerMobile {
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 6px;
+    min-height: 0;
+  }
+
+  .graphExplorerMobile .graphFootnote {
+    display: none;
+  }
+
+  .graphExplorerMobile .graphToolbar {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .graphExplorerMobile .graphCanvasWrap {
+    min-height: 0;
+  }
+
+  .graphExplorerMobile .graphCanvas {
+    min-height: 0;
+    flex: 1;
+    border-radius: 12px;
+    touch-action: none;
+  }
+
+  .graphExplorerMobile .graphDetailCard {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: calc(
+      var(--mobile-nav-height) + var(--workbench-mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 8px
+    );
+    left: 0;
+    width: 100%;
+    max-height: min(44dvh, 360px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -10px 28px rgba(31, 61, 44, 0.18);
+    z-index: 28;
+  }
+
+  .graphExplorerMobile .graphDetailCardExpanded {
+    max-height: min(
+      72dvh,
+      calc(
+        100dvh - var(--header-height) - var(--mobile-nav-height) - var(--workbench-mobile-nav-height) - 24px -
+          env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+      )
+    );
+  }
+
+  .graphExplorerMobile .graphDetailHeader {
+    flex: 0 0 auto;
+  }
+
+  .graphExplorerMobile .graphDetailBody {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px;
+  }
+
+  .graphExplorerMobile .graphTxList {
+    max-height: min(20dvh, 160px);
+    overflow-y: auto;
+  }
+
+  .graphExplorerMobile .graphTxListCardExpanded .graphTxList {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .graphExplorerMobile .graphToolbarMain {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .graphExplorerMobile .graphLegend {
+    width: 100%;
+  }
+
+  .graphExplorerMobile .graphToolbarActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .graphExplorerMobile .graphSummary {
+    width: 100%;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .graphExplorerMobile .graphZoomControls {
+    right: 8px;
+    left: auto;
+    bottom: 8px;
+  }
+
+  .graphExplorerMobile .graphZoomButton {
+    width: 40px;
+    height: 40px;
+  }
+
+  .historyPage {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 0;
+    overflow: hidden;
+    padding: 10px;
+  }
+
+  .historyPanel {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .historyListBody {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .historyTableWrap {
+    overflow: visible;
+  }
+
+  .historyTableScroll {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-bottom: calc(var(--mobile-nav-height) + 12px);
+  }
+
+  .historyCardList {
+    display: grid;
+    gap: 10px;
+    padding: 2px 0 4px;
+  }
+
+  .historyCard {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #dfe7df;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 6px 16px rgba(31, 61, 44, 0.04);
+  }
+
+  .historyCardSelected {
+    border-color: #9fc5ab;
+    background: #f4fbf6;
+  }
+
+  .historyCardHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .historyCardHeader strong {
+    display: block;
+    color: #17211b;
+    font-size: 0.9rem;
+  }
+
+  .historyCardHeader small {
+    display: block;
+    margin-top: 3px;
+    color: #64736a;
+    font-size: 0.72rem;
+  }
+
+  .historyCardMeta {
+    display: grid;
+    gap: 4px;
+    color: #64736a;
+    font-size: 0.74rem;
+  }
+
+  .historyCardError {
+    margin: 0;
+    color: var(--danger);
+    font-size: 0.74rem;
+  }
+
+  .historyCardActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .graphToolbar {
+    gap: 8px;
+  }
+
+  .graphToolbarCollapsed .graphToolbarFilters {
+    display: none;
+  }
+
+  .graphToolbarMobileToggle {
+    display: inline-flex;
+    width: 100%;
+    min-height: 36px;
+    padding: 0 10px;
+    border: 1px solid #dce2d8;
+    border-radius: 8px;
+    background: #f8faf7;
+    color: #4c5b51;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .graphToolbarMobileToggleIcon {
+    transition: transform 140ms ease;
+  }
+
+  .graphToolbarMobileToggleIconOpen {
+    transform: rotate(180deg);
+  }
+
+  .graphToolbarActions {
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+
+  .graphZoomControls {
+    right: 8px;
+    bottom: 8px;
+  }
+
+  .graphZoomButton {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 1200px) and (min-width: 769px) {
   .workbench {
     grid-template-columns: 320px minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
@@ -5617,7 +6293,13 @@ code {
   }
 }
 
-@media (max-width: 1040px) {
+@media (max-width: 880px) and (min-width: 769px) {
+  .workbenchGraphBody {
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 1040px) and (min-width: 769px) {
   .workbench {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto;
@@ -5663,10 +6345,6 @@ code {
 
   .headerNavLink {
     padding: 0 10px;
-  }
-
-  .workbenchGraphBody {
-    min-height: 420px;
   }
 
   .pairInsightHeader,
@@ -5810,10 +6488,6 @@ code {
 }
 
 @media (max-width: 520px) {
-  .headerNavLink:not(.headerNavLinkActive) {
-    display: none;
-  }
-
   .historyPanelHeader p,
   .historyIdentity span,
   .historyEmptyDescription {

@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMobileViewport } from "../../lib/use-mobile-viewport";
 import {
   buildExplorerAddressUrl,
   buildExplorerTokenUrl,
@@ -66,6 +67,7 @@ interface GraphExplorerProps {
   totalNodes: number;
   totalEdges: number;
   truncated: boolean;
+  isPanelActive?: boolean;
 }
 
 interface SelectionState {
@@ -91,8 +93,10 @@ export function GraphExplorer({
   totalNodes,
   totalEdges,
   truncated,
+  isPanelActive = true,
 }: GraphExplorerProps) {
   const { t } = useI18n();
+  const isMobile = useMobileViewport();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<Core | null>(null);
   const layoutRunningRef = useRef(false);
@@ -103,6 +107,7 @@ export function GraphExplorer({
   const [walletFilter, setWalletFilter] = useState<string | "all">("all");
   const [showEdgeLabels, setShowEdgeLabels] = useState(true);
   const [layoutReady, setLayoutReady] = useState(false);
+  const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
 
   const watchedWalletOptions = useMemo(() => collectWatchedWalletOptions(nodes), [nodes]);
   const showWalletFilter = watchedWalletOptions.length > 1;
@@ -183,10 +188,14 @@ export function GraphExplorer({
       maxZoom: 4,
       boxSelectionEnabled: false,
       autounselectify: false,
+      userPanningEnabled: true,
+      userZoomingEnabled: true,
+      touchTapThreshold: 10,
+      desktopTapThreshold: 4,
       pixelRatio: Math.min(2, window.devicePixelRatio || 1),
       hideEdgesOnViewport: edges.length > 120,
       textureOnViewport: edges.length > 120,
-      style: buildStylesheet(denseGraph),
+      style: buildStylesheet(denseGraph, isMobile),
     });
 
     cyRef.current = cy;
@@ -336,6 +345,54 @@ export function GraphExplorer({
     incident.addClass("hl-focus");
   }, [selection, graphSignature]);
 
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) {
+      return;
+    }
+    cy.style(buildStylesheet(denseGraph, isMobile));
+  }, [denseGraph, isMobile]);
+
+  useEffect(() => {
+    if (!isPanelActive) {
+      return;
+    }
+
+    const cy = cyRef.current;
+    const container = containerRef.current;
+    if (!cy || !container) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      cy.resize();
+      if (layoutReady) {
+        fitOverviewViewport(cy, resolvedNodes.length, visibleEdges.length);
+        overviewViewportRef.current = captureViewport(cy);
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isPanelActive, isMobile, layoutReady, resolvedNodes.length, visibleEdges.length]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !isPanelActive) {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      const cy = cyRef.current;
+      if (!cy) {
+        return;
+      }
+      cy.resize();
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [isPanelActive]);
+
   const handleToggleKind = useCallback((kind: GraphExplorerEdge["kind"]) => {
     setHiddenKinds((current) => {
       const next = new Set(current);
@@ -429,8 +486,23 @@ export function GraphExplorer({
       : t("graph.filtered.hintDefault");
 
   return (
-    <div className="graphExplorer">
-      <div className="graphToolbar">
+    <div className={`graphExplorer ${isMobile ? "graphExplorerMobile" : ""}`}>
+      <div className={`graphToolbar ${mobileToolbarOpen ? "graphToolbarExpanded" : "graphToolbarCollapsed"}`}>
+        <button
+          type="button"
+          className="graphToolbarMobileToggle mobileOnly"
+          onClick={() => setMobileToolbarOpen((value) => !value)}
+          aria-expanded={mobileToolbarOpen}
+        >
+          <ChevronDown
+            size={16}
+            strokeWidth={2.2}
+            className={`graphToolbarMobileToggleIcon ${mobileToolbarOpen ? "graphToolbarMobileToggleIconOpen" : ""}`}
+            aria-hidden="true"
+          />
+          <span>{mobileToolbarOpen ? t("graph.mobile.hideFilters") : t("graph.mobile.showFilters")}</span>
+        </button>
+        <div className="graphToolbarFilters">
         {showWalletFilter ? (
           <div className="graphChainFilter" aria-label={t("graph.walletFilter")}>
             <span className="graphChainFilterLabel">{t("graph.walletFilter")}</span>
@@ -480,6 +552,7 @@ export function GraphExplorer({
             ))}
           </div>
         ) : null}
+        </div>
         <div className="graphToolbarMain">
         <div className="graphLegend" aria-label={t("graph.edgeKindFilter")}>
           {edgeKinds.map((kind) => {
@@ -691,7 +764,10 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
   const visibleTransactions = showAllTransactions ? transactions : transactions.slice(0, 4);
 
   return (
-    <div className="graphDetailCard" role="status">
+    <div
+      className={`graphDetailCard ${showAllTransactions && transactions.length > 4 ? "graphDetailCardExpanded" : ""}`}
+      role="status"
+    >
       <div className="graphDetailHeader">
         <span
           className="graphDetailRole"
@@ -736,7 +812,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
           </div>
         ) : null}
         {transactions.length > 0 ? (
-          <div className="graphTxListCard">
+          <div className={`graphTxListCard ${showAllTransactions ? "graphTxListCardExpanded" : ""}`}>
             <div className="graphTxListHeader">
               <strong>{t("graph.detail.relatedTx")}</strong>
               <span>{t("graph.detail.txCount", { count: transactions.length })}</span>
@@ -859,28 +935,31 @@ function setViewport(cy: Core, snapshot: ViewportSnapshot): void {
   cy.pan(snapshot.pan);
 }
 
-function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
+function buildStylesheet(denseGraph: boolean, isMobile: boolean): cytoscape.StylesheetJson {
+  const nodeFontSize = isMobile ? 12 : 11;
+  const edgeFontSize = isMobile ? (denseGraph ? 10 : 11) : denseGraph ? 9 : 10;
+
   return [
     {
       selector: "node",
       style: {
         "background-color": "#f6faf5",
         "border-color": "#7f9a87",
-        "border-width": 1.6,
+        "border-width": isMobile ? 2 : 1.6,
         "color": "#203027",
         "label": "data(label)",
-        "font-size": 11,
+        "font-size": nodeFontSize,
         "font-weight": 700,
         "text-valign": "bottom",
-        "text-margin-y": 7,
+        "text-margin-y": isMobile ? 8 : 7,
         "text-background-color": "#ffffff",
         "text-background-opacity": 0.94,
-        "text-background-padding": "3",
+        "text-background-padding": isMobile ? "4" : "3",
         "text-background-shape": "roundrectangle",
         "width": "data(size)",
         "height": "data(size)",
         "shape": "ellipse",
-        "overlay-padding": 8,
+        "overlay-padding": isMobile ? 14 : 8,
         "transition-property": "background-color, border-color, opacity",
         "transition-duration": 180,
       },
@@ -939,10 +1018,10 @@ function buildStylesheet(denseGraph: boolean): cytoscape.StylesheetJson {
         "line-color": "data(color)",
         "target-arrow-color": "data(color)",
         "target-arrow-shape": "triangle",
-        "arrow-scale": 0.75,
+        "arrow-scale": isMobile ? 0.95 : 0.75,
         "opacity": denseGraph ? 0.56 : 0.62,
         "label": "data(label)",
-        "font-size": denseGraph ? 9 : 10,
+        "font-size": edgeFontSize,
         "color": "data(color)",
         "text-margin-y": "data(labelOffset)",
         "text-background-color": "#ffffff",

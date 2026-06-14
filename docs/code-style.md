@@ -132,6 +132,27 @@ Guidelines:
 - Split files that grow past roughly 350 lines before adding more behavior.
 - Domain logic stays in `packages/*`; route handlers and UI should orchestrate rather than reimplement it.
 
+## Responsive and Mobile Layout
+
+The app uses one UI codebase with adaptive layout shells. Do not build a separate mobile route tree or duplicate business logic.
+
+Breakpoints (defined in `apps/web/app/styles.css`):
+
+- `--bp-mobile: 768px` — phone layout with bottom app navigation and single-panel workbench tabs.
+- `--bp-tablet: 1040px` — stacked workbench columns on medium widths.
+- `--bp-desktop: 1200px` — full three-column workbench.
+
+Mobile patterns:
+
+- App shell: bottom nav (`AppMobileNav`) for `/`, `/history`, `/labels`; top header keeps brand, locale, and wallet controls.
+- Workbench: `WorkbenchMobileTabs` switches Input / Graph / Evidence panels; running analysis auto-opens Graph; completion shows a light hint to open Evidence.
+- Controls: use `mobileOnly` `<select>` controls instead of cramped segmented buttons; hide desktop segmented controls with `desktopOnly`.
+- History: card list on mobile (`historyCardList`), table on desktop (`historyTable desktopOnly`).
+- Graph: collapsible toolbar via `graphToolbarCollapsed` / `graphToolbarExpanded`; preserve Cytoscape pan/zoom on touch.
+- Utilities: `desktopOnly` and `mobileOnly` classes; prefer `100dvh` and `env(safe-area-inset-*)` for viewport height.
+
+When adding a new page or panel, verify `390×844` and `360×800` viewports in addition to desktop layouts.
+
 ## UI Style
 
 The UI should feel like an analysis workbench, not a marketing page.

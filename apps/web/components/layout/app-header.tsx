@@ -26,7 +26,7 @@ export function AppHeader({ subtitle, activeNav, labelsEnabled = false }: AppHea
         </div>
       </Link>
       <div className="appHeaderStatus">
-        <nav className="appHeaderNav" aria-label={t("app.nav.main")}>
+        <nav className="appHeaderNav appHeaderNavDesktop" aria-label={t("app.nav.main")}>
           <Link
             className={`headerNavLink ${activeNav === "workbench" ? "headerNavLinkActive" : ""}`}
             href="/"

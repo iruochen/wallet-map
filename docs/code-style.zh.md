@@ -132,6 +132,27 @@ packages/analyzers/src/
 - 文件超过约 350 行时先拆分，再扩展行为。
 - 领域逻辑留在 `packages/*`；路由与 UI 负责编排，不重复实现核心逻辑。
 
+## 响应式与移动端布局
+
+应用使用同一套 UI 代码库 + 自适应布局壳层。不要单独做移动端路由树，也不要复制业务逻辑。
+
+断点（定义在 `apps/web/app/styles.css`）：
+
+- `--bp-mobile: 768px` — 手机布局：底部应用导航 + 工作台单面板 Tab。
+- `--bp-tablet: 1040px` — 中等宽度下工作台纵向堆叠。
+- `--bp-desktop: 1200px` — 完整三栏工作台。
+
+移动端模式：
+
+- 应用壳：底部导航 `AppMobileNav` 切换 `/`、`/history`、`/labels`；顶栏保留品牌、语言、钱包连接。
+- 工作台：`WorkbenchMobileTabs` 切换 输入 / 图谱 / 证据；运行分析后自动打开图谱；完成后轻提示查看证据。
+- 控件：手机端用 `mobileOnly` 的 `<select>`，桌面端 segmented 控件加 `desktopOnly`。
+- 历史：手机卡片列表 `historyCardList`，桌面表格 `historyTable desktopOnly`。
+- 图谱：工具条可折叠 `graphToolbarCollapsed` / `graphToolbarExpanded`；保留 Cytoscape 触控平移缩放。
+- 工具类：`desktopOnly`、`mobileOnly`；高度优先 `100dvh` 与 `env(safe-area-inset-*)`。
+
+新增页面或面板时，除桌面外还需检查 `390×844`、`360×800` 视口。
+
 ## UI 风格
 
 UI 应像分析工作台，而不是营销页面。

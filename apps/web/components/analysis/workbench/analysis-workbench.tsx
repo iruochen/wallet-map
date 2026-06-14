@@ -46,6 +46,7 @@ import { GraphExplorer } from "../../graph/graph-explorer";
 import { AnalysisProgress } from "./analysis-progress";
 import { ExposureScoreDimensions } from "./analysis-score-dimensions";
 import { PairInsightCard } from "../evidence/pair-insight-card";
+import { WorkbenchMobileTabs, type WorkbenchMobilePanel } from "./workbench-mobile-tabs";
 
 const sampleAddresses = [
   "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -54,6 +55,7 @@ const sampleAddresses = [
 ].join("\n");
 
 const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";
+const evidenceHintDismissedStorageKey = "wallet-map:evidence-hint-dismissed-jobs";
 const activeAnalysisJobRestoreAttempts = 3;
 const activeAnalysisJobRestoreDelayMs = 500;
 
@@ -98,6 +100,42 @@ function forgetActiveAnalysisJob(jobId: string | null): void {
   }
 }
 
+function readDismissedEvidenceHintJobIds(): Set<string> {
+  if (typeof window === "undefined") {
+    return new Set();
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(evidenceHintDismissedStorageKey);
+    if (!raw) {
+      return new Set();
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? new Set(parsed.filter((entry): entry is string => typeof entry === "string")) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function rememberDismissedEvidenceHint(jobId: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const dismissed = readDismissedEvidenceHintJobIds();
+    dismissed.add(jobId);
+    window.sessionStorage.setItem(evidenceHintDismissedStorageKey, JSON.stringify([...dismissed]));
+  } catch {
+    // Ignore blocked storage.
+  }
+}
+
+function shouldShowEvidenceHint(jobId: string): boolean {
+  return !readDismissedEvidenceHintJobIds().has(jobId);
+}
+
 export function AnalysisWorkbench({
   liveConfigured,
   supportedChains,
@@ -121,6 +159,8 @@ export function AnalysisWorkbench({
   const [isInputScrolling, setIsInputScrolling] = useState(false);
   const [isEvidenceScrolling, setIsEvidenceScrolling] = useState(false);
   const [addressImportSummary, setAddressImportSummary] = useState<AddressImportSummary | null>(null);
+  const [mobilePanel, setMobilePanel] = useState<WorkbenchMobilePanel>("input");
+  const [showEvidenceHint, setShowEvidenceHint] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputScrollTimerRef = useRef<number | null>(null);
   const evidenceScrollTimerRef = useRef<number | null>(null);
@@ -172,6 +212,32 @@ export function AnalysisWorkbench({
     () => (chainId === String(evmAggregateChainId) ? "EVM ALL" : selectedChain?.shortName ?? "Chain"),
     [chainId, selectedChain],
   );
+  const chainSelectOptions = useMemo(
+    () => [
+      { value: String(evmAggregateChainId), label: "EVM ALL" },
+      ...supportedChains.map((chain) => ({
+        value: String(chain.chainId),
+        label: `${chain.shortName} · ${chain.name}`,
+      })),
+    ],
+    [supportedChains],
+  );
+
+  function applyChainSelection(nextChainId: string) {
+    setChainId(nextChainId);
+    const chain = supportedChains.find((item) => String(item.chainId) === nextChainId);
+    if (nextChainId === String(evmAggregateChainId)) {
+      if (dataProvider === "solscan") {
+        setDataProvider("auto");
+      }
+      return;
+    }
+    if (chain?.ecosystem === "solana") {
+      setDataProvider("solscan");
+    } else if (dataProvider === "solscan") {
+      setDataProvider("auto");
+    }
+  }
   const submitScopeSummary = useMemo(
     () => t("analysis.address.scope", { scope: inputScopeLabel, count: addressCount }),
     [addressCount, inputScopeLabel, t],
@@ -371,6 +437,7 @@ export function AnalysisWorkbench({
         });
         applyWorkbenchInputFromResult(poll.result);
         setResult(poll.result);
+        setMobilePanel("graph");
         setIsRunning(false);
         setJobProgress(null);
         return;
@@ -383,6 +450,8 @@ export function AnalysisWorkbench({
 
       const controller = new AbortController();
       setIsRunning(true);
+      setMobilePanel("graph");
+      setShowEvidenceHint(false);
       setAnalysisStartedAt(Date.now());
       setResult(null);
       setEvidenceTab("findings");
@@ -390,6 +459,9 @@ export function AnalysisWorkbench({
       rememberActiveAnalysisJob(jobId);
       applyWorkbenchInputFromResult(analysisResult);
       setResult(analysisResult);
+      if (shouldShowEvidenceHint(jobId)) {
+        setShowEvidenceHint(true);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("analysis.error.loadSaved"));
     } finally {
@@ -463,6 +535,8 @@ export function AnalysisWorkbench({
     setEvidenceTab("findings");
     setOpenFindingGroups({});
     setOpenEdgeGroups({});
+    setMobilePanel("graph");
+    setShowEvidenceHint(false);
 
     const controller = new AbortController();
     let jobId: string | null = null;
@@ -498,6 +572,9 @@ export function AnalysisWorkbench({
 
       const analysisResult = await pollAnalyzeJob(body.jobId, controller.signal);
       setResult(analysisResult);
+      if (shouldShowEvidenceHint(body.jobId)) {
+        setShowEvidenceHint(true);
+      }
     } catch (caught) {
       if (caught instanceof Error && caught.name === "AbortError") {
         return;
@@ -581,8 +658,20 @@ export function AnalysisWorkbench({
     }));
   }
 
+  function dismissEvidenceHint() {
+    const activeJobId = readActiveAnalysisJobId();
+    if (activeJobId) {
+      rememberDismissedEvidenceHint(activeJobId);
+    }
+    setShowEvidenceHint(false);
+  }
+
   return (
-    <section className="workbench" aria-label="Wallet Map workbench">
+    <>
+      <section
+        className={`workbench workbenchMobilePanel-${mobilePanel}`}
+        aria-label="Wallet Map workbench"
+      >
       <aside className="workbenchColumn workbenchInput">
         <div
           className={`workbenchInputBody ${isInputScrolling ? "workbenchInputScrolling" : ""}`}
@@ -719,17 +808,12 @@ export function AnalysisWorkbench({
                 </span>
                 <small>{selectedChain?.explorerName ?? "Explorer"}</small>
               </div>
-              <div className="segmentedControl segmentedControlChains" role="radiogroup" aria-label={t("analysis.config.chain.aria")}>
+              <div className="segmentedControl segmentedControlChains desktopOnly" role="radiogroup" aria-label={t("analysis.config.chain.aria")}>
                 <button
                   type="button"
                   className={`segmentedButton ${chainId === String(evmAggregateChainId) ? "segmentedButtonActive" : ""}`}
                   disabled={isRunning}
-                  onClick={() => {
-                    setChainId(String(evmAggregateChainId));
-                    if (dataProvider === "solscan") {
-                      setDataProvider("auto");
-                    }
-                  }}
+                  onClick={() => applyChainSelection(String(evmAggregateChainId))}
                   role="radio"
                   aria-checked={chainId === String(evmAggregateChainId)}
                   title={t("analysis.config.evmAllTitle")}
@@ -743,14 +827,7 @@ export function AnalysisWorkbench({
                     type="button"
                     className={`segmentedButton ${String(chain.chainId) === chainId ? "segmentedButtonActive" : ""}`}
                     disabled={isRunning}
-                    onClick={() => {
-                      setChainId(String(chain.chainId));
-                      if (chain.ecosystem === "solana") {
-                        setDataProvider("solscan");
-                      } else if (dataProvider === "solscan") {
-                        setDataProvider("auto");
-                      }
-                    }}
+                    onClick={() => applyChainSelection(String(chain.chainId))}
                     role="radio"
                     aria-checked={String(chain.chainId) === chainId}
                   >
@@ -759,6 +836,20 @@ export function AnalysisWorkbench({
                   </button>
                 ))}
               </div>
+              <label className="mobileControlSelect mobileOnly">
+                <span>{t("analysis.config.chain")}</span>
+                <select
+                  value={chainId}
+                  disabled={isRunning}
+                  onChange={(event) => applyChainSelection(event.target.value)}
+                >
+                  {chainSelectOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             <div className="controlGroup controlCard">
               <div className="controlLabelRow">
@@ -768,7 +859,7 @@ export function AnalysisWorkbench({
                 </span>
                 <small>{dataProviderOptions.find((option) => option.value === dataProvider)?.description}</small>
               </div>
-              <div className="segmentedControl segmentedControlModes" role="radiogroup" aria-label={t("analysis.config.provider.aria")}>
+              <div className="segmentedControl segmentedControlModes desktopOnly" role="radiogroup" aria-label={t("analysis.config.provider.aria")}>
                 {dataProviderOptions.map((option) => (
                   <button
                     key={option.value}
@@ -785,6 +876,20 @@ export function AnalysisWorkbench({
                   </button>
                 ))}
               </div>
+              <label className="mobileControlSelect mobileOnly">
+                <span>{t("analysis.config.provider")}</span>
+                <select
+                  value={dataProvider}
+                  disabled={isRunning}
+                  onChange={(event) => setDataProvider(event.target.value as DataProviderOptionValue)}
+                >
+                  {dataProviderOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             <div className="controlGroup controlCard">
               <div className="controlLabelRow">
@@ -794,7 +899,7 @@ export function AnalysisWorkbench({
                 </span>
                 <small>{dataMode === "live" ? t("analysis.data.live") : dataMode === "fixture" ? t("analysis.data.fixture") : t("analysis.data.auto")}</small>
               </div>
-              <div className="segmentedControl segmentedControlModes" role="radiogroup" aria-label={t("analysis.config.dataSource.aria")}>
+              <div className="segmentedControl segmentedControlModes desktopOnly" role="radiogroup" aria-label={t("analysis.config.dataSource.aria")}>
                 {dataModeOptions.map((option) => (
                   <button
                     key={option.value}
@@ -811,6 +916,20 @@ export function AnalysisWorkbench({
                   </button>
                 ))}
               </div>
+              <label className="mobileControlSelect mobileOnly">
+                <span>{t("analysis.config.dataSource")}</span>
+                <select
+                  value={dataMode}
+                  disabled={isRunning}
+                  onChange={(event) => setDataMode(event.target.value as DataModeOptionValue)}
+                >
+                  {dataModeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </div>
         </form>
@@ -997,6 +1116,7 @@ export function AnalysisWorkbench({
               totalNodes={(result.graphView ?? result.graph).totalNodes}
               totalEdges={(result.graphView ?? result.graph).totalEdges}
               truncated={(result.graphView ?? result.graph).nodesTruncated || (result.graphView ?? result.graph).edgesTruncated}
+              isPanelActive={mobilePanel === "graph"}
             />
           ) : (
             <div className="graphPlaceholder">
@@ -1067,7 +1187,16 @@ export function AnalysisWorkbench({
           />
         </div>
       </aside>
-    </section>
+      </section>
+
+      <WorkbenchMobileTabs
+        activePanel={mobilePanel}
+        onChange={setMobilePanel}
+        findingsCount={result?.findings.length ?? 0}
+        showEvidenceHint={showEvidenceHint && mobilePanel !== "evidence"}
+        onDismissEvidenceHint={dismissEvidenceHint}
+      />
+    </>
   );
 }
 

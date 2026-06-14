@@ -416,7 +416,7 @@ export function HistoryJobList({
           <span>{t("history.loading.refresh")}</span>
         </div>
       ) : null}
-      <table className="historyTable">
+      <table className="historyTable desktopOnly">
         <thead>
           <tr>
             <th>{t("history.table.time")}</th>
@@ -506,6 +506,69 @@ export function HistoryJobList({
           ))}
         </tbody>
       </table>
+      <div className="historyCardList mobileOnly">
+        {jobs.map((job) => (
+          <article
+            key={job.id}
+            className={`historyCard ${comparisonJobIds.includes(job.id) ? "historyCardSelected" : ""}`}
+          >
+            <div className="historyCardHeader">
+              <div>
+                <strong>{job.chainName ?? "Unknown chain"}</strong>
+                <small>{formatAbsoluteTime(job.completedAt ?? job.createdAt) ?? job.createdAt}</small>
+              </div>
+              <span className={`historyStatus historyStatus-${job.status}`}>{job.status}</span>
+            </div>
+            <div className="historyCardMeta">
+              <span>{job.sourceLabel ?? "—"}</span>
+              <span>
+                {t("history.row.stats", {
+                  addresses: job.watchedAddressCount ?? "—",
+                  events: job.eventCount ?? "—",
+                })}
+              </span>
+              {job.score ? (
+                <span>
+                  {job.score.score}/100 ·{" "}
+                  {formatConfidenceLabel(t, job.score.confidence as "low" | "medium" | "high")}
+                </span>
+              ) : null}
+            </div>
+            {job.errorMessage ? <p className="historyCardError">{job.errorMessage}</p> : null}
+            <div className="historyCardActions">
+              {job.status === "completed" ? (
+                <Link className="secondaryButton historyOpenButton" href={`/?job=${job.id}`}>
+                  <ExternalLink size={14} aria-hidden="true" />
+                  {t("history.row.open")}
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                className={`historyCompareButton ${comparisonJobIds.includes(job.id) ? "historyCompareButtonActive" : ""}`}
+                disabled={job.status !== "completed"}
+                onClick={() => setComparisonJobIds((current) => toggleHistoryComparisonSelection(current, job))}
+              >
+                <GitCompareArrows size={14} aria-hidden="true" />
+                {comparisonJobIds.includes(job.id) ? t("history.row.compare.selected") : t("history.row.compare.select")}
+              </button>
+              {historyMode === "wallet" ? (
+                <button
+                  className="historyDeleteButton"
+                  type="button"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setPendingDeleteJob(job);
+                  }}
+                  disabled={Boolean(deletingJobId) || isRefreshing || isSyncing || isListLoading}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                  {t("history.row.delete")}
+                </button>
+              ) : null}
+            </div>
+          </article>
+        ))}
+      </div>
       <HistoryComparisonPanel
         comparison={comparison}
         selectedCount={comparisonJobIds.length}
