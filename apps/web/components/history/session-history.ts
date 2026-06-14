@@ -1,4 +1,4 @@
-import type { AnalysisResponse } from "../analysis/analysis-types";
+import type { AnalysisResponse } from "../analysis/types";
 import type { HistoryJobItem } from "./history-types";
 
 const sessionHistoryStorageKey = "wallet-map:session-analysis-history";

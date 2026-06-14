@@ -1,6 +1,6 @@
-import type { I18nKey } from "../i18n/i18n-provider";
-import { useI18n } from "../i18n/i18n-provider";
-import type { AnalysisResponse } from "./analysis-types";
+import type { I18nKey } from "../../i18n/i18n-provider";
+import { useI18n } from "../../i18n/i18n-provider";
+import type { AnalysisResponse } from "../types";
 
 type ScoreDimensions = AnalysisResponse["score"]["dimensions"];
 type ScoreDimensionKey = keyof ScoreDimensions;

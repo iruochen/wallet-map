@@ -1,9 +1,9 @@
 import { ChevronDown } from "lucide-react";
-import { shortenAddress } from "../../app/format";
-import type { Locale } from "../i18n/i18n-provider";
-import type { TranslateFn } from "./analysis-formatters";
+import { shortenAddress } from "../../../app/format";
+import type { Locale } from "../../i18n/i18n-provider";
+import type { TranslateFn } from "../lib/formatters";
 import { EdgeRow, ChainBadge } from "./analysis-evidence";
-import type { GraphEdge, GraphNode } from "./analysis-types";
+import type { GraphEdge, GraphNode } from "../types";
 
 export interface AggregatedEdgeGroup {
   key: string;

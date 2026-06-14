@@ -1,6 +1,6 @@
 import type { AnalysisReport } from "@wallet-map/exporters";
-import type { AnalysisResponse } from "./analysis-types";
-import { formatAbsoluteTime } from "../../app/format";
+import type { AnalysisResponse } from "../types";
+import { formatAbsoluteTime } from "../../../app/format";
 
 function buildReportId(fetchedAt: string): string {
   const compact = fetchedAt.replace(/[-:TZ.]/g, "");

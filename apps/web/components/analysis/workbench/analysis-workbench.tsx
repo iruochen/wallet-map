@@ -18,25 +18,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   evmAggregateChainId,
   getEvmAggregateChains,
-} from "../../app/chains";
-import { ANALYSIS_PHASE_ORDER } from "../../app/api/analyze/progress";
-import { readJsonResponse } from "../api/read-json-response";
-import { useI18n } from "../i18n/i18n-provider";
-import { AnalysisEvidencePanel } from "./analysis-evidence-panel";
-import { parseAddressImport, type AddressImportSummary } from "./address-import";
+} from "../../../app/chains";
+import { ANALYSIS_PHASE_ORDER } from "../../../app/api/analyze/progress";
+import { readJsonResponse } from "../../api/read-json-response";
+import { useI18n } from "../../i18n/i18n-provider";
+import { AnalysisEvidencePanel } from "../evidence/analysis-evidence-panel";
+import { parseAddressImport, type AddressImportSummary } from "../lib/address-import";
 import {
   describeFindingGroup,
   formatSkippedChainDetails,
   formatSkippedChainSummary,
   formatVerdictLabel,
-} from "./analysis-formatters";
-import { AnalysisProgress } from "./analysis-progress";
-import {
-  downloadAnalysisReport,
-} from "./analysis-report-download";
-import { ExposureScoreDimensions } from "./analysis-score-dimensions";
-import { PairInsightCard } from "./pair-insight-card";
-import { saveSessionHistoryJob } from "../history/session-history";
+} from "../lib/formatters";
+import { deriveWorkbenchInputFromResult } from "../lib/input-restore";
+import { downloadAnalysisReport } from "../lib/report-download";
 import type {
   AnalysisJobPollResponse,
   AnalysisJobProgress,
@@ -45,8 +40,12 @@ import type {
   AnalysisWorkbenchProps,
   GraphEdge,
   GraphNode,
-} from "./analysis-types";
-import { GraphExplorer } from "../graph/graph-explorer";
+} from "../types";
+import { saveSessionHistoryJob } from "../../history/session-history";
+import { GraphExplorer } from "../../graph/graph-explorer";
+import { AnalysisProgress } from "./analysis-progress";
+import { ExposureScoreDimensions } from "./analysis-score-dimensions";
+import { PairInsightCard } from "../evidence/pair-insight-card";
 
 const sampleAddresses = [
   "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -128,6 +127,10 @@ export function AnalysisWorkbench({
   const restoredJobIdRef = useRef<string | null>(null);
   const searchParams = useSearchParams();
   const evmAggregateChains = useMemo(() => getEvmAggregateChains(), []);
+  const evmAggregateChainIdList = useMemo(
+    () => evmAggregateChains.map((chain) => chain.chainId),
+    [evmAggregateChains],
+  );
   const dataModeOptions = useMemo(
     () =>
       [
@@ -311,6 +314,15 @@ export function AnalysisWorkbench({
     return Array.from(groups.values()).sort((left, right) => right.edges.length - left.edges.length);
   }, [result]);
 
+  function applyWorkbenchInputFromResult(analysisResult: AnalysisResponse) {
+    const restored = deriveWorkbenchInputFromResult(analysisResult, evmAggregateChainIdList);
+    setAddresses(restored.addresses);
+    setChainId(restored.chainId);
+    setDataMode(restored.dataMode);
+    setDataProvider(restored.dataProvider);
+    setAddressImportSummary(null);
+  }
+
   async function loadAnalysisJob(jobId: string, explicitReplay = false) {
     setError(null);
 
@@ -357,6 +369,7 @@ export function AnalysisWorkbench({
           createdAt: poll.createdAt,
           startedAt: poll.startedAt,
         });
+        applyWorkbenchInputFromResult(poll.result);
         setResult(poll.result);
         setIsRunning(false);
         setJobProgress(null);
@@ -375,6 +388,7 @@ export function AnalysisWorkbench({
       setEvidenceTab("findings");
       const analysisResult = await pollAnalyzeJob(jobId, controller.signal);
       rememberActiveAnalysisJob(jobId);
+      applyWorkbenchInputFromResult(analysisResult);
       setResult(analysisResult);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("analysis.error.loadSaved"));

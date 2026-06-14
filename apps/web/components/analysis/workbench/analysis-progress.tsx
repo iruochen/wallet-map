@@ -2,9 +2,9 @@
 
 import { CheckCircle2, CircleDashed, Clock3, Database, LoaderCircle, Network, Route, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { AnalysisJobProgress, AnalysisPhaseId } from "../../app/api/analyze/progress";
-import { getProgressPercent, resolveStepState } from "../../app/api/analyze/progress";
-import { useI18n } from "../i18n/i18n-provider";
+import type { AnalysisJobProgress, AnalysisPhaseId } from "../../../app/api/analyze/progress";
+import { getProgressPercent, resolveStepState } from "../../../app/api/analyze/progress";
+import { useI18n } from "../../i18n/i18n-provider";
 
 export interface AnalysisProgressStep {
   id: AnalysisPhaseId;

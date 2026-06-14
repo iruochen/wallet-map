@@ -127,10 +127,19 @@ export interface GraphViewModel {
   edges: GraphViewEdge[];
 }
 
+export interface AnalysisRequestInput {
+  addresses: string[];
+  chainId: number;
+  chainIds: number[];
+  dataMode: "auto" | "fixture" | "live";
+  dataProvider: "auto" | "nodereal" | "etherscan" | "solscan";
+}
+
 export interface AnalysisResponse {
   mode: "fixture" | "live";
   source: string;
   sourceLabel?: string;
+  input?: AnalysisRequestInput;
   meta: {
     chainId: number;
     chainIds?: number[];

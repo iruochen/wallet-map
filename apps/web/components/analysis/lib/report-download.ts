@@ -1,6 +1,6 @@
 import { JsonExporter, MarkdownExporter, PdfReportExporter } from "@wallet-map/exporters";
-import type { AnalysisResponse } from "./analysis-types";
-import { buildAnalysisReport } from "./analysis-report";
+import type { AnalysisResponse } from "../types";
+import { buildAnalysisReport } from "./report";
 
 export type ReportDownloadFormat = "pdf" | "markdown" | "json" | "csv";
 

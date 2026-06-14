@@ -33,7 +33,7 @@ import {
 } from "../../app/format";
 import type { GraphExplorerEdge, GraphExplorerNode, ResolvedNode } from "./graph-types";
 import { buildLayoutOptions, fitOverviewViewport, runLayout } from "./graph-layout";
-import { formatEdgeKindLegendLabel } from "../analysis/analysis-formatters";
+import { formatEdgeKindLegendLabel } from "../analysis/lib/formatters";
 import { useI18n } from "../i18n/i18n-provider";
 import {
   buildElements,

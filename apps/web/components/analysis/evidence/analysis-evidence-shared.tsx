@@ -1,10 +1,10 @@
 import { ChevronDown, ExternalLink } from "lucide-react";
-import { buildExplorerAddressUrl } from "../../app/chains";
-import { shortenAddress } from "../../app/format";
-import type { Locale } from "../i18n/i18n-provider";
-import type { TranslateFn } from "./analysis-formatters";
+import { buildExplorerAddressUrl } from "../../../app/chains";
+import { shortenAddress } from "../../../app/format";
+import type { Locale } from "../../i18n/i18n-provider";
+import type { TranslateFn } from "../lib/formatters";
 import { ChainBadge, EvidenceItemView, FindingChainBadges } from "./analysis-evidence";
-import type { AnalysisResponse, GraphNode } from "./analysis-types";
+import type { AnalysisResponse, GraphNode } from "../types";
 
 const aggregatedFindingTitles = new Set([
   "Same contract interaction found",

@@ -4,7 +4,7 @@ import { ArrowDownToLine, GitCompareArrows, ExternalLink, Play, RefreshCw, Scrol
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatAbsoluteTime } from "../../app/format";
-import { formatConfidenceLabel } from "../analysis/analysis-formatters";
+import { formatConfidenceLabel } from "../analysis/lib/formatters";
 import { useI18n, type I18nKey } from "../i18n/i18n-provider";
 import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
 import {

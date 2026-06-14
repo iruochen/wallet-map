@@ -8,10 +8,10 @@ import {
   formatFindingConfidenceText,
   formatFindingRiskLabel,
   formatFindingTitle,
-} from "./analysis-formatters";
-import { LoadingList } from "./analysis-progress";
-import type { AnalysisResponse, GraphEdge, GraphNode } from "./analysis-types";
-import { useI18n } from "../i18n/i18n-provider";
+} from "../lib/formatters";
+import { LoadingList } from "../workbench/analysis-progress";
+import type { AnalysisResponse, GraphEdge, GraphNode } from "../types";
+import { useI18n } from "../../i18n/i18n-provider";
 
 interface FindingGroup {
   title: string;

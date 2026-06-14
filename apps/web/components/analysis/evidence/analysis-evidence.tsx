@@ -4,11 +4,11 @@ import {
   buildExplorerTokenUrl,
   buildExplorerTxUrl,
   getSupportedAnalysisChain,
-} from "../../app/chains";
-import type { Locale } from "../i18n/i18n-provider";
-import type { AnalysisResponse, EvidenceItem, GraphEdge, GraphNode } from "./analysis-types";
-import type { TranslateFn } from "./analysis-formatters";
-import { formatEdgeKindLabelI18n, formatEventTypeLabelI18n } from "./analysis-formatters";
+} from "../../../app/chains";
+import type { Locale } from "../../i18n/i18n-provider";
+import type { AnalysisResponse, EvidenceItem, GraphEdge, GraphNode } from "../types";
+import type { TranslateFn } from "../lib/formatters";
+import { formatEdgeKindLabelI18n, formatEventTypeLabelI18n } from "../lib/formatters";
 import {
   formatAbsoluteTime,
   formatAmount,
@@ -16,7 +16,7 @@ import {
   formatRelativeTime,
   shortenAddress,
   shortenTxHash,
-} from "../../app/format";
+} from "../../../app/format";
 
 export function EvidenceItemView({
   evidence,

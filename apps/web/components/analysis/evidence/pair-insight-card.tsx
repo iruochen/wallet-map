@@ -2,14 +2,14 @@
 
 import { Sparkles } from "lucide-react";
 import { useState } from "react";
-import type { TranslateFn } from "./analysis-formatters";
+import type { TranslateFn } from "../lib/formatters";
 import {
   formatConfidenceLabel,
   formatPairChainLabels,
   formatVerdictLabel,
   summarizeReasonLabels,
-} from "./analysis-formatters";
-import type { AnalysisResponse } from "./analysis-types";
+} from "../lib/formatters";
+import type { AnalysisResponse } from "../types";
 
 type PairInsight = AnalysisResponse["summary"]["pairInsights"][number];
 

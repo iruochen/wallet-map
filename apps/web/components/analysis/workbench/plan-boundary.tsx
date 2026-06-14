@@ -1,5 +1,5 @@
 import { CheckCircle2, LockKeyhole } from "lucide-react";
-import { getNextProductPlan, type ProductPlanSnapshot } from "../../app/pro-plan";
+import { getNextProductPlan, type ProductPlanSnapshot } from "../../../app/pro-plan";
 
 interface PlanBoundaryProps {
   plan: ProductPlanSnapshot;

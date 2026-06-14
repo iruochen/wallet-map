@@ -1,6 +1,6 @@
-import { getSupportedAnalysisChain } from "../../app/chains";
-import type { I18nKey } from "../i18n/i18n-provider";
-import type { AnalysisResponse, GraphEdge } from "./analysis-types";
+import { getSupportedAnalysisChain } from "../../../app/chains";
+import type { I18nKey } from "../../i18n/i18n-provider";
+import type { AnalysisResponse, GraphEdge } from "../types";
 
 export type TranslateFn = (key: I18nKey, params?: Record<string, string | number>) => string;
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { AnalysisResponse } from "./analysis-types";
+import type { AnalysisResponse } from "../types";
 import {
   buildEvidenceCsv,
   buildReportDownloadBlob,
   buildReportDownloadFilename,
-} from "./analysis-report-download";
+} from "./report-download";
 
 const response: AnalysisResponse = {
   mode: "fixture",
