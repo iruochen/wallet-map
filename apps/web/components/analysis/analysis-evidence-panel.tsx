@@ -144,10 +144,10 @@ function FindingGroups({
                         <span className="findingMeta">
                           <FindingChainBadges finding={finding} fallbackChainId={result.meta.chainId} />
                           <span className={`severityPill severity-${finding.severity}`}>
-                            {t("analysis.evidence.risk")} {formatFindingRiskLabel(finding.severity)}
+                            {t("analysis.evidence.risk")} {formatFindingRiskLabel(t, finding.severity)}
                           </span>
                           <span className={`confidencePill confidence-${finding.confidence}`}>
-                            {t("analysis.evidence.confidence")} {formatFindingConfidenceText(finding.confidence)}
+                            {t("analysis.evidence.confidence")} {formatFindingConfidenceText(t, finding.confidence)}
                           </span>
                         </span>
                       </div>
@@ -197,6 +197,8 @@ function EdgeGroups({
   isOpen: (kind: GraphEdge["kind"], index: number) => boolean;
   onToggle: (kind: GraphEdge["kind"], index: number) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="groupedPanelList">
       {groups.map((group, index) => {
@@ -212,7 +214,7 @@ function EdgeGroups({
             >
               <span className="groupedPanelSummaryText">
                 <span className="groupedPanelTitle">{formatEdgeKindLabel(group.kind)}</span>
-                <span className="groupedPanelHint">{describeEdgeGroup(group.kind, group.edges.length)}</span>
+                <span className="groupedPanelHint">{describeEdgeGroup(t, group.kind, group.edges.length)}</span>
               </span>
               <span className="groupedPanelMeta">
                 <span className="groupedPanelCount">{group.edges.length}</span>

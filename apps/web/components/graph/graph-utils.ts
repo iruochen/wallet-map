@@ -9,7 +9,10 @@ import {
   formatMethodSelectorLabel,
   shortenAddress,
 } from "../../app/format";
+import type { I18nKey } from "../i18n/i18n-provider";
 import type { GraphExplorerEdge, GraphExplorerNode, ResolvedNode } from "./graph-types";
+
+type TranslateFn = (key: I18nKey, params?: Record<string, string | number>) => string;
 
 export const edgePalette: Record<GraphExplorerEdge["kind"], string> = {
   native_transfer: "#2f7d4f",
@@ -107,20 +110,15 @@ function resolveNodeDisplayLabel(node: GraphExplorerNode): string {
   return node.label ?? (node.address ? shortenAddress(node.address) : node.id);
 }
 
-export function describeNodeRole(role: ResolvedNode["role"]): string {
-  if (role === "watched") {
-    return "这是本次输入的钱包节点，系统会围绕它来判断是否存在关联。";
-  }
+export function describeNodeRole(t: TranslateFn, role: ResolvedNode["role"]): string {
+  const keyMap: Record<ResolvedNode["role"], I18nKey> = {
+    watched: "graph.nodeRole.watched",
+    observed: "graph.nodeRole.observed",
+    contract: "graph.nodeRole.contract",
+    entity: "graph.nodeRole.entity",
+  };
 
-  if (role === "observed") {
-    return "这是在链上行为中被命中的外部地址，用来解释 watched 钱包之间的关联路径。";
-  }
-
-  if (role === "contract") {
-    return "这是被多个钱包共同触达的合约节点，可用于辅助判断协同行为。";
-  }
-
-  return "这是图中的辅助实体节点。";
+  return t(keyMap[role]);
 }
 
 export function formatNodeRoleLabel(role: ResolvedNode["role"]): string {
@@ -139,23 +137,18 @@ export function formatNodeRoleLabel(role: ResolvedNode["role"]): string {
   return "ENTITY";
 }
 
-export function describeEdgeKind(kind: GraphExplorerEdge["kind"]): string {
-  switch (kind) {
-    case "native_transfer":
-      return "这条边代表原生币直接转账";
-    case "token_transfer":
-      return "这条边代表代币转账";
-    case "nft_transfer":
-      return "这条边代表 NFT 转移";
-    case "contract_interaction":
-      return "这条边代表钱包对同一合约的调用";
-    case "shared_counterparty":
-      return "这条边代表两个钱包共享同一个外部对手地址";
-    case "bridge_route":
-      return "这条边代表跨链桥接路径";
-    default:
-      return "这条边代表时间或行为上的弱关联";
-  }
+export function describeEdgeKind(t: TranslateFn, kind: GraphExplorerEdge["kind"]): string {
+  const keyMap: Record<GraphExplorerEdge["kind"], I18nKey> = {
+    native_transfer: "graph.edgeKind.nativeTransfer",
+    token_transfer: "graph.edgeKind.tokenTransfer",
+    nft_transfer: "graph.edgeKind.nftTransfer",
+    contract_interaction: "graph.edgeKind.contractInteraction",
+    shared_counterparty: "graph.edgeKind.sharedCounterparty",
+    bridge_route: "graph.edgeKind.bridgeRoute",
+    temporal_similarity: "graph.edgeKind.temporalSimilarity",
+  };
+
+  return t(keyMap[kind]);
 }
 
 export function buildEdgeLabel(

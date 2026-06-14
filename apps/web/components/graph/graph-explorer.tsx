@@ -625,7 +625,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
         </div>
         <div className="graphDetailBody">
           <p className="graphDetailHint">
-            {describeNodeRole(node.role)}
+            {describeNodeRole(t, node.role)}
           </p>
           <code className="graphDetailAddress" title={node.address ?? node.id}>
             {node.address ? shortenAddress(node.address) : node.id}
@@ -787,7 +787,7 @@ function SelectionDetail({ selection, chainId, edges, nodeIndex, onClose }: Sele
           ) : null}
         </div>
         <p className="graphDetailHint">
-          {t("graph.detail.hint", { description: describeEdgeKind(edge.kind) })}
+          {t("graph.detail.hint", { description: describeEdgeKind(t, edge.kind) })}
         </p>
       </div>
     </div>

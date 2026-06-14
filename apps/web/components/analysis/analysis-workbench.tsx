@@ -29,6 +29,8 @@ import {
   formatConfidenceLabel,
   formatSkippedChainDetails,
   formatSkippedChainSummary,
+  formatSummaryHeadline,
+  formatSummaryNarrative,
   formatVerdictLabel,
 } from "./analysis-formatters";
 import { AnalysisProgress } from "./analysis-progress";
@@ -105,7 +107,7 @@ export function AnalysisWorkbench({
   initialAddresses,
   anonymousAnalysisQuota,
 }: AnalysisWorkbenchProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const defaultAddresses = initialAddresses?.trim() ? initialAddresses : sampleAddresses;
   const [addresses, setAddresses] = useState(defaultAddresses);
   const [chainId, setChainId] = useState("1");
@@ -279,12 +281,12 @@ export function AnalysisWorkbench({
         findings: [],
       };
       current.findings.push(finding);
-      current.summary = describeFindingGroup(finding.title, current.findings.length);
+      current.summary = describeFindingGroup(t, finding.title, current.findings.length);
       groups.set(finding.title, current);
     }
 
     return Array.from(groups.values()).sort((left, right) => right.findings.length - left.findings.length);
-  }, [result]);
+  }, [result, locale, t]);
 
   const groupedEdges = useMemo(() => {
     if (!result) {
@@ -860,11 +862,11 @@ export function AnalysisWorkbench({
               {result.meta.warnings?.length ? (
                 <div className="stateBanner stateBannerWarning">
                   <strong>{t("analysis.summary.skippedChains")}</strong>
-                  <span>{formatSkippedChainSummary(result.meta.warnings)}</span>
+                  <span>{formatSkippedChainSummary(t, result.meta.warnings)}</span>
                   <details className="warningDetails">
                     <summary>{t("analysis.summary.details")}</summary>
                     <ul>
-                      {formatSkippedChainDetails(result.meta.warnings).map((warning) => (
+                      {formatSkippedChainDetails(t, result.meta.warnings).map((warning) => (
                         <li key={warning}>{warning}</li>
                       ))}
                     </ul>
@@ -877,14 +879,18 @@ export function AnalysisWorkbench({
                     <div className="verdictHeader">
                       <span className={`verdictPill verdictPill-${result.summary.verdict}`}>
                         <Sparkles size={14} strokeWidth={2.1} />
-                        {formatVerdictLabel(result.summary.verdict)}
+                        {formatVerdictLabel(t, result.summary.verdict)}
                       </span>
                       <span className="verdictSubtle">
                         {t("analysis.summary.walletPairHits", { count: result.summary.pairInsights.length })}
                       </span>
                     </div>
-                    <strong>{result.summary.headline}</strong>
-                    <p className="verdictNarrative">{result.summary.narrative}</p>
+                    <strong>
+                      {formatSummaryHeadline(t, result.summary.verdict, result.summary.pairInsights.length)}
+                    </strong>
+                    <p className="verdictNarrative">
+                      {formatSummaryNarrative(t, result.summary.verdict, result.summary.pairInsights)}
+                    </p>
                   </div>
                   <div className="pairInsightList">
                     {result.summary.pairInsights.slice(0, 3).map((pair) => (
@@ -893,14 +899,14 @@ export function AnalysisWorkbench({
                           <strong>{pair.labels.join(" ↔ ")}</strong>
                           <span className={`verdictPill verdictPill-${pair.strength}`}>
                             <Sparkles size={13} strokeWidth={2.1} />
-                            {formatVerdictLabel(pair.strength)}
+                            {formatVerdictLabel(t, pair.strength)}
                           </span>
                         </div>
                         <p>{pair.reasons.join(" · ")}</p>
                         <div className="pairInsightMeta">
                           <span>{t("analysis.summary.signalCount", { count: pair.signalCount })}</span>
-                          <span>{formatVerdictLabel(pair.strength)}{t("analysis.summary.verdictSuffix")}</span>
-                          <span>{formatConfidenceLabel(pair.confidence)}</span>
+                          <span>{formatVerdictLabel(t, pair.strength)}{t("analysis.summary.verdictSuffix")}</span>
+                          <span>{formatConfidenceLabel(t, pair.confidence)}</span>
                         </div>
                       </div>
                     ))}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatAbsoluteTime } from "../../app/format";
 import { formatConfidenceLabel } from "../analysis/analysis-formatters";
+import { useI18n } from "../i18n/i18n-provider";
 import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
 import {
   buildHistoryComparison,
@@ -26,6 +27,7 @@ export function HistoryJobList({
   initialHistoryMode?: "wallet" | "session";
   initialWalletAddress?: string;
 }) {
+  const { t } = useI18n();
   const [jobs, setJobs] = useState<HistoryJobItem[]>([]);
   const [storageEnabled, setStorageEnabled] = useState(true);
   const [historyMode, setHistoryMode] = useState<"wallet" | "session">(initialHistoryMode);
@@ -444,7 +446,7 @@ export function HistoryJobList({
                   <>
                     <strong>{job.score.score}/100</strong>
                     <small>
-                      {formatConfidenceLabel(job.score.confidence as "low" | "medium" | "high")}
+                      {formatConfidenceLabel(t, job.score.confidence as "low" | "medium" | "high")}
                     </small>
                   </>
                 ) : (

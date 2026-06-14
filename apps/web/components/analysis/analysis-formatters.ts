@@ -1,63 +1,112 @@
-import type { GraphEdge } from "./analysis-types";
+import type { I18nKey } from "../i18n/i18n-provider";
+import type { AnalysisResponse, GraphEdge } from "./analysis-types";
 
-export function formatVerdictLabel(verdict: "none" | "weak" | "medium" | "strong"): string {
-  switch (verdict) {
-    case "strong":
-      return "强关联";
-    case "medium":
-      return "中关联";
-    case "weak":
-      return "弱关联";
-    default:
-      return "无结论";
-  }
+export type TranslateFn = (key: I18nKey, params?: Record<string, string | number>) => string;
+
+export function formatVerdictLabel(
+  t: TranslateFn,
+  verdict: "none" | "weak" | "medium" | "strong",
+): string {
+  const keyMap: Record<typeof verdict, I18nKey> = {
+    strong: "analysis.verdict.strong",
+    medium: "analysis.verdict.medium",
+    weak: "analysis.verdict.weak",
+    none: "analysis.verdict.none",
+  };
+
+  return t(keyMap[verdict]);
 }
 
-export function formatConfidenceLabel(confidence: "low" | "medium" | "high"): string {
-  if (confidence === "high") {
-    return "高置信度";
-  }
+export function formatConfidenceLabel(
+  t: TranslateFn,
+  confidence: "low" | "medium" | "high",
+): string {
+  const keyMap: Record<typeof confidence, I18nKey> = {
+    high: "analysis.confidence.high",
+    medium: "analysis.confidence.medium",
+    low: "analysis.confidence.low",
+  };
 
-  if (confidence === "medium") {
-    return "中置信度";
-  }
-
-  return "低置信度";
+  return t(keyMap[confidence]);
 }
 
-export function describeFindingGroup(title: string, count: number): string {
+export function formatSummaryHeadline(
+  t: TranslateFn,
+  verdict: AnalysisResponse["summary"]["verdict"],
+  pairCount: number,
+): string {
+  const keyMap: Record<typeof verdict, I18nKey> = {
+    strong: "analysis.summary.headline.strong",
+    medium: "analysis.summary.headline.medium",
+    weak: "analysis.summary.headline.weak",
+    none: "analysis.summary.headline.none",
+  };
+
+  if (verdict === "none") {
+    return t(keyMap.none);
+  }
+
+  return t(keyMap[verdict], { count: pairCount });
+}
+
+export function formatSummaryNarrative(
+  t: TranslateFn,
+  verdict: AnalysisResponse["summary"]["verdict"],
+  pairInsights: AnalysisResponse["summary"]["pairInsights"],
+): string {
+  if (pairInsights.length === 0) {
+    return t("analysis.summary.narrative.empty");
+  }
+
+  const lead = pairInsights[0]!;
+  const pairLabel = lead.labels.join(" ↔ ");
+  const reasons = lead.reasons.join(t("analysis.summary.reasonSeparator"));
+  const keyMap: Record<Exclude<typeof verdict, "none">, I18nKey> = {
+    strong: "analysis.summary.narrative.strong",
+    medium: "analysis.summary.narrative.medium",
+    weak: "analysis.summary.narrative.weak",
+  };
+
+  if (verdict === "none") {
+    return t("analysis.summary.narrative.weak", { pair: pairLabel, reasons });
+  }
+
+  return t(keyMap[verdict], { pair: pairLabel, reasons });
+}
+
+export function describeFindingGroup(t: TranslateFn, title: string, count: number): string {
   if (title === "Direct transfer found") {
-    return `命中了 ${count} 笔直接转账证据`;
+    return t("analysis.findingGroup.directTransfer", { count });
   }
 
   if (title === "Shared counterparty found") {
-    return `命中了 ${count} 组共享对手方线索`;
+    return t("analysis.findingGroup.sharedCounterparty", { count });
   }
 
   if (title === "Same contract interaction found") {
-    return `命中了 ${count} 组共同合约交互`;
+    return t("analysis.findingGroup.sameContract", { count });
   }
 
-  return `命中了 ${count} 条关联信号`;
+  return t("analysis.findingGroup.default", { count });
 }
 
-export function describeEdgeGroup(kind: GraphEdge["kind"], count: number): string {
+export function describeEdgeGroup(t: TranslateFn, kind: GraphEdge["kind"], count: number): string {
   if (kind === "native_transfer") {
-    return `${count} 条原生币关联边`;
+    return t("analysis.edgeGroup.nativeTransfer", { count });
   }
 
   if (kind === "token_transfer") {
-    return `${count} 条代币关联边`;
+    return t("analysis.edgeGroup.tokenTransfer", { count });
   }
 
   if (kind === "contract_interaction") {
-    return `${count} 条合约交互关联边`;
+    return t("analysis.edgeGroup.contractInteraction", { count });
   }
 
-  return `${count} 条关联边`;
+  return t("analysis.edgeGroup.default", { count });
 }
 
-export function formatSkippedChainSummary(warnings: string[]): string {
+export function formatSkippedChainSummary(t: TranslateFn, warnings: string[]): string {
   const names = warnings
     .map((warning) => /^([^:]+?)(?: skipped| analysis| is required)/.exec(warning)?.[1]?.trim())
     .map((name, index) => /live (.+?) analysis/.exec(warnings[index] ?? "")?.[1]?.trim() ?? name)
@@ -65,16 +114,16 @@ export function formatSkippedChainSummary(warnings: string[]): string {
   const uniqueNames = Array.from(new Set(names));
 
   if (uniqueNames.length === 0) {
-    return `${warnings.length} 条链路未完成，可展开查看详情。`;
+    return t("analysis.skippedChain.summaryGeneric", { count: warnings.length });
   }
 
-  return `跳过链：${uniqueNames.join("、")}`;
+  return t("analysis.skippedChain.summaryNamed", { chains: uniqueNames.join(t("analysis.summary.reasonSeparator")) });
 }
 
-export function formatSkippedChainDetails(warnings: string[]): string[] {
+export function formatSkippedChainDetails(t: TranslateFn, warnings: string[]): string[] {
   const details = warnings.map((warning) => {
     const chainName = readWarningChainName(warning);
-    const reason = formatProviderWarningReason(warning);
+    const reason = formatProviderWarningReason(t, warning);
 
     return chainName ? `${chainName}: ${reason}` : reason;
   });
@@ -89,45 +138,45 @@ function readWarningChainName(warning: string): string | undefined {
   );
 }
 
-function formatProviderWarningReason(warning: string): string {
+function formatProviderWarningReason(t: TranslateFn, warning: string): string {
   if (/Free API access is not supported|api plan|does not support this chain/i.test(warning)) {
-    return "当前 provider 套餐不支持该链";
+    return t("analysis.skippedChain.reason.unsupportedPlan");
   }
 
   if (/timed out|fetch failed|could not reach|TLS connection|reset/i.test(warning)) {
-    return "网络或 provider 连接失败";
+    return t("analysis.skippedChain.reason.network");
   }
 
   if (/API_KEY|is required|not configured/i.test(warning)) {
-    return "缺少该链所需的 provider 配置";
+    return t("analysis.skippedChain.reason.missingConfig");
   }
 
   if (/rate limit|429/i.test(warning)) {
-    return "provider 限流";
+    return t("analysis.skippedChain.reason.rateLimit");
   }
 
-  return "provider 请求未完成";
+  return t("analysis.skippedChain.reason.generic");
 }
 
-export function formatFindingRiskLabel(value: string): string {
+export function formatFindingRiskLabel(t: TranslateFn, value: string): string {
   if (value === "high") {
-    return "高";
+    return t("analysis.level.high");
   }
   if (value === "medium") {
-    return "中";
+    return t("analysis.level.medium");
   }
   if (value === "low") {
-    return "低";
+    return t("analysis.level.low");
   }
-  return "信息";
+  return t("analysis.level.info");
 }
 
-export function formatFindingConfidenceText(value: string): string {
+export function formatFindingConfidenceText(t: TranslateFn, value: string): string {
   if (value === "high") {
-    return "高";
+    return t("analysis.level.high");
   }
   if (value === "medium") {
-    return "中";
+    return t("analysis.level.medium");
   }
-  return "低";
+  return t("analysis.level.low");
 }
