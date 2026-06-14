@@ -9,7 +9,7 @@ import {
   labelCategoryOptions,
   labelNodeKindOptions,
   type LabelFormState,
-} from "./label-types";
+} from "./lib/label-types";
 
 const evmChains = getEvmAggregateChains();
 

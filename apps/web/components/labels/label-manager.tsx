@@ -3,9 +3,9 @@
 import { ChevronLeft, ChevronRight, Database, Plus, RefreshCw, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { supportedAnalysisChains } from "../../app/chains";
-import { readJsonResponse } from "../api/read-json-response";
+import { readJsonResponse } from "../../lib/read-json-response";
 import { useI18n } from "../i18n/i18n-provider";
-import { isLocalLabelSource } from "./label-display";
+import { isLocalLabelSource } from "./lib/label-display";
 import { LabelFormDialog } from "./label-form-dialog";
 import { LabelRecordList } from "./label-record-list";
 import {
@@ -18,7 +18,7 @@ import {
   type LabelResponse,
   type ListChainFilter,
   type SourceFilter,
-} from "./label-types";
+} from "./lib/label-types";
 
 export function LabelManager({
   initialLabels,

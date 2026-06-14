@@ -3,7 +3,7 @@ import {
   buildHistoryComparison,
   toggleHistoryComparisonSelection,
 } from "./history-comparison";
-import type { HistoryJobItem } from "./history-types";
+import type { HistoryJobItem } from "../history-types";
 
 const firstJob: HistoryJobItem = {
   id: "job-1",

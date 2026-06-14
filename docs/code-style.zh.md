@@ -87,6 +87,51 @@ it("finds transfer edges between watched wallets", async () => {});
 
 除非输出是稳定报告格式，否则避免对分析结果做大快照测试。
 
+## 前端模块布局
+
+按职责组织 `apps/web/components/<domain>/`。以 `components/analysis/` 为规范示例。
+
+```text
+components/analysis/
+  index.ts          # 页面级窄 barrel 导出
+  types.ts          # 领域共享类型
+  workbench/        # 页面编排与主面板
+  evidence/         # 单一 workflow 区域的 UI
+  lib/              # 纯逻辑、格式化、状态恢复
+    foo.ts
+    foo.test.ts     # 测试与源码同目录
+```
+
+约定：
+
+- 纯逻辑、格式化、下载、状态恢复放在 `lib/`。
+- 编排型组件放在 `workbench/` 或同类 UI 子目录。
+- 可复用 UI 片段放在功能子目录，例如 `evidence/`。
+- 共享类型放在领域根目录的 `types.ts`。
+- `index.ts` 只导出页面或其他领域真正需要的 API。
+- Vitest 测试与实现同目录（`foo.ts` + `foo.test.ts`）。
+- React 组件超过约 350 行时先拆分 helper 和子组件，再扩展行为。
+- 不要把 API helper 放在 `components/`；共享应用工具放在 `apps/web/lib/`。
+- 其他领域变大时沿用同一模式，例如 `graph/lib/`、`history/lib/`、`labels/lib/`。
+
+## Package 布局
+
+`packages/<name>/src/` 默认保持扁平，除非 package 明显需要子目录。
+
+```text
+packages/analyzers/src/
+  direct-transfer.ts
+  direct-transfer.test.ts
+  index.ts          # 窄公共导出
+```
+
+约定：
+
+- package 测试与源码同目录。
+- `index.ts` 保持窄导出面。
+- 文件超过约 350 行时先拆分，再扩展行为。
+- 领域逻辑留在 `packages/*`；路由与 UI 负责编排，不重复实现核心逻辑。
+
 ## UI 风格
 
 UI 应像分析工作台，而不是营销页面。

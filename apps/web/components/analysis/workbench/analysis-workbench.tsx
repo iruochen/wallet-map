@@ -20,7 +20,7 @@ import {
   getEvmAggregateChains,
 } from "../../../app/chains";
 import { ANALYSIS_PHASE_ORDER } from "../../../app/api/analyze/progress";
-import { readJsonResponse } from "../../api/read-json-response";
+import { readJsonResponse } from "../../../lib/read-json-response";
 import { useI18n } from "../../i18n/i18n-provider";
 import { AnalysisEvidencePanel } from "../evidence/analysis-evidence-panel";
 import { parseAddressImport, type AddressImportSummary } from "../lib/address-import";
@@ -41,7 +41,7 @@ import type {
   GraphEdge,
   GraphNode,
 } from "../types";
-import { saveSessionHistoryJob } from "../../history/session-history";
+import { saveSessionHistoryJob } from "../../history/lib/session-history";
 import { GraphExplorer } from "../../graph/graph-explorer";
 import { AnalysisProgress } from "./analysis-progress";
 import { ExposureScoreDimensions } from "./analysis-score-dimensions";

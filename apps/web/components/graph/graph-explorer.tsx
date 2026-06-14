@@ -31,8 +31,8 @@ import {
   shortenAddress,
   shortenTxHash,
 } from "../../app/format";
-import type { GraphExplorerEdge, GraphExplorerNode, ResolvedNode } from "./graph-types";
-import { buildLayoutOptions, fitOverviewViewport, runLayout } from "./graph-layout";
+import type { GraphExplorerEdge, GraphExplorerNode, ResolvedNode } from "./lib/graph-types";
+import { buildLayoutOptions, fitOverviewViewport, runLayout } from "./lib/graph-layout";
 import { formatEdgeKindLegendLabel } from "../analysis/lib/formatters";
 import { useI18n } from "../i18n/i18n-provider";
 import {
@@ -49,7 +49,7 @@ import {
   formatNodeRoleLabel,
   hasMultipleChains,
   resolveNodes,
-} from "./graph-utils";
+} from "./lib/graph-utils";
 
 if (typeof window !== "undefined") {
   const registry = cytoscape as unknown as { _walletMapFcoseRegistered?: boolean };

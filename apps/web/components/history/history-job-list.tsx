@@ -10,10 +10,10 @@ import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
 import {
   buildHistoryComparison,
   toggleHistoryComparisonSelection,
-} from "./history-comparison";
+} from "./lib/history-comparison";
 import { HistoryDeleteDialog } from "./history-delete-dialog";
 import { HistoryIdentityAvatar } from "./history-identity-avatar";
-import { readSessionHistoryJobs } from "./session-history";
+import { readSessionHistoryJobs } from "./lib/session-history";
 import type { HistoryJobItem, HistoryResponse } from "./history-types";
 
 const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";

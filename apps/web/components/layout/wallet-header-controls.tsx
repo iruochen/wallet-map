@@ -5,7 +5,7 @@ import { CheckCircle2, LogOut, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount, useDisconnect, useSignMessage } from "wagmi";
-import { readJsonResponse } from "../api/read-json-response";
+import { readJsonResponse } from "../../lib/read-json-response";
 import { useI18n } from "../i18n/i18n-provider";
 import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
 

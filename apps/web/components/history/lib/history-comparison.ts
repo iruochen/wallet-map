@@ -1,4 +1,4 @@
-import type { HistoryJobItem } from "./history-types";
+import type { HistoryJobItem } from "../history-types";
 
 export interface HistoryComparisonMetric {
   label: string;

@@ -1,5 +1,5 @@
-import { getSupportedAnalysisChain } from "../../app/chains";
-import type { I18nKey } from "../i18n/i18n-provider";
+import { getSupportedAnalysisChain } from "../../../app/chains";
+import type { I18nKey } from "../../i18n/i18n-provider";
 
 type TranslateFn = (key: I18nKey, params?: Record<string, string | number>) => string;
 

@@ -87,6 +87,51 @@ Prefer tests around:
 
 Avoid snapshot tests for analysis output unless the output is intentionally a stable report format.
 
+## Frontend Module Layout
+
+Organize `apps/web/components/<domain>/` by responsibility. Use `components/analysis/` as the canonical example.
+
+```text
+components/analysis/
+  index.ts          # narrow barrel for page-level imports
+  types.ts          # shared domain types
+  workbench/        # page orchestration and primary panels
+  evidence/         # focused UI for one workflow area
+  lib/              # pure helpers, formatters, restore logic
+    foo.ts
+    foo.test.ts     # colocated tests
+```
+
+Guidelines:
+
+- Put pure logic, formatting, download helpers, and state restore code in `lib/`.
+- Put orchestration components in `workbench/` or a similarly named UI subfolder.
+- Put reusable UI fragments for one sub-area in a feature subfolder such as `evidence/`.
+- Keep shared types at the domain root as `types.ts`.
+- Export only what pages or other domains need from `index.ts`.
+- Colocate Vitest files with the module they test (`foo.ts` + `foo.test.ts` in the same folder).
+- Keep React components under roughly 350 lines. Split helpers and subcomponents before adding more behavior.
+- Do not place API helpers under `components/`. Shared app utilities belong in `apps/web/lib/`.
+- Apply the same `lib/` pattern to other domains when they grow, for example `graph/lib/`, `history/lib/`, and `labels/lib/`.
+
+## Package Layout
+
+Keep `packages/<name>/src/` flat unless a package clearly needs subfolders.
+
+```text
+packages/analyzers/src/
+  direct-transfer.ts
+  direct-transfer.test.ts
+  index.ts          # narrow public exports
+```
+
+Guidelines:
+
+- Colocate package tests with source files.
+- Keep `index.ts` as a narrow export surface.
+- Split files that grow past roughly 350 lines before adding more behavior.
+- Domain logic stays in `packages/*`; route handlers and UI should orchestrate rather than reimplement it.
+
 ## UI Style
 
 The UI should feel like an analysis workbench, not a marketing page.

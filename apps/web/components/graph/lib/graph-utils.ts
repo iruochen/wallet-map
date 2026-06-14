@@ -3,13 +3,13 @@ import {
   buildExplorerAddressUrl,
   buildExplorerTxUrl,
   getSupportedAnalysisChain,
-} from "../../app/chains";
+} from "../../../app/chains";
 import {
   formatAmount,
   formatMethodSelectorLabel,
   shortenAddress,
-} from "../../app/format";
-import type { I18nKey } from "../i18n/i18n-provider";
+} from "../../../app/format";
+import type { I18nKey } from "../../i18n/i18n-provider";
 import type { GraphExplorerEdge, GraphExplorerNode, ResolvedNode } from "./graph-types";
 
 type TranslateFn = (key: I18nKey, params?: Record<string, string | number>) => string;

@@ -11,8 +11,8 @@ import {
   formatLocalizedLabelSource,
   formatLabelChainShort,
   isLocalLabelSource,
-} from "./label-display";
-import type { KnownLabelRecord } from "./label-types";
+} from "./lib/label-display";
+import type { KnownLabelRecord } from "./lib/label-types";
 
 export function LabelRecordList({
   labels,
