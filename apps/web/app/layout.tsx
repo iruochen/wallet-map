@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "@rainbow-me/rainbowkit/styles.css";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AppProviders } from "./providers";
 import "./styles.css";
 
@@ -23,6 +24,7 @@ export default function RootLayout({
       <body>
         <AppProviders>{children}</AppProviders>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
