@@ -1,37 +1,50 @@
 import { getSupportedAnalysisChain } from "../../app/chains";
+import type { I18nKey } from "../i18n/i18n-provider";
 
-const sourceLabels: Record<string, string> = {
-  "local-labels": "本地标签",
-  "static-label-registry": "静态标签",
-  "chainbase-address-labels": "Chainbase",
-  "etherscan-nametag": "Etherscan",
-  "known-entity-labels": "已知实体",
+type TranslateFn = (key: I18nKey, params?: Record<string, string | number>) => string;
+
+const sourceKeys: Record<string, I18nKey> = {
+  "local-labels": "labels.source.local",
+  "static-label-registry": "labels.source.static",
+  "chainbase-address-labels": "labels.source.chainbase",
+  "etherscan-nametag": "labels.source.etherscan",
+  "known-entity-labels": "labels.source.knownEntity",
 };
 
-const nodeKindLabels: Record<string, string> = {
-  wallet: "钱包",
-  contract: "合约",
-  entity: "实体",
-  asset: "资产",
+const nodeKindKeys: Record<string, I18nKey> = {
+  wallet: "labels.nodeKind.wallet",
+  contract: "labels.nodeKind.contract",
+  entity: "labels.nodeKind.entity",
+  asset: "labels.nodeKind.asset",
 };
 
-const categoryLabels: Record<string, string> = {
-  exchange: "交易所",
-  bridge: "跨链桥",
-  dex: "DEX",
-  defi: "DeFi",
-  stablecoin: "稳定币",
-  token: "代币",
-  contract: "合约",
-  wallet: "钱包",
-  unknown: "未知",
+const categoryKeys: Record<string, I18nKey> = {
+  exchange: "labels.category.exchange",
+  bridge: "labels.category.bridge",
+  dex: "labels.category.dex",
+  defi: "labels.category.defi",
+  stablecoin: "labels.category.stablecoin",
+  token: "labels.category.token",
+  contract: "labels.category.contract",
+  wallet: "labels.category.wallet",
+  unknown: "labels.category.unknown",
 };
 
 export function formatLabelChainName(chainId: number): string {
   const chain = getSupportedAnalysisChain(chainId);
 
   if (!chain) {
-    return `未知链 (${chainId})`;
+    return `Unknown chain (${chainId})`;
+  }
+
+  return `${chain.name} · ${chain.shortName}`;
+}
+
+export function formatLocalizedLabelChainName(t: TranslateFn, chainId: number): string {
+  const chain = getSupportedAnalysisChain(chainId);
+
+  if (!chain) {
+    return t("labels.chain.unknown", { chainId });
   }
 
   return `${chain.name} · ${chain.shortName}`;
@@ -44,11 +57,21 @@ export function formatLabelChainShort(chainId: number): string {
 }
 
 export function formatLabelSource(source: string): string {
-  return sourceLabels[source] ?? source;
+  return source;
+}
+
+export function formatLocalizedLabelSource(t: TranslateFn, source: string): string {
+  const key = sourceKeys[source];
+  return key ? t(key) : source;
 }
 
 export function formatLabelNodeKind(nodeKind: string): string {
-  return nodeKindLabels[nodeKind] ?? nodeKind;
+  return nodeKind;
+}
+
+export function formatLocalizedLabelNodeKind(t: TranslateFn, nodeKind: string): string {
+  const key = nodeKindKeys[nodeKind];
+  return key ? t(key) : nodeKind;
 }
 
 export function formatLabelCategory(category: string | undefined): string | undefined {
@@ -56,7 +79,16 @@ export function formatLabelCategory(category: string | undefined): string | unde
     return undefined;
   }
 
-  return categoryLabels[category] ?? category;
+  return category;
+}
+
+export function formatLocalizedLabelCategory(t: TranslateFn, category: string | undefined): string | undefined {
+  if (!category) {
+    return undefined;
+  }
+
+  const key = categoryKeys[category];
+  return key ? t(key) : category;
 }
 
 export function isLocalLabelSource(source: string): boolean {

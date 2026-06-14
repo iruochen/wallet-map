@@ -1,10 +1,13 @@
 import { ChevronDown } from "lucide-react";
-import { formatEdgeKindLabel } from "../../app/format";
-import { EdgeRow, EvidenceItemView, FindingChainBadges } from "./analysis-evidence";
+import { AggregatedEdgeRow, aggregateEdgesForDisplay } from "./analysis-evidence-edge-groups";
+import { EvidenceItemView, FindingChainBadges } from "./analysis-evidence";
+import { isAggregatedFindingGroup, SharedFindingRow } from "./analysis-evidence-shared";
 import {
   describeEdgeGroup,
+  formatEdgeKindLegendLabel,
   formatFindingConfidenceText,
   formatFindingRiskLabel,
+  formatFindingTitle,
 } from "./analysis-formatters";
 import { LoadingList } from "./analysis-progress";
 import type { AnalysisResponse, GraphEdge, GraphNode } from "./analysis-types";
@@ -69,6 +72,7 @@ export function AnalysisEvidencePanel({
         groups={groupedFindings}
         result={result}
         watchedAddressSet={watchedAddressSet}
+        graphNodeIndex={graphNodeIndex}
         isOpen={isFindingGroupOpen}
         onToggle={toggleFindingGroup}
       />
@@ -101,16 +105,19 @@ function FindingGroups({
   groups,
   result,
   watchedAddressSet,
+  graphNodeIndex,
   isOpen,
   onToggle,
 }: {
   groups: FindingGroup[];
   result: AnalysisResponse;
   watchedAddressSet: Set<string>;
+  graphNodeIndex: Map<string, GraphNode>;
   isOpen: (title: string, index: number) => boolean;
   onToggle: (title: string, index: number) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const aggregated = (title: string) => isAggregatedFindingGroup(title);
 
   return (
     <div className="groupedPanelList">
@@ -126,7 +133,7 @@ function FindingGroups({
               onClick={() => onToggle(group.title, index)}
             >
               <span className="groupedPanelSummaryText">
-                <span className="groupedPanelTitle">{group.title}</span>
+                <span className="groupedPanelTitle">{formatFindingTitle(t, group.title)}</span>
                 <span className="groupedPanelHint">{group.summary}</span>
               </span>
               <span className="groupedPanelMeta">
@@ -136,43 +143,66 @@ function FindingGroups({
             </button>
             <div className="groupedPanelBody" aria-hidden={!open}>
               <div className="groupedPanelBodyInner">
-                <ul className="findingList">
-                  {group.findings.map((finding) => (
-                    <li key={finding.id}>
-                      <div className="findingHeader">
-                        <strong>{finding.title}</strong>
-                        <span className="findingMeta">
-                          <FindingChainBadges finding={finding} fallbackChainId={result.meta.chainId} />
-                          <span className={`severityPill severity-${finding.severity}`}>
-                            {t("analysis.evidence.risk")} {formatFindingRiskLabel(t, finding.severity)}
+                {aggregated(group.title) ? (
+                  <ul className="sharedFindingList">
+                    {group.findings.map((finding) => (
+                      <SharedFindingRow
+                        key={finding.id}
+                        finding={finding}
+                        fallbackChainId={result.meta.chainId}
+                        watchedAddressSet={watchedAddressSet}
+                        graphNodeIndex={graphNodeIndex}
+                        locale={locale}
+                        t={t}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <ul className="findingList">
+                    {group.findings.map((finding) => (
+                      <li key={finding.id}>
+                        <div className="findingHeader">
+                          <strong className="findingTitleChip" title={finding.title}>
+                            {formatFindingTitle(t, finding.title)}
+                          </strong>
+                          <span className="findingMeta">
+                            <FindingChainBadges finding={finding} fallbackChainId={result.meta.chainId} />
+                            <span className={`severityPill severity-${finding.severity}`}>
+                              {t("analysis.evidence.risk")} {formatFindingRiskLabel(t, finding.severity)}
+                            </span>
+                            <span className={`confidencePill confidence-${finding.confidence}`}>
+                              {t("analysis.evidence.confidence")} {formatFindingConfidenceText(t, finding.confidence)}
+                            </span>
                           </span>
-                          <span className={`confidencePill confidence-${finding.confidence}`}>
-                            {t("analysis.evidence.confidence")} {formatFindingConfidenceText(t, finding.confidence)}
-                          </span>
-                        </span>
-                      </div>
-                      <p>{finding.description}</p>
-                      {finding.evidenceTruncated ? (
-                        <p className="previewHint">
-                          {t("analysis.evidence.previewHint", {
-                            shown: finding.evidence.length,
-                            total: finding.evidenceTotal,
-                          })}
-                        </p>
-                      ) : null}
-                      <div className="evidenceList">
-                        {finding.evidence.map((evidence) => (
-                          <EvidenceItemView
-                            key={evidence.eventId}
-                            evidence={evidence}
-                            chainId={result.meta.chainId}
-                            watchedAddressSet={watchedAddressSet}
-                          />
-                        ))}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                        </div>
+                        <details className="findingDetails">
+                          <summary>{t("analysis.evidence.details")}</summary>
+                          <p>{finding.description}</p>
+                        </details>
+                        {finding.evidenceTruncated ? (
+                          <p className="previewHint">
+                            {t("analysis.evidence.previewHint", {
+                              shown: finding.evidence.length,
+                              total: finding.evidenceTotal,
+                            })}
+                          </p>
+                        ) : null}
+                        <div className="evidenceList">
+                          {finding.evidence.map((evidence) => (
+                            <EvidenceItemView
+                              key={evidence.eventId}
+                              evidence={evidence}
+                              chainId={result.meta.chainId}
+                              watchedAddressSet={watchedAddressSet}
+                              locale={locale}
+                              t={t}
+                            />
+                          ))}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           </section>
@@ -197,7 +227,7 @@ function EdgeGroups({
   isOpen: (kind: GraphEdge["kind"], index: number) => boolean;
   onToggle: (kind: GraphEdge["kind"], index: number) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   return (
     <div className="groupedPanelList">
@@ -213,7 +243,7 @@ function EdgeGroups({
               onClick={() => onToggle(group.kind, index)}
             >
               <span className="groupedPanelSummaryText">
-                <span className="groupedPanelTitle">{formatEdgeKindLabel(group.kind)}</span>
+                <span className="groupedPanelTitle">{formatEdgeKindLegendLabel(t, group.kind)}</span>
                 <span className="groupedPanelHint">{describeEdgeGroup(t, group.kind, group.edges.length)}</span>
               </span>
               <span className="groupedPanelMeta">
@@ -223,14 +253,16 @@ function EdgeGroups({
             </button>
             <div className="groupedPanelBody" aria-hidden={!open}>
               <div className="groupedPanelBodyInner">
-                <ul className="edgeList">
-                  {group.edges.map((edge) => (
-                    <EdgeRow
-                      key={edge.id}
-                      edge={edge}
+                <ul className="edgeList edgeListAggregated">
+                  {aggregateEdgesForDisplay(group.edges).map((aggregated) => (
+                    <AggregatedEdgeRow
+                      key={aggregated.key}
+                      group={aggregated}
                       chainId={result.meta.chainId}
                       watchedAddressSet={watchedAddressSet}
                       nodeIndex={graphNodeIndex}
+                      locale={locale}
+                      t={t}
                     />
                   ))}
                 </ul>

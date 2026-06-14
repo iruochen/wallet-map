@@ -17,6 +17,7 @@ export interface WalletPairInsight {
   confidence: "low" | "medium" | "high";
   signalCount: number;
   reasons: string[];
+  chainIds: number[];
 }
 
 export interface SignalHighlight {
@@ -37,6 +38,8 @@ interface FindingWithMetadata extends Finding {
     source?: string;
     target?: string;
     watchedWalletNodeIds?: string[];
+    contractNodeId?: string;
+    counterpartyNodeId?: string;
   };
 }
 
@@ -164,6 +167,7 @@ export function buildPresentationSummary(
         confidence: "low",
         signalCount: 0,
         reasons: [],
+        chainIds: [],
       };
 
       current.score += finding.scoreImpact;
@@ -174,12 +178,23 @@ export function buildPresentationSummary(
         current.reasons.push(finding.title);
       }
 
+      for (const chainId of collectFindingChainIds(finding, nodeIndex)) {
+        if (!current.chainIds.includes(chainId)) {
+          current.chainIds.push(chainId);
+        }
+      }
+
       current.strength = classifyStrength(current.score, current.confidence, current.reasons);
       pairMap.set(pairId, current);
     }
   }
 
-  const pairInsights = Array.from(pairMap.values()).sort((left, right) => {
+  const pairInsights = Array.from(pairMap.values())
+    .map((pair) => ({
+      ...pair,
+      chainIds: [...pair.chainIds].sort((left, right) => left - right),
+    }))
+    .sort((left, right) => {
     if (left.score !== right.score) {
       return right.score - left.score;
     }
@@ -200,6 +215,39 @@ export function buildPresentationSummary(
     pairInsights,
     signalHighlights,
   };
+}
+
+function collectFindingChainIds(
+  finding: FindingWithMetadata,
+  nodeIndex: Map<string, GraphNode>,
+): number[] {
+  const chainIds = new Set<number>();
+  const nodeIds = [
+    ...(finding.metadata?.watchedWalletNodeIds ?? []),
+    finding.metadata?.contractNodeId,
+    finding.metadata?.counterpartyNodeId,
+    finding.metadata?.source,
+    finding.metadata?.target,
+  ].filter((nodeId): nodeId is string => typeof nodeId === "string");
+
+  for (const nodeId of nodeIds) {
+    const chainId = nodeIndex.get(nodeId)?.chainId ?? extractChainIdFromNodeId(nodeId);
+    if (typeof chainId === "number" && Number.isFinite(chainId)) {
+      chainIds.add(chainId);
+    }
+  }
+
+  return Array.from(chainIds);
+}
+
+function extractChainIdFromNodeId(nodeId: string): number | undefined {
+  const match = /^(?:wallet|contract|entity|asset):(\d+):/.exec(nodeId);
+  if (!match) {
+    return undefined;
+  }
+
+  const chainId = Number(match[1]);
+  return Number.isFinite(chainId) ? chainId : undefined;
 }
 
 function resolveWalletNodeIds(

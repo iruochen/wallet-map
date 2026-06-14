@@ -54,6 +54,7 @@ const response: AnalysisResponse = {
         confidence: "high",
         signalCount: 1,
         reasons: ["Direct transfer found"],
+        chainIds: [1],
       },
     ],
     signalHighlights: [{ analyzerId: "direct-transfer", title: "Direct transfer found", count: 1 }],

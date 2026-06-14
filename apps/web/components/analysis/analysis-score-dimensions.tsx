@@ -1,4 +1,5 @@
-import { useI18n, type I18nKey } from "../i18n/i18n-provider";
+import type { I18nKey } from "../i18n/i18n-provider";
+import { useI18n } from "../i18n/i18n-provider";
 import type { AnalysisResponse } from "./analysis-types";
 
 type ScoreDimensions = AnalysisResponse["score"]["dimensions"];
@@ -6,14 +7,13 @@ type ScoreDimensionKey = keyof ScoreDimensions;
 
 const dimensionItems: Array<{
   key: ScoreDimensionKey;
-  label: string;
-  descriptionKey: I18nKey;
+  labelKey: I18nKey;
 }> = [
-  { key: "funding", label: "Funding", descriptionKey: "analysis.exposure.funding.description" },
-  { key: "destination", label: "Destination", descriptionKey: "analysis.exposure.destination.description" },
-  { key: "contract", label: "Contract", descriptionKey: "analysis.exposure.contract.description" },
-  { key: "temporal", label: "Time", descriptionKey: "analysis.exposure.temporal.description" },
-  { key: "asset", label: "Asset", descriptionKey: "analysis.exposure.asset.description" },
+  { key: "funding", labelKey: "analysis.exposure.dimension.funding" },
+  { key: "destination", labelKey: "analysis.exposure.dimension.destination" },
+  { key: "contract", labelKey: "analysis.exposure.dimension.contract" },
+  { key: "temporal", labelKey: "analysis.exposure.dimension.temporal" },
+  { key: "asset", labelKey: "analysis.exposure.dimension.asset" },
 ];
 
 interface ExposureScoreDimensionsProps {
@@ -35,7 +35,7 @@ export function ExposureScoreDimensions({
       <header className="exposureDimensionsHeader">
         <div>
           <strong>{t("analysis.exposure.title")}</strong>
-          <span>{t("analysis.exposure.strongest", { label: strongestDimension.label })}</span>
+          <span>{t("analysis.exposure.strongest", { label: t(strongestDimension.labelKey) })}</span>
         </div>
         <span>{dimensions[strongestDimension.key]}/100</span>
       </header>
@@ -46,13 +46,12 @@ export function ExposureScoreDimensions({
           return (
             <div key={item.key} className="exposureDimensionItem">
               <div className="exposureDimensionLabel">
-                <strong>{item.label}</strong>
+                <strong>{t(item.labelKey)}</strong>
                 <span>{value}</span>
               </div>
               <div className="exposureDimensionTrack" aria-hidden="true">
                 <span style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
               </div>
-              <p>{t(item.descriptionKey)}</p>
             </div>
           );
         })}

@@ -26,11 +26,8 @@ import { AnalysisEvidencePanel } from "./analysis-evidence-panel";
 import { parseAddressImport, type AddressImportSummary } from "./address-import";
 import {
   describeFindingGroup,
-  formatConfidenceLabel,
   formatSkippedChainDetails,
   formatSkippedChainSummary,
-  formatSummaryHeadline,
-  formatSummaryNarrative,
   formatVerdictLabel,
 } from "./analysis-formatters";
 import { AnalysisProgress } from "./analysis-progress";
@@ -38,6 +35,7 @@ import {
   downloadAnalysisReport,
 } from "./analysis-report-download";
 import { ExposureScoreDimensions } from "./analysis-score-dimensions";
+import { PairInsightCard } from "./pair-insight-card";
 import { saveSessionHistoryJob } from "../history/session-history";
 import type {
   AnalysisJobPollResponse,
@@ -827,10 +825,10 @@ export function AnalysisWorkbench({
                   <FileText size={15} strokeWidth={2.1} />
                   PDF
                 </button>
-                <span className="statusPill statusSuccess">Complete</span>
+                <span className="statusPill statusSuccess">{t("analysis.summary.status.complete")}</span>
               </div>
             ) : null}
-            {isRunning ? <span className="statusPill statusRunning">Running</span> : null}
+            {isRunning ? <span className="statusPill statusRunning">{t("analysis.summary.status.running")}</span> : null}
           </div>
           {isRunning ? (
             <div className="emptyStateBlock emptyStateRunning">
@@ -885,44 +883,12 @@ export function AnalysisWorkbench({
                         {t("analysis.summary.walletPairHits", { count: result.summary.pairInsights.length })}
                       </span>
                     </div>
-                    <strong>
-                      {formatSummaryHeadline(t, result.summary.verdict, result.summary.pairInsights.length)}
-                    </strong>
-                    <p className="verdictNarrative">
-                      {formatSummaryNarrative(t, result.summary.verdict, result.summary.pairInsights)}
-                    </p>
                   </div>
                   <div className="pairInsightList">
                     {result.summary.pairInsights.slice(0, 3).map((pair) => (
-                      <div key={pair.id} className="pairInsightCard">
-                        <div className="pairInsightHeader">
-                          <strong>{pair.labels.join(" ↔ ")}</strong>
-                          <span className={`verdictPill verdictPill-${pair.strength}`}>
-                            <Sparkles size={13} strokeWidth={2.1} />
-                            {formatVerdictLabel(t, pair.strength)}
-                          </span>
-                        </div>
-                        <p>{pair.reasons.join(" · ")}</p>
-                        <div className="pairInsightMeta">
-                          <span>{t("analysis.summary.signalCount", { count: pair.signalCount })}</span>
-                          <span>{formatVerdictLabel(t, pair.strength)}{t("analysis.summary.verdictSuffix")}</span>
-                          <span>{formatConfidenceLabel(t, pair.confidence)}</span>
-                        </div>
-                      </div>
+                      <PairInsightCard key={pair.id} pair={pair} t={t} />
                     ))}
                   </div>
-                  {result.summary.signalHighlights.length > 0 ? (
-                    <div className="signalSummaryCard">
-                      <strong>{t("analysis.summary.signalGroups")}</strong>
-                      <ul className="reasonList">
-                        {result.summary.signalHighlights.map((signal) => (
-                          <li key={`${signal.analyzerId}:${signal.title}`}>
-                            {signal.title} · {signal.count}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
                 </>
               ) : (
                 <div className="emptyStateBlock emptyStatePositive">

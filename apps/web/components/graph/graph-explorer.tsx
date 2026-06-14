@@ -33,6 +33,7 @@ import {
 } from "../../app/format";
 import type { GraphExplorerEdge, GraphExplorerNode, ResolvedNode } from "./graph-types";
 import { buildLayoutOptions, fitOverviewViewport, runLayout } from "./graph-layout";
+import { formatEdgeKindLegendLabel } from "../analysis/analysis-formatters";
 import { useI18n } from "../i18n/i18n-provider";
 import {
   buildElements,
@@ -491,10 +492,14 @@ export function GraphExplorer({
                 className={`graphLegendItem ${hidden ? "graphLegendItemHidden" : ""}`}
                 style={{ "--legend-color": edgePalette[kind] } as React.CSSProperties}
                 aria-pressed={!hidden}
-                title={hidden ? t("graph.showAgain") : t("graph.hideKind")}
+                title={
+                  hidden
+                    ? `${formatEdgeKindLabel(kind)} · ${t("graph.showAgain")}`
+                    : `${formatEdgeKindLabel(kind)} · ${t("graph.hideKind")}`
+                }
               >
                 <span className="graphLegendSwatch" aria-hidden="true" />
-                {formatEdgeKindLabel(kind)}
+                {formatEdgeKindLegendLabel(t, kind)}
               </button>
             );
           })}

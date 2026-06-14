@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Database, Plus, RefreshCw, Search } from "lu
 import { useCallback, useEffect, useState } from "react";
 import { supportedAnalysisChains } from "../../app/chains";
 import { readJsonResponse } from "../api/read-json-response";
+import { useI18n } from "../i18n/i18n-provider";
 import { isLocalLabelSource } from "./label-display";
 import { LabelFormDialog } from "./label-form-dialog";
 import { LabelRecordList } from "./label-record-list";
@@ -30,6 +31,7 @@ export function LabelManager({
   initialStats: LabelListStats;
   initialStorageEnabled: boolean;
 }) {
+  const { t } = useI18n();
   const [labels, setLabels] = useState(initialLabels);
   const [total, setTotal] = useState(initialTotal);
   const [stats, setStats] = useState(initialStats);
@@ -127,7 +129,7 @@ export function LabelManager({
       tags: label.tags.join(", "),
       nodeKind: label.nodeKind,
     });
-    setMessage("修改后保存即可更新这条本地标签。");
+    setMessage(t("labels.dialog.edit.hint"));
     setError(null);
     setDialogOpen(true);
   }
@@ -164,7 +166,7 @@ export function LabelManager({
         throw new Error(body.error ?? "Failed to save label.");
       }
 
-      setMessage("本地标签已保存。");
+      setMessage(t("labels.dialog.saved"));
       setForm(emptyLabelForm);
       await loadLabels();
 
@@ -185,13 +187,13 @@ export function LabelManager({
         <section className="labelWorkspace" aria-labelledby="label-list-title">
           <div className="labelWorkspaceTop">
             <div className="labelWorkspaceIntro">
-              <h2 id="label-list-title">标签库</h2>
+              <h2 id="label-list-title">{t("labels.title")}</h2>
             </div>
 
             <div className="labelWorkspaceActions">
               <span className={storageEnabled ? "labelStatus labelStatusOk" : "labelStatus"}>
                 <Database size={14} aria-hidden="true" />
-                {storageEnabled ? "数据库已连接" : "数据库未配置"}
+                {storageEnabled ? t("labels.storage.connected") : t("labels.storage.missing")}
               </span>
               <button
                 type="button"
@@ -200,36 +202,36 @@ export function LabelManager({
                 disabled={!storageEnabled}
               >
                 <Plus size={16} aria-hidden="true" />
-                添加标签
+                {t("labels.action.add")}
               </button>
             </div>
           </div>
 
-          <div className="labelMetricStrip" aria-label="标签库统计">
+          <div className="labelMetricStrip" aria-label={t("labels.title")}>
             <div className="labelMetricPill">
-              <span>全部</span>
+              <span>{t("labels.metric.all")}</span>
               <strong>{stats.total}</strong>
             </div>
             <div className="labelMetricPill labelMetricPillLocal">
-              <span>本地</span>
+              <span>{t("labels.metric.local")}</span>
               <strong>{stats.local}</strong>
             </div>
             <div className="labelMetricPill labelMetricPillDiscovered">
-              <span>分析写入</span>
+              <span>{t("labels.metric.discovered")}</span>
               <strong>{stats.discovered}</strong>
             </div>
           </div>
 
           {!storageEnabled ? (
             <div className="labelStorageNotice">
-              <strong>需要配置 PostgreSQL</strong>
-              <p>设置 DATABASE_URL 并运行迁移后，可以在这里管理团队本地标签库。</p>
+              <strong>{t("labels.storage.notice.title")}</strong>
+              <p>{t("labels.storage.notice.body")}</p>
             </div>
           ) : null}
 
           <div className={`labelFilterBar ${isLoading ? "labelFilterBarLoading" : ""}`}>
             <label className="labelFilterField">
-              <span>链</span>
+              <span>{t("labels.filter.chain")}</span>
               <select
                 className="labelFieldInput"
                 value={listChainFilter === "all" ? "all" : String(listChainFilter)}
@@ -240,7 +242,7 @@ export function LabelManager({
                   setListChainFilter(value === "all" ? "all" : Number(value));
                 }}
               >
-                <option value="all">全部链</option>
+                <option value="all">{t("labels.filter.chain.all")}</option>
                 {supportedAnalysisChains.map((chain) => (
                   <option key={chain.chainId} value={chain.chainId}>
                     {chain.name}
@@ -250,7 +252,7 @@ export function LabelManager({
             </label>
 
             <label className="labelFilterField">
-              <span>来源</span>
+              <span>{t("labels.filter.source")}</span>
               <select
                 className="labelFieldInput"
                 value={sourceFilter}
@@ -260,14 +262,14 @@ export function LabelManager({
                   setSourceFilter(event.target.value as SourceFilter);
                 }}
               >
-                <option value="all">全部来源</option>
-                <option value="local-labels">仅本地标签</option>
-                <option value="discovered">分析写入</option>
+                <option value="all">{t("labels.filter.source.all")}</option>
+                <option value="local-labels">{t("labels.filter.source.local")}</option>
+                <option value="discovered">{t("labels.filter.source.discovered")}</option>
               </select>
             </label>
 
             <label className="labelFilterField labelFilterSearch">
-              <span>搜索</span>
+              <span>{t("labels.filter.search")}</span>
               <span className="labelSearchInputWrap">
                 <Search size={15} aria-hidden="true" />
                 <input
@@ -278,7 +280,7 @@ export function LabelManager({
                     setPage(1);
                     setQuery(event.target.value);
                   }}
-                  placeholder="地址、标签、实体或来源"
+                  placeholder={t("labels.filter.search.placeholder")}
                 />
               </span>
             </label>
@@ -288,7 +290,7 @@ export function LabelManager({
               className="labelRefreshButton"
               onClick={() => void loadLabels()}
               disabled={isLoading}
-              aria-label="刷新标签列表"
+              aria-label={t("labels.action.refresh")}
             >
               <RefreshCw size={16} className={isLoading ? "historySpinIcon" : undefined} />
             </button>
@@ -296,11 +298,13 @@ export function LabelManager({
 
           <div className="labelResultBar">
             <span>
-              {total === 0 ? "暂无记录" : `第 ${rangeStart}-${rangeEnd} 条，共 ${total} 条`}
+              {total === 0
+                ? t("labels.result.empty")
+                : t("labels.result.range", { start: rangeStart, end: rangeEnd, total })}
             </span>
             <div className="labelResultActions">
               <label className="labelPageSizeControl">
-                <span>每页</span>
+                <span>{t("labels.filter.pageSize")}</span>
                 <select
                   className="labelFieldInput"
                   value={pageSize}
@@ -323,6 +327,7 @@ export function LabelManager({
                 isLoading={isLoading}
                 onPrevious={() => setPage((current) => Math.max(1, current - 1))}
                 onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+                t={t}
               />
             </div>
           </div>
@@ -371,12 +376,14 @@ function LabelPaginationControls({
   isLoading,
   onPrevious,
   onNext,
+  t,
 }: {
   page: number;
   totalPages: number;
   isLoading: boolean;
   onPrevious: () => void;
   onNext: () => void;
+  t: ReturnType<typeof useI18n>["t"];
 }) {
   return (
     <div className="labelPaginationControls">
@@ -385,19 +392,17 @@ function LabelPaginationControls({
         className="labelPaginationButton"
         onClick={onPrevious}
         disabled={isLoading || page <= 1}
-        aria-label="上一页"
+        aria-label={t("labels.pagination.previous")}
       >
         <ChevronLeft size={16} aria-hidden="true" />
       </button>
-      <span>
-        第 {page} / {totalPages} 页
-      </span>
+      <span>{t("labels.pagination.page", { page, totalPages })}</span>
       <button
         type="button"
         className="labelPaginationButton"
         onClick={onNext}
         disabled={isLoading || page >= totalPages}
-        aria-label="下一页"
+        aria-label={t("labels.pagination.next")}
       >
         <ChevronRight size={16} aria-hidden="true" />
       </button>

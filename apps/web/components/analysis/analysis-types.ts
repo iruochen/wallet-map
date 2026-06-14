@@ -173,6 +173,7 @@ export interface AnalysisResponse {
       confidence: "low" | "medium" | "high";
       signalCount: number;
       reasons: string[];
+      chainIds: number[];
     }>;
     signalHighlights: Array<{
       analyzerId: string;

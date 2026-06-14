@@ -1,8 +1,9 @@
 "use client";
 
 import { Save, Tag, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { getEvmAggregateChains } from "../../app/chains";
+import { useI18n, type I18nKey } from "../i18n/i18n-provider";
 import {
   emptyLabelForm,
   labelCategoryOptions,
@@ -11,6 +12,26 @@ import {
 } from "./label-types";
 
 const evmChains = getEvmAggregateChains();
+
+const categoryLabelKeys: Record<string, I18nKey> = {
+  "": "labels.form.category.none",
+  exchange: "labels.category.exchange",
+  bridge: "labels.category.bridge",
+  dex: "labels.category.dex",
+  defi: "labels.category.defi",
+  stablecoin: "labels.category.stablecoin",
+  token: "labels.category.token",
+  contract: "labels.category.contract",
+  wallet: "labels.category.wallet",
+  unknown: "labels.category.unknown",
+};
+
+const nodeKindLabelKeys: Record<string, I18nKey> = {
+  wallet: "labels.nodeKind.wallet",
+  contract: "labels.nodeKind.contract",
+  entity: "labels.nodeKind.entity",
+  asset: "labels.nodeKind.asset",
+};
 
 export function LabelFormDialog({
   open,
@@ -39,9 +60,26 @@ export function LabelFormDialog({
   onSave: () => void;
   onReset: () => void;
 }) {
+  const { t } = useI18n();
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const isSavingRef = useRef(isSaving);
   const onCloseRef = useRef(onClose);
+  const categoryOptions = useMemo(
+    () =>
+      labelCategoryOptions.map((option) => ({
+        value: option.value,
+        label: t(categoryLabelKeys[option.value] ?? "labels.category.unknown"),
+      })),
+    [t],
+  );
+  const nodeKindOptions = useMemo(
+    () =>
+      labelNodeKindOptions.map((option) => ({
+        value: option.value,
+        label: t(nodeKindLabelKeys[option.value] ?? "labels.nodeKind.wallet"),
+      })),
+    [t],
+  );
 
   useEffect(() => {
     isSavingRef.current = isSaving;
@@ -83,7 +121,7 @@ export function LabelFormDialog({
           type="button"
           onClick={onClose}
           disabled={isSaving}
-          aria-label="关闭"
+          aria-label={t("labels.dialog.close")}
         >
           <X size={16} aria-hidden="true" />
         </button>
@@ -94,18 +132,16 @@ export function LabelFormDialog({
           </div>
           <div>
             <h2 className="labelDialogTitle" id="label-form-dialog-title">
-              {mode === "edit" ? "更新本地标签" : "添加本地标签"}
+              {mode === "edit" ? t("labels.dialog.edit.title") : t("labels.dialog.create.title")}
             </h2>
-            <p className="labelDialogDescription">
-              保存后分析任务会通过 PostgreSQL 标签提供器读取；仅支持 EVM 地址。
-            </p>
+            <p className="labelDialogDescription">{t("labels.dialog.description")}</p>
           </div>
         </div>
 
         <div className="labelDialogForm">
           <div className="labelDialogFormRow">
             <label>
-              <span>链</span>
+              <span>{t("labels.form.chain")}</span>
               <select
                 className="labelFieldInput"
                 value={formChainId}
@@ -119,13 +155,13 @@ export function LabelFormDialog({
               </select>
             </label>
             <label>
-              <span>节点类型</span>
+              <span>{t("labels.form.nodeKind")}</span>
               <select
                 className="labelFieldInput"
                 value={form.nodeKind}
                 onChange={(event) => onChangeForm({ ...form, nodeKind: event.target.value })}
               >
-                {labelNodeKindOptions.map((option) => (
+                {nodeKindOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -135,7 +171,7 @@ export function LabelFormDialog({
           </div>
 
           <label className="labelDialogFormWide">
-            <span>地址</span>
+            <span>{t("labels.form.address")}</span>
             <input
               ref={addressInputRef}
               className="labelFieldInput labelFieldMono"
@@ -149,36 +185,36 @@ export function LabelFormDialog({
 
           <div className="labelDialogFormRow">
             <label>
-              <span>显示名称</span>
+              <span>{t("labels.form.displayName")}</span>
               <input
                 className="labelFieldInput"
                 value={form.label}
                 onChange={(event) => onChangeForm({ ...form, label: event.target.value })}
-                placeholder="例如：团队金库"
+                placeholder={t("labels.form.displayName.placeholder")}
               />
-              <small>这条地址在列表、图谱和报告中展示的名字。</small>
+              <small>{t("labels.form.displayName.hint")}</small>
             </label>
             <label>
-              <span>实体</span>
+              <span>{t("labels.form.entity")}</span>
               <input
                 className="labelFieldInput"
                 value={form.entity}
                 onChange={(event) => onChangeForm({ ...form, entity: event.target.value })}
-                placeholder="例如：内部研究"
+                placeholder={t("labels.form.entity.placeholder")}
               />
-              <small>地址归属的组织、项目或业务主体；不确定可留空。</small>
+              <small>{t("labels.form.entity.hint")}</small>
             </label>
           </div>
 
           <div className="labelDialogFormRow">
             <label>
-              <span>分类</span>
+              <span>{t("labels.form.category")}</span>
               <select
                 className="labelFieldInput"
                 value={form.category}
                 onChange={(event) => onChangeForm({ ...form, category: event.target.value })}
               >
-                {labelCategoryOptions.map((option) => (
+                {categoryOptions.map((option) => (
                   <option key={option.value || "none"} value={option.value}>
                     {option.label}
                   </option>
@@ -186,7 +222,7 @@ export function LabelFormDialog({
               </select>
             </label>
             <label>
-              <span>标签组</span>
+              <span>{t("labels.form.tags")}</span>
               <input
                 className="labelFieldInput"
                 value={form.tags}
@@ -214,7 +250,7 @@ export function LabelFormDialog({
               }}
               disabled={isSaving}
             >
-              清空
+              {t("labels.action.clear")}
             </button>
             <button
               type="button"
@@ -223,7 +259,7 @@ export function LabelFormDialog({
               disabled={isSaving}
             >
               <Save size={15} aria-hidden="true" />
-              {isSaving ? "保存中…" : "保存标签"}
+              {isSaving ? t("labels.action.saving") : t("labels.action.save")}
             </button>
           </div>
         </div>

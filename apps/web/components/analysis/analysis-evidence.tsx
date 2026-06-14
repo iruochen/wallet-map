@@ -5,12 +5,13 @@ import {
   buildExplorerTxUrl,
   getSupportedAnalysisChain,
 } from "../../app/chains";
+import type { Locale } from "../i18n/i18n-provider";
 import type { AnalysisResponse, EvidenceItem, GraphEdge, GraphNode } from "./analysis-types";
+import type { TranslateFn } from "./analysis-formatters";
+import { formatEdgeKindLabelI18n, formatEventTypeLabelI18n } from "./analysis-formatters";
 import {
   formatAbsoluteTime,
   formatAmount,
-  formatEdgeKindLabel,
-  formatEventTypeLabel,
   formatMethodSelectorLabel,
   formatRelativeTime,
   shortenAddress,
@@ -21,10 +22,14 @@ export function EvidenceItemView({
   evidence,
   chainId,
   watchedAddressSet,
+  locale = "zh",
+  t,
 }: {
   evidence: EvidenceItem;
   chainId: number;
   watchedAddressSet: Set<string>;
+  locale?: Locale;
+  t: TranslateFn;
 }) {
   const event = evidence.event;
   const txHash = event?.txHash ?? evidence.txHash;
@@ -41,11 +46,14 @@ export function EvidenceItemView({
     (isNativeAsset || event?.asset?.decimals !== undefined);
   const amountFormatted = canRenderAmount ? formatAmount(event?.amount, amountDecimals) : undefined;
   const amountSymbol = event?.asset?.symbol ?? (isNativeAsset ? eventChain?.nativeSymbol : undefined);
+  const relativeTime = formatRelativeTime(event?.timestamp, new Date(), locale);
 
   return (
     <div className="evidenceItem">
       <div className="evidenceItemHeader">
-        <span className={`eventTypePill event-${event?.type ?? "unknown"}`}>{formatEventTypeLabel(event?.type)}</span>
+        <span className={`eventTypePill event-${event?.type ?? "unknown"}`}>
+          {formatEventTypeLabelI18n(t, event?.type)}
+        </span>
         <ChainBadge chainId={eventChainId} />
         {amountFormatted ? (
           <span className="amountChip">
@@ -53,31 +61,39 @@ export function EvidenceItemView({
             {amountSymbol ? <span>{amountSymbol}</span> : null}
           </span>
         ) : null}
-        {event?.transferScope === "internal" ? <span className="scopeChip">internal</span> : null}
+        {event?.transferScope === "internal" ? (
+          <span className="scopeChip">{t("analysis.evidence.internalTransfer")}</span>
+        ) : null}
         {event?.asset?.tokenId ? <span className="scopeChip">#{event.asset.tokenId}</span> : null}
-        {formatRelativeTime(event?.timestamp) ? (
-          <span className="evidenceTime" title={formatAbsoluteTime(event?.timestamp)}>
-            {formatRelativeTime(event?.timestamp)}
+        {relativeTime ? (
+          <span className="evidenceTime" title={formatAbsoluteTime(event?.timestamp, locale)}>
+            {relativeTime}
           </span>
         ) : null}
       </div>
       <div className="evidenceItemBody">
         {event?.from ? (
-          <AddressLink address={event.from} chainId={eventChainId} role="from" watchedAddressSet={watchedAddressSet} />
+          <AddressLink
+            address={event.from}
+            chainId={eventChainId}
+            role="from"
+            watchedAddressSet={watchedAddressSet}
+            t={t}
+          />
         ) : null}
         <ArrowRight size={14} strokeWidth={2.2} className="evidenceArrowIcon" aria-hidden="true" />
         {event?.to ? (
-          <AddressLink address={event.to} chainId={eventChainId} role="to" watchedAddressSet={watchedAddressSet} />
+          <AddressLink address={event.to} chainId={eventChainId} role="to" watchedAddressSet={watchedAddressSet} t={t} />
         ) : event?.contract ? (
           <AddressLink
             address={event.contract}
             chainId={eventChainId}
             role="contract"
             watchedAddressSet={watchedAddressSet}
-            label="contract"
+            t={t}
           />
         ) : (
-          <span className="evidenceUnknown">unknown</span>
+          <span className="evidenceUnknown">{t("analysis.evidence.unknown")}</span>
         )}
       </div>
       <div className="evidenceItemFooter">
@@ -102,11 +118,15 @@ export function EdgeRow({
   chainId,
   watchedAddressSet,
   nodeIndex,
+  locale = "zh",
+  t,
 }: {
   edge: GraphEdge;
   chainId: number;
   watchedAddressSet: Set<string>;
   nodeIndex: Map<string, GraphNode>;
+  locale?: Locale;
+  t: TranslateFn;
 }) {
   const edgeChainId = edge.metadata?.chainId ?? chainId;
   const eventChain = getSupportedAnalysisChain(edgeChainId);
@@ -126,9 +146,11 @@ export function EdgeRow({
   return (
     <li className="edgeRow">
       <div className="edgeRowHeader">
-        <span className={`eventTypePill event-${edge.kind}`}>{formatEdgeKindLabel(edge.kind)}</span>
+        <span className={`eventTypePill event-${edge.kind}`}>{formatEdgeKindLabelI18n(t, edge.kind)}</span>
         <ChainBadge chainId={edgeChainId} />
-        {(edge.metadata?.txCount ?? 1) > 1 ? <span className="countChip">{edge.metadata?.txCount} tx</span> : null}
+        {(edge.metadata?.txCount ?? 1) > 1 ? (
+          <span className="countChip">{t("analysis.evidence.txCount", { count: edge.metadata?.txCount ?? 1 })}</span>
+        ) : null}
         {amountFormatted ? (
           <span className="amountChip">
             <strong>{amountFormatted}</strong>
@@ -140,9 +162,21 @@ export function EdgeRow({
         ) : null}
       </div>
       <div className="edgeRowBody">
-        <GraphNodeLink node={nodeIndex.get(edge.source)} fallbackId={edge.source} chainId={edgeChainId} watchedAddressSet={watchedAddressSet} />
+        <GraphNodeLink
+          node={nodeIndex.get(edge.source)}
+          fallbackId={edge.source}
+          chainId={edgeChainId}
+          watchedAddressSet={watchedAddressSet}
+          t={t}
+        />
         <ArrowRight size={14} strokeWidth={2.2} className="evidenceArrowIcon" aria-hidden="true" />
-        <GraphNodeLink node={nodeIndex.get(edge.target)} fallbackId={edge.target} chainId={edgeChainId} watchedAddressSet={watchedAddressSet} />
+        <GraphNodeLink
+          node={nodeIndex.get(edge.target)}
+          fallbackId={edge.target}
+          chainId={edgeChainId}
+          watchedAddressSet={watchedAddressSet}
+          t={t}
+        />
       </div>
       <div className="edgeRowFooter">
         {txHash ? (
@@ -200,25 +234,35 @@ function AddressLink({
   chainId,
   role,
   watchedAddressSet,
-  label,
-  isContract,
+  t,
 }: {
   address: string;
   chainId: number;
   role: "from" | "to" | "contract" | "source" | "target";
   watchedAddressSet: Set<string>;
-  label?: string;
-  isContract?: boolean;
+  t: TranslateFn;
 }) {
   const isWatched = watchedAddressSet.has(address.toLowerCase());
+  const isContract = role === "contract";
   const pillKind = isContract ? "contract" : isWatched ? "watched" : "observed";
-  const roleLabel = label ?? (isContract ? "contract" : isWatched ? "watched" : "observed");
+  const roleLabel = isContract
+    ? t("analysis.role.contract")
+    : isWatched
+      ? t("analysis.role.watched")
+      : t("analysis.role.observed");
 
   return (
     <span className={`addressLink addressLink-${role} addressLink-${pillKind}`}>
       <span className="addressRoleTag">{roleLabel}</span>
-      <a href={buildExplorerAddressUrl(chainId, address)} target="_blank" rel="noreferrer noopener" title={address} className="addressValue">
+      <a
+        href={buildExplorerAddressUrl(chainId, address)}
+        target="_blank"
+        rel="noreferrer noopener"
+        title={address}
+        className="addressValue"
+      >
         {shortenAddress(address)}
+        <ExternalLink size={11} strokeWidth={2.2} className="addressLinkIcon" aria-hidden="true" />
       </a>
     </span>
   );
@@ -237,23 +281,36 @@ function GraphNodeLink({
   fallbackId,
   chainId,
   watchedAddressSet,
+  t,
 }: {
   node?: GraphNode;
   fallbackId: string;
   chainId: number;
   watchedAddressSet: Set<string>;
+  t: TranslateFn;
 }) {
   const address = node?.address ?? extractAddressFromNodeId(fallbackId);
   const isContract = node?.kind === "contract";
   const isWatched = node?.kind === "wallet" && (node.tags?.includes("watched") ?? watchedAddressSet.has(address.toLowerCase()));
-  const roleLabel = isContract ? "contract" : isWatched ? "watched" : "observed";
+  const roleLabel = isContract
+    ? t("analysis.role.contract")
+    : isWatched
+      ? t("analysis.role.watched")
+      : t("analysis.role.observed");
   const pillKind = isContract ? "contract" : isWatched ? "watched" : "observed";
 
   return (
     <span className={`addressLink addressLink-${pillKind}`}>
       <span className="addressRoleTag">{roleLabel}</span>
-      <a href={buildExplorerAddressUrl(node?.chainId ?? chainId, address)} target="_blank" rel="noreferrer noopener" title={address} className="addressValue">
+      <a
+        href={buildExplorerAddressUrl(node?.chainId ?? chainId, address)}
+        target="_blank"
+        rel="noreferrer noopener"
+        title={address}
+        className="addressValue"
+      >
         {node?.label ?? shortenAddress(address)}
+        <ExternalLink size={11} strokeWidth={2.2} className="addressLinkIcon" aria-hidden="true" />
       </a>
     </span>
   );

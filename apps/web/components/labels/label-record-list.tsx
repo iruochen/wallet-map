@@ -4,12 +4,12 @@ import { ExternalLink, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { buildExplorerAddressUrl } from "../../app/chains";
 import { shortenAddress } from "../../app/format";
+import { useI18n } from "../i18n/i18n-provider";
 import {
-  formatLabelCategory,
-  formatLabelChainName,
+  formatLocalizedLabelCategory,
+  formatLocalizedLabelNodeKind,
+  formatLocalizedLabelSource,
   formatLabelChainShort,
-  formatLabelNodeKind,
-  formatLabelSource,
   isLocalLabelSource,
 } from "./label-display";
 import type { KnownLabelRecord } from "./label-types";
@@ -25,6 +25,7 @@ export function LabelRecordList({
   sourceFilter: string;
   onEdit: (label: KnownLabelRecord) => void;
 }) {
+  const { t } = useI18n();
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimerRef = useRef<number | null>(null);
 
@@ -50,8 +51,8 @@ export function LabelRecordList({
 
   if (isLoading) {
     return (
-      <div className="labelRecordList labelRecordListLoading" aria-label="正在加载标签">
-        <LabelRecordHeader />
+      <div className="labelRecordList labelRecordListLoading" aria-label={t("labels.loading")}>
+        <LabelRecordHeader t={t} />
         <LabelRecordSkeleton />
       </div>
     );
@@ -60,11 +61,11 @@ export function LabelRecordList({
   if (labels.length === 0) {
     return (
       <div className="labelRecordEmpty">
-        <strong>暂无匹配记录</strong>
+        <strong>{t("labels.empty.title")}</strong>
         <p>
           {sourceFilter === "local-labels"
-            ? "还没有本地标签。点击右上角「添加标签」创建第一条。"
-            : "试试调整筛选条件，或添加一条本地标签。"}
+            ? t("labels.empty.local.body")
+            : t("labels.empty.filtered.body")}
         </p>
       </div>
     );
@@ -75,26 +76,26 @@ export function LabelRecordList({
       className={`labelRecordList ${isScrolling ? "labelRecordListScrolling" : ""}`}
       onScroll={handleScroll}
     >
-      <LabelRecordHeader />
+      <LabelRecordHeader t={t} />
 
       <div className="labelRecordBody">
         {labels.map((label) => (
-          <LabelRecordRow key={label.id} label={label} onEdit={onEdit} />
+          <LabelRecordRow key={label.id} label={label} onEdit={onEdit} t={t} />
         ))}
       </div>
     </div>
   );
 }
 
-function LabelRecordHeader() {
+function LabelRecordHeader({ t }: { t: ReturnType<typeof useI18n>["t"] }) {
   return (
     <div className="labelRecordHeader" aria-hidden="true">
-      <span>标签</span>
-      <span>地址</span>
-      <span>链</span>
-      <span>来源</span>
-      <span>标签组</span>
-      <span>操作</span>
+      <span>{t("labels.table.label")}</span>
+      <span>{t("labels.table.address")}</span>
+      <span>{t("labels.table.chain")}</span>
+      <span>{t("labels.table.source")}</span>
+      <span>{t("labels.table.tags")}</span>
+      <span>{t("labels.table.actions")}</span>
     </div>
   );
 }
@@ -119,13 +120,17 @@ function LabelRecordSkeleton() {
 function LabelRecordRow({
   label,
   onEdit,
+  t,
 }: {
   label: KnownLabelRecord;
   onEdit: (label: KnownLabelRecord) => void;
+  t: ReturnType<typeof useI18n>["t"];
 }) {
   const explorerHref = buildExplorerAddressUrl(label.chainId, label.address);
   const subtitle =
-    label.entity ?? formatLabelCategory(label.category) ?? formatLabelNodeKind(label.nodeKind);
+    label.entity ??
+    formatLocalizedLabelCategory(t, label.category) ??
+    formatLocalizedLabelNodeKind(t, label.nodeKind);
   const isLocal = isLocalLabelSource(label.source);
   const visibleTags = label.tags.slice(0, 5);
   const hiddenTagCount = Math.max(0, label.tags.length - visibleTags.length);
@@ -149,14 +154,14 @@ function LabelRecordRow({
       </div>
 
       <div className="labelRecordCell labelRecordCellChain">
-        <span className="labelChainBadge" title={formatLabelChainName(label.chainId)}>
+        <span className="labelChainBadge" title={formatLabelChainShort(label.chainId)}>
           {formatLabelChainShort(label.chainId)}
         </span>
       </div>
 
       <div className="labelRecordCell labelRecordCellSource">
         <span className={isLocal ? "labelSourceBadge labelSourceBadgeLocal" : "labelSourceBadge"}>
-          {formatLabelSource(label.source)}
+          {formatLocalizedLabelSource(t, label.source)}
         </span>
       </div>
 
@@ -179,10 +184,10 @@ function LabelRecordRow({
         {isLocal ? (
           <button type="button" className="labelRowAction" onClick={() => onEdit(label)}>
             <Pencil size={14} aria-hidden="true" />
-            编辑
+            {t("labels.action.edit")}
           </button>
         ) : (
-          <span className="labelRowActionMuted">只读</span>
+          <span className="labelRowActionMuted">{t("labels.action.readonly")}</span>
         )}
       </div>
     </article>

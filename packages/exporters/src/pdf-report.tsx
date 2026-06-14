@@ -370,8 +370,8 @@ function PairInsights({
           <View style={styles.pairBody}>
             <Text style={styles.cardTitle}>{formatPdfText(pair.labels.join("  ->  "))}</Text>
             <Text style={styles.cardMeta}>
-              Strength {formatStrength(pair.strength)} / Score {pair.score} / {formatConfidence(pair.confidence)}{" "}
-              confidence / {pair.signalCount} signals
+              Chains {formatChainShortNames(pair.chainIds)} / Strength {formatStrength(pair.strength)} / Score {pair.score} /{" "}
+              {formatConfidence(pair.confidence)} confidence / {pair.signalCount} signals
             </Text>
             <View style={styles.reasonRow}>
               {pair.reasons.slice(0, 4).map((reason) => (
@@ -754,6 +754,24 @@ function pickHigherConfidence(
 ): ReportFinding["confidence"] {
   const rank = { low: 0, medium: 1, high: 2 } as const;
   return rank[right] > rank[left] ? right : left;
+}
+
+function formatChainShortNames(chainIds?: number[]): string {
+  if (!chainIds?.length) {
+    return "—";
+  }
+
+  const shortNames: Record<number, string> = {
+    1: "ETH",
+    42161: "ARB",
+    8453: "BASE",
+    10: "OP",
+    137: "POLY",
+    56: "BSC",
+    101: "SOL",
+  };
+
+  return chainIds.map((chainId) => shortNames[chainId] ?? String(chainId)).join(" · ");
 }
 
 function formatStrength(value: string): string {

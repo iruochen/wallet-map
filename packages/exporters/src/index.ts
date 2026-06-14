@@ -64,6 +64,7 @@ export interface AnalysisReport {
       confidence: string;
       signalCount: number;
       reasons: string[];
+      chainIds?: number[];
     }>;
     signalHighlights?: Array<{
       analyzerId: string;
@@ -299,14 +300,32 @@ function formatPairInsightsTable(
   }
 
   return [
-    "| # | 钱包对 | 关联强度 | 评分 | 置信度 | 信号数 | 主要驱动 |",
-    "| ---: | --- | --- | ---: | --- | ---: | --- |",
+    "| # | 钱包对 | 涉及链 | 关联强度 | 评分 | 置信度 | 信号数 | 主要驱动 |",
+    "| ---: | --- | --- | --- | ---: | --- | ---: | --- |",
     ...pairs.map((pair, index) => {
       const labels = pair.labels.join(" ↔ ");
       const reasons = pair.reasons.slice(0, 3).join("、");
-      return `| ${index + 1} | ${labels} | ${formatStrength(pair.strength)} | ${pair.score} | ${formatConfidenceZh(pair.confidence)} | ${pair.signalCount} | ${reasons || "—"} |`;
+      return `| ${index + 1} | ${labels} | ${formatChainShortNames(pair.chainIds)} | ${formatStrength(pair.strength)} | ${pair.score} | ${formatConfidenceZh(pair.confidence)} | ${pair.signalCount} | ${reasons || "—"} |`;
     }),
   ].join("\n");
+}
+
+const chainShortNames: Record<number, string> = {
+  1: "ETH",
+  42161: "ARB",
+  8453: "BASE",
+  10: "OP",
+  137: "POLY",
+  56: "BSC",
+  101: "SOL",
+};
+
+function formatChainShortNames(chainIds?: number[]): string {
+  if (!chainIds?.length) {
+    return "—";
+  }
+
+  return chainIds.map((chainId) => chainShortNames[chainId] ?? String(chainId)).join(" · ");
 }
 
 function formatGroupedFindings(findings: ReportFinding[]): string {

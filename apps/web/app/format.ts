@@ -52,7 +52,11 @@ function truncateFraction(fraction: string, maxFractionDigits = 6): string {
   return fraction.length > maxFractionDigits ? fraction.slice(0, maxFractionDigits) : fraction;
 }
 
-export function formatRelativeTime(isoTimestamp: string | undefined, now: Date = new Date()): string | undefined {
+export function formatRelativeTime(
+  isoTimestamp: string | undefined,
+  now: Date = new Date(),
+  locale: "zh" | "en" = "en",
+): string | undefined {
   if (!isoTimestamp) {
     return undefined;
   }
@@ -67,36 +71,76 @@ export function formatRelativeTime(isoTimestamp: string | undefined, now: Date =
   const future = diffMs < 0;
   const absMs = Math.abs(diffMs);
   const seconds = Math.round(absMs / 1000);
+  const zh = locale === "zh";
 
   if (seconds < 60) {
-    return future ? `in ${seconds}s` : `${seconds}s ago`;
+    return future
+      ? zh
+        ? `${seconds} 秒后`
+        : `in ${seconds}s`
+      : zh
+        ? `${seconds} 秒前`
+        : `${seconds}s ago`;
   }
 
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) {
-    return future ? `in ${minutes}m` : `${minutes}m ago`;
+    return future
+      ? zh
+        ? `${minutes} 分钟后`
+        : `in ${minutes}m`
+      : zh
+        ? `${minutes} 分钟前`
+        : `${minutes}m ago`;
   }
 
   const hours = Math.round(minutes / 60);
   if (hours < 48) {
-    return future ? `in ${hours}h` : `${hours}h ago`;
+    return future
+      ? zh
+        ? `${hours} 小时后`
+        : `in ${hours}h`
+      : zh
+        ? `${hours} 小时前`
+        : `${hours}h ago`;
   }
 
   const days = Math.round(hours / 24);
   if (days < 30) {
-    return future ? `in ${days}d` : `${days}d ago`;
+    return future
+      ? zh
+        ? `${days} 天后`
+        : `in ${days}d`
+      : zh
+        ? `${days} 天前`
+        : `${days}d ago`;
   }
 
   const months = Math.round(days / 30);
   if (months < 24) {
-    return future ? `in ${months}mo` : `${months}mo ago`;
+    return future
+      ? zh
+        ? `${months} 个月后`
+        : `in ${months}mo`
+      : zh
+        ? `${months} 个月前`
+        : `${months}mo ago`;
   }
 
   const years = Math.round(months / 12);
-  return future ? `in ${years}y` : `${years}y ago`;
+  return future
+    ? zh
+      ? `${years} 年后`
+      : `in ${years}y`
+    : zh
+      ? `${years} 年前`
+      : `${years}y ago`;
 }
 
-export function formatAbsoluteTime(isoTimestamp: string | undefined): string | undefined {
+export function formatAbsoluteTime(
+  isoTimestamp: string | undefined,
+  locale: "zh" | "en" = "zh",
+): string | undefined {
   if (!isoTimestamp) {
     return undefined;
   }
@@ -106,7 +150,7 @@ export function formatAbsoluteTime(isoTimestamp: string | undefined): string | u
     return isoTimestamp;
   }
 
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
