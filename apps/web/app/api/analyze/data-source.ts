@@ -25,6 +25,11 @@ export interface ResolveEventsResult {
 }
 
 type LiveProviderId = "etherscan-v2" | "nodereal" | "solscan";
+type AddressProviderResult = {
+  events: NormalizedEvent[];
+  source?: string;
+  warning?: string;
+};
 
 export interface LiveProviderPlan {
   chainId: ChainId;
@@ -139,7 +144,7 @@ export async function resolveAnalyzeEvents(
           return { events, source: adapter.id };
         } catch (error) {
           if (plan.fallbackProvider) {
-            const fallbackResult = await fetchFallbackEvents({
+            const fallbackResult: AddressProviderResult | undefined = await fetchFallbackEvents({
               address,
               failedProvider: plan.provider,
               fallbackProvider: plan.fallbackProvider,
@@ -151,6 +156,15 @@ export async function resolveAnalyzeEvents(
               solscanApiKey,
               fetchImpl: input.fetchImpl,
               timeoutMs: liveProviderTimeoutMs,
+            }).catch((fallbackError: unknown) => {
+              if (allowPartial) {
+                return {
+                  events: [],
+                  warning: buildProviderFailureMessage(config.name, error, fallbackError),
+                };
+              }
+
+              throw new Error(buildProviderFailureMessage(config.name, error, fallbackError));
             });
 
             if (fallbackResult) {
@@ -161,7 +175,7 @@ export async function resolveAnalyzeEvents(
           if (allowPartial) {
             return {
               events: [],
-              warning: `${config.name} skipped: ${error instanceof Error ? error.message : "provider request failed"}`,
+              warning: `${config.name} skipped: ${formatUnknownError(error)}`,
             };
           }
 
@@ -192,6 +206,24 @@ export async function resolveAnalyzeEvents(
     chainName: buildChainName(requestedChainIds),
     warnings,
   };
+}
+
+function buildProviderFailureMessage(
+  chainName: string,
+  primaryError: unknown,
+  fallbackError?: unknown,
+): string {
+  const primaryMessage = formatUnknownError(primaryError);
+
+  if (!fallbackError) {
+    return `${chainName} skipped: ${primaryMessage}`;
+  }
+
+  return `${chainName} provider request failed: ${primaryMessage} Fallback also failed: ${formatUnknownError(fallbackError)}`;
+}
+
+function formatUnknownError(error: unknown): string {
+  return error instanceof Error ? error.message : "provider request failed";
 }
 
 export function selectAnalyzeLiveProvider(
@@ -302,7 +334,7 @@ async function fetchFallbackEvents(input: {
   solscanApiKey?: string;
   fetchImpl?: typeof fetch;
   timeoutMs: number;
-}): Promise<{ events: NormalizedEvent[]; source: string } | undefined> {
+}): Promise<AddressProviderResult | undefined> {
   if (!input.failedProvider) {
     return undefined;
   }

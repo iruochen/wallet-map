@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
-import { createAnalyzeJobId, initializeAndExecuteAnalyzeJob } from "./execute-job";
+import { createAnalyzeJobId, executeAnalyzeJob, initializeAnalyzeJobRecord } from "./execute-job";
 import { getCurrentHistorySubject } from "../auth/session";
 
 vi.mock("next/server", () => ({
@@ -11,7 +11,8 @@ vi.mock("next/server", () => ({
 
 vi.mock("./execute-job", () => ({
   createAnalyzeJobId: vi.fn(() => "job:test"),
-  initializeAndExecuteAnalyzeJob: vi.fn(async () => undefined),
+  executeAnalyzeJob: vi.fn(async () => undefined),
+  initializeAnalyzeJobRecord: vi.fn(async () => undefined),
 }));
 
 vi.mock("./analysis-quota-guard", () => ({
@@ -26,13 +27,15 @@ vi.mock("../auth/session", () => ({
 }));
 
 const createAnalyzeJobIdMock = vi.mocked(createAnalyzeJobId);
-const initializeAndExecuteAnalyzeJobMock = vi.mocked(initializeAndExecuteAnalyzeJob);
+const executeAnalyzeJobMock = vi.mocked(executeAnalyzeJob);
+const initializeAnalyzeJobRecordMock = vi.mocked(initializeAnalyzeJobRecord);
 const getCurrentHistorySubjectMock = vi.mocked(getCurrentHistorySubject);
 
 describe("POST /api/analyze", () => {
   beforeEach(() => {
     createAnalyzeJobIdMock.mockClear();
-    initializeAndExecuteAnalyzeJobMock.mockClear();
+    executeAnalyzeJobMock.mockClear();
+    initializeAnalyzeJobRecordMock.mockClear();
     getCurrentHistorySubjectMock.mockResolvedValue({
       subjectId: "session:test",
       mode: "session",
@@ -46,7 +49,8 @@ describe("POST /api/analyze", () => {
     expect(response.status).toBe(400);
     expect(body.error).toContain("Anonymous plan supports up to 10 addresses");
     expect(createAnalyzeJobIdMock).not.toHaveBeenCalled();
-    expect(initializeAndExecuteAnalyzeJobMock).not.toHaveBeenCalled();
+    expect(initializeAnalyzeJobRecordMock).not.toHaveBeenCalled();
+    expect(executeAnalyzeJobMock).not.toHaveBeenCalled();
   });
 
   it("accepts signed-in requests within the free plan address limit", async () => {
@@ -65,7 +69,8 @@ describe("POST /api/analyze", () => {
     expect(response.status).toBe(202);
     expect(body.jobId).toBe("job:test");
     expect(createAnalyzeJobIdMock).toHaveBeenCalledOnce();
-    expect(initializeAndExecuteAnalyzeJobMock).toHaveBeenCalledOnce();
+    expect(initializeAnalyzeJobRecordMock).toHaveBeenCalledOnce();
+    expect(executeAnalyzeJobMock).toHaveBeenCalledOnce();
   });
 });
 

@@ -2593,8 +2593,9 @@ button:disabled {
 .addressInputCardHeader {
   display: flex;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   padding: 10px 12px;
   border-bottom: 1px solid #e7eee8;
   background: linear-gradient(180deg, #fbfcfa 0%, #f6faf7 100%);
@@ -2612,6 +2613,7 @@ button:disabled {
   color: #1f3d2c;
   font-size: 0.8rem;
   font-weight: 800;
+  line-height: 1.12;
 }
 
 .addressCountBadge {
@@ -2632,6 +2634,15 @@ button:disabled {
   flex-shrink: 0;
   gap: 2px;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+.addressInputCardActions .ghostButton {
+  min-height: 30px;
+  padding: 0 7px;
+  font-size: 0.72rem;
 }
 
 .addressInputEditor {
@@ -2976,9 +2987,9 @@ select {
 
 .analysisSubmitBar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 8px 8px 8px 12px;
   border: 1px solid rgba(198, 212, 201, 0.72);
   border-radius: 12px;
@@ -2991,10 +3002,10 @@ select {
 }
 
 .analysisSubmitButton {
-  width: auto;
-  min-width: 126px;
+  width: 100%;
+  min-width: 0;
   padding: 0 14px;
-  white-space: nowrap;
+  white-space: normal;
   box-shadow: 0 8px 16px rgba(24, 61, 48, 0.14);
 }
 
@@ -5143,6 +5154,19 @@ code {
   }
 }
 
+@media (max-width: 1040px) {
+  .workbench {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+  }
+
+  .workbenchInput,
+  .workbenchGraph {
+    border-right: 0;
+    border-bottom: 1px solid #dce2d8;
+  }
+}
+
 @media (max-width: 880px) {
   .appHeader {
     gap: 8px;
@@ -5178,17 +5202,6 @@ code {
     padding: 0 10px;
   }
 
-  .workbench {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
-  }
-
-  .workbenchInput,
-  .workbenchGraph {
-    border-right: 0;
-    border-bottom: 1px solid #dce2d8;
-  }
-
   .workbenchGraphBody {
     min-height: 420px;
   }
@@ -5210,14 +5223,8 @@ code {
   }
 
   .analysisSubmitBar {
-    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     padding: 10px;
-  }
-
-  .analysisSubmitButton {
-    width: 100%;
-    min-width: 0;
   }
 
   .analysisProgressPanel-hero .analysisProgressSteps {

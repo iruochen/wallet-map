@@ -112,6 +112,25 @@ describe("resolveAnalyzeEvents", () => {
     expect(calledUrl(fetchMock, "txlist").searchParams.get("chainid")).toBe("56");
   });
 
+  it("keeps the primary NodeReal error visible when the Etherscan fallback also fails", async () => {
+    const fetchMock = mockNodeRealFailureThenEtherscanFailureFetch();
+
+    await expect(
+      resolveAnalyzeEvents({
+        addresses: [addresses[0]],
+        chainId: 56,
+        dataMode: "auto",
+        env: {
+          ETHERSCAN_API_KEY: "etherscan-key",
+          NODEREAL_BSC_API_KEY: "nodereal-key",
+        },
+        fetchImpl: fetchMock,
+      }),
+    ).rejects.toThrow(
+      "BSC provider request failed: NodeReal BSC nr_getTransactionByAddress request failed with HTTP 500 Internal Server Error Fallback also failed: BSC txlist request failed: NOTOK (Etherscan API does not support this chain.)",
+    );
+  });
+
   it("mentions both supported keys when BSC live mode is requested without config", async () => {
     await expect(
       resolveAnalyzeEvents({
@@ -353,6 +372,32 @@ function mockEtherscanFailureThenNodeRealFetch() {
             pageKey: "",
             transfers: [],
           },
+        }),
+        { status: 200 },
+      );
+    }
+
+    throw new Error(`Unexpected URL ${url}`);
+  });
+}
+
+function mockNodeRealFailureThenEtherscanFailureFetch() {
+  return vi.fn(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
+    const url = String(input);
+
+    if (url.startsWith("https://bsc-mainnet.nodereal.io")) {
+      return new Response(JSON.stringify({ error: "provider unavailable" }), {
+        status: 500,
+        statusText: "Internal Server Error",
+      });
+    }
+
+    if (url.startsWith("https://api.etherscan.io")) {
+      return new Response(
+        JSON.stringify({
+          status: "0",
+          message: "NOTOK",
+          result: "Etherscan API does not support this chain.",
         }),
         { status: 200 },
       );

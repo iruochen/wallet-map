@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { assertAnonymousAnalysisAllowed } from "./analysis-quota-guard";
-import { createAnalyzeJobId, initializeAndExecuteAnalyzeJob } from "./execute-job";
+import { createAnalyzeJobId, executeAnalyzeJob, initializeAnalyzeJobRecord } from "./execute-job";
 import {
   assertAnalyzeRequestCapacity,
   readAnalyzeRequestBody,
@@ -28,9 +28,10 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const jobId = createAnalyzeJobId();
+    await initializeAnalyzeJobRecord(jobId, parsed, historySubject.subjectId);
 
     after(async () => {
-      await initializeAndExecuteAnalyzeJob(jobId, parsed, historySubject.subjectId);
+      await executeAnalyzeJob(jobId, parsed);
     });
 
     return Response.json({ jobId }, { status: 202 });

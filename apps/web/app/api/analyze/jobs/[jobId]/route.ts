@@ -12,16 +12,15 @@ export async function GET(
   const historySubject = await getCurrentHistorySubject();
   const redisJob = await getAnalyzeJob(jobId);
   const storage = await getAnalysisStorage();
-  const subjectMatches = !redisJob?.subjectId || redisJob.subjectId === historySubject.subjectId;
   const persistedJob = storage
     ? await storage.getJobRecord(jobId, historySubject.subjectId).catch(() => undefined)
     : undefined;
 
-  if ((!redisJob || !subjectMatches) && !persistedJob) {
+  if (!redisJob && !persistedJob) {
     return Response.json({ error: "Analysis job not found." }, { status: 404 });
   }
 
-  if (redisJob && subjectMatches) {
+  if (redisJob) {
     return Response.json({
       jobId,
       status: redisJob.status,

@@ -39,6 +39,20 @@ export async function initializeAndExecuteAnalyzeJob(
   parsed: ParsedAnalyzeRequest,
   subjectId?: string,
 ): Promise<void> {
+  try {
+    await initializeAnalyzeJobRecord(jobId, parsed, subjectId);
+  } catch {
+    return;
+  }
+
+  await executeAnalyzeJob(jobId, parsed);
+}
+
+export async function initializeAnalyzeJobRecord(
+  jobId: string,
+  parsed: ParsedAnalyzeRequest,
+  subjectId?: string,
+): Promise<void> {
   const storage = await getAnalysisStorage();
 
   try {
@@ -55,12 +69,10 @@ export async function initializeAndExecuteAnalyzeJob(
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to initialize analysis job.";
-    await markAnalyzeJobFailed(jobId, message);
+    await markAnalyzeJobFailed(jobId, message).catch(() => undefined);
     await storage?.markJobFailed(jobId, message).catch(() => undefined);
-    return;
+    throw new Error(message);
   }
-
-  await executeAnalyzeJob(jobId, parsed);
 }
 
 export async function executeAnalyzeJob(jobId: string, parsed: ParsedAnalyzeRequest): Promise<void> {
