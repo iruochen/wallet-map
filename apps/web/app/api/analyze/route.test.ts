@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { after } from "next/server";
 import { POST } from "./route";
 import { createAnalyzeJobId, executeAnalyzeJob, initializeAnalyzeJobRecord } from "./execute-job";
 import { getCurrentHistorySubject } from "../auth/session";
@@ -30,12 +31,14 @@ const createAnalyzeJobIdMock = vi.mocked(createAnalyzeJobId);
 const executeAnalyzeJobMock = vi.mocked(executeAnalyzeJob);
 const initializeAnalyzeJobRecordMock = vi.mocked(initializeAnalyzeJobRecord);
 const getCurrentHistorySubjectMock = vi.mocked(getCurrentHistorySubject);
+const afterMock = vi.mocked(after);
 
 describe("POST /api/analyze", () => {
   beforeEach(() => {
     createAnalyzeJobIdMock.mockClear();
     executeAnalyzeJobMock.mockClear();
     initializeAnalyzeJobRecordMock.mockClear();
+    afterMock.mockClear();
     getCurrentHistorySubjectMock.mockResolvedValue({
       subjectId: "session:test",
       mode: "session",
@@ -71,6 +74,7 @@ describe("POST /api/analyze", () => {
     expect(createAnalyzeJobIdMock).toHaveBeenCalledOnce();
     expect(initializeAnalyzeJobRecordMock).toHaveBeenCalledOnce();
     expect(executeAnalyzeJobMock).toHaveBeenCalledOnce();
+    expect(afterMock).not.toHaveBeenCalled();
   });
 });
 

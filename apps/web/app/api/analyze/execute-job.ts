@@ -93,7 +93,9 @@ export async function executeAnalyzeJob(jobId: string, parsed: ParsedAnalyzeRequ
     await syncJobProgress(jobId, "fetch", "completed", storage);
 
     // Phases: graph -> labels -> analysis -> score (all inside runAnalysis).
-    const labelStack = createAnalyzeLabelStack();
+    const labelStack = createAnalyzeLabelStack(process.env, {
+      includeLiveProviders: resolved.mode === "live",
+    });
     const result = await runAnalysis({
       watchedAddresses: parsed.addresses,
       events: resolved.events,

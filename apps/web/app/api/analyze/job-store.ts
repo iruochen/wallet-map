@@ -154,31 +154,34 @@ async function deleteRedisJob(jobId: string): Promise<void> {
 }
 
 async function readJob(jobId: string): Promise<AnalysisJobRecord | undefined> {
+  const memoryJob = getMemoryJobMap().get(jobId);
+  if (memoryJob) {
+    return memoryJob;
+  }
+
   if (useMemoryStore()) {
-    return getMemoryJobMap().get(jobId);
+    return undefined;
   }
 
   const job = await readRedisJob(jobId);
-  if (!job) {
-    return getMemoryJobMap().get(jobId);
-  }
-
   return job;
 }
 
 async function writeJob(record: AnalysisJobRecord): Promise<void> {
   record.updatedAt = new Date().toISOString();
+  getMemoryJobMap().set(record.jobId, record);
 
   if (useMemoryStore()) {
-    getMemoryJobMap().set(record.jobId, record);
     return;
   }
 
-  const stored = await writeRedisJob(record).catch(() => false);
-
-  if (!stored) {
-    getMemoryJobMap().set(record.jobId, record);
+  const writePromise = writeRedisJob(record).catch(() => false);
+  if (process.env.NODE_ENV !== "production") {
+    void writePromise;
+    return;
   }
+
+  await writePromise;
 }
 
 export async function createAnalyzeJob(jobId: string, subjectId?: string): Promise<AnalysisJobRecord> {

@@ -33,11 +33,17 @@ export interface AnalyzeLabelStack {
   sinks: LabelSink[];
 }
 
+export interface AnalyzeLabelStackOptions {
+  includeLiveProviders?: boolean;
+}
+
 export function createAnalyzeLabelStack(
   env: Record<string, string | undefined> = process.env,
+  options: AnalyzeLabelStackOptions = {},
 ): AnalyzeLabelStack {
   const providers: LabelProvider[] = [];
   const sinks: LabelSink[] = [];
+  const includeLiveProviders = options.includeLiveProviders ?? true;
   const etherscanApiKey = env[etherscanApiKeyEnv]?.trim();
   const chainbaseApiKey = env[chainbaseApiKeyEnv]?.trim();
   const connectionString = env[databaseUrlEnv]?.trim();
@@ -66,7 +72,7 @@ export function createAnalyzeLabelStack(
     sinks.push(redisCache);
   }
 
-  if (chainbaseApiKey && env[chainbaseLabelsEnabledEnv] !== "false") {
+  if (includeLiveProviders && chainbaseApiKey && env[chainbaseLabelsEnabledEnv] !== "false") {
     const provider = createChainbaseLabelProvider({
       apiKey: chainbaseApiKey,
       onError: (error) => {
@@ -87,7 +93,7 @@ export function createAnalyzeLabelStack(
     );
   }
 
-  if (etherscanApiKey && env[etherscanNametagEnabledEnv] === "true") {
+  if (includeLiveProviders && etherscanApiKey && env[etherscanNametagEnabledEnv] === "true") {
     const provider = createEtherscanNametagProvider({
       apiKey: etherscanApiKey,
       onError: (error) => {
@@ -116,6 +122,7 @@ export function createAnalyzeLabelStack(
 
 export function createAnalyzeLabelProviders(
   env: Record<string, string | undefined> = process.env,
+  options: AnalyzeLabelStackOptions = {},
 ): LabelProvider[] {
-  return createAnalyzeLabelStack(env).providers;
+  return createAnalyzeLabelStack(env, options).providers;
 }

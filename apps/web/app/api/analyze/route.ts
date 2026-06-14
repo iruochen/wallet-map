@@ -30,9 +30,13 @@ export async function POST(request: Request): Promise<Response> {
     const jobId = createAnalyzeJobId();
     await initializeAnalyzeJobRecord(jobId, parsed, historySubject.subjectId);
 
-    after(async () => {
-      await executeAnalyzeJob(jobId, parsed);
-    });
+    if (process.env.NODE_ENV === "production") {
+      after(async () => {
+        await executeAnalyzeJob(jobId, parsed);
+      });
+    } else {
+      void executeAnalyzeJob(jobId, parsed);
+    }
 
     return Response.json({ jobId }, { status: 202 });
   } catch (error) {

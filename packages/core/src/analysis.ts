@@ -53,7 +53,7 @@ export interface AnalysisRunInput {
   events: NormalizedEvent[];
   analyzers: Analyzer[];
   graphEnrichers?: GraphEnricher[];
-  onProgress?: (update: AnalysisProgressUpdate) => void;
+  onProgress?: (update: AnalysisProgressUpdate) => void | Promise<void>;
 }
 
 export interface AnalysisRunResult {
@@ -65,25 +65,25 @@ export interface AnalysisRunResult {
 // Analysis pipeline: build graph -> enrich labels -> run analyzers -> score findings.
 export async function runAnalysis(input: AnalysisRunInput): Promise<AnalysisRunResult> {
   // Step 1: turn events into wallet/contract nodes and transfer edges.
-  input.onProgress?.({ phase: "graph", status: "started" });
+  await input.onProgress?.({ phase: "graph", status: "started" });
   let graph = buildRelationshipGraph({
     watchedAddresses: input.watchedAddresses,
     events: input.events,
   });
-  input.onProgress?.({ phase: "graph", status: "completed" });
+  await input.onProgress?.({ phase: "graph", status: "completed" });
 
   // Step 2: attach labels to graph nodes (exchange names, token info, etc.).
   const enrichers = input.graphEnrichers ?? [];
   if (enrichers.length > 0) {
-    input.onProgress?.({ phase: "labels", status: "started" });
+    await input.onProgress?.({ phase: "labels", status: "started" });
     for (const enricher of enrichers) {
       graph = await enricher.enrich(graph, input.events);
     }
-    input.onProgress?.({ phase: "labels", status: "completed" });
+    await input.onProgress?.({ phase: "labels", status: "completed" });
   }
 
   // Step 3: run all analyzers in parallel; each returns relationship findings.
-  input.onProgress?.({ phase: "analysis", status: "started" });
+  await input.onProgress?.({ phase: "analysis", status: "started" });
   const context: AnalysisContext = {
     graph,
     events: input.events,
@@ -93,7 +93,7 @@ export async function runAnalysis(input: AnalysisRunInput): Promise<AnalysisRunR
   ).flat();
   // Step 4: score comes from findings, not from the graph itself.
   const score = scoreFindings(findings);
-  input.onProgress?.({ phase: "analysis", status: "completed" });
+  await input.onProgress?.({ phase: "analysis", status: "completed" });
 
   return {
     graph,

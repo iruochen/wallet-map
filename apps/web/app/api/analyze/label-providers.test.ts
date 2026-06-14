@@ -23,6 +23,22 @@ describe("createAnalyzeLabelProviders", () => {
     ]);
   });
 
+  it("can skip live label providers for fixture analysis", () => {
+    const providers = createAnalyzeLabelProviders(
+      {
+        CHAINBASE_API_KEY: "test-key",
+        ETHERSCAN_API_KEY: "test-key",
+        ETHERSCAN_NAMETAG_ENABLED: "true",
+      },
+      { includeLiveProviders: false },
+    );
+
+    expect(providers.map((provider) => provider.id)).toEqual([
+      "known-entity-labels",
+      "normalized-event-asset",
+    ]);
+  });
+
   it("adds Etherscan nametag lookup only when explicitly enabled", () => {
     const providers = createAnalyzeLabelProviders({
       ETHERSCAN_API_KEY: "test-key",
