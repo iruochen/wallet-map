@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatAbsoluteTime } from "../../app/format";
 import { formatConfidenceLabel } from "../analysis/analysis-formatters";
-import { useI18n } from "../i18n/i18n-provider";
+import { useI18n, type I18nKey } from "../i18n/i18n-provider";
 import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
 import {
   buildHistoryComparison,
@@ -158,7 +158,7 @@ export function HistoryJobList({
         throw new Error(body.error ?? "Failed to sync session history.");
       }
 
-      setSyncMessage(body.message ?? "会话记录已同步。");
+      setSyncMessage(body.message ?? t("history.sync.defaultMessage"));
       await loadJobs();
     } catch (caught) {
       setLoadError(caught instanceof Error ? caught.message : "Failed to sync session history.");
@@ -252,7 +252,7 @@ export function HistoryJobList({
             seed={avatarSeed}
           />
           <div>
-            <strong>{historyMode === "wallet" ? "钱包历史" : "当前会话历史"}</strong>
+            <strong>{historyMode === "wallet" ? t("history.title.wallet") : t("history.title.session")}</strong>
             {historyMode === "wallet" && walletAddress ? (
               <>
                 <span title={walletEnsName ? walletAddress : undefined}>{walletDisplayName}</span>
@@ -261,7 +261,7 @@ export function HistoryJobList({
                 ) : null}
               </>
             ) : (
-              <span>登录后可跨会话查看历史</span>
+              <span>{t("history.subtitle.signIn")}</span>
             )}
           </div>
         </div>
@@ -272,25 +272,25 @@ export function HistoryJobList({
               type="button"
               onClick={() => void syncSessionHistory()}
               disabled={isSyncing || isRefreshing}
-              title="将未登录时保存在当前浏览器的分析记录同步到钱包"
+              title={t("history.sync.buttonTitle")}
             >
               <ArrowDownToLine className={isSyncing ? "historySpinIcon" : ""} size={15} aria-hidden="true" />
-              同步会话记录 ({sessionSyncCount})
+              {t("history.sync.button", { count: sessionSyncCount })}
             </button>
           ) : null}
           {!storageEnabled ? (
-            <span className="historyLocalBadge" title="当前没有配置 PG，历史记录只保存在这个浏览器会话中。">
-              浏览器会话历史
+            <span className="historyLocalBadge" title={t("history.localBadge.title")}>
+              {t("history.localBadge")}
             </span>
           ) : null}
-          <button className="historyIconButton" type="button" onClick={() => void loadJobs()} disabled={isRefreshing || isSyncing} title="刷新历史">
+          <button className="historyIconButton" type="button" onClick={() => void loadJobs()} disabled={isRefreshing || isSyncing} title={t("history.refresh.title")}>
             <RefreshCw className={isRefreshing ? "historySpinIcon" : ""} size={15} aria-hidden="true" />
           </button>
         </div>
       </div>
-      <div className="historyFilterBar" aria-label="历史分析筛选">
+      <div className="historyFilterBar" aria-label={t("history.filter.aria")}>
         <label className="historyFilterField">
-          <span>状态</span>
+          <span>{t("history.filter.status")}</span>
           <select
             value={statusFilter}
             disabled={isRefreshing || isListLoading}
@@ -299,15 +299,15 @@ export function HistoryJobList({
               setStatusFilter(event.target.value as HistoryStatusFilter);
             }}
           >
-            <option value="all">全部状态</option>
-            <option value="completed">已完成</option>
-            <option value="running">运行中</option>
-            <option value="pending">排队中</option>
-            <option value="failed">失败</option>
+            <option value="all">{t("history.filter.status.all")}</option>
+            <option value="completed">{t("history.filter.status.completed")}</option>
+            <option value="running">{t("history.filter.status.running")}</option>
+            <option value="pending">{t("history.filter.status.pending")}</option>
+            <option value="failed">{t("history.filter.status.failed")}</option>
           </select>
         </label>
         <label className="historyFilterField historyFilterSearch">
-          <span>搜索</span>
+          <span>{t("history.filter.search")}</span>
           <input
             value={historyQuery}
             disabled={isRefreshing || isListLoading}
@@ -315,11 +315,11 @@ export function HistoryJobList({
               setPage(1);
               setHistoryQuery(event.target.value);
             }}
-            placeholder="链、来源、模式、任务 ID"
+            placeholder={t("history.filter.search.placeholder")}
           />
         </label>
         <label className="historyFilterField historyPageSizeControl">
-          <span>每页</span>
+          <span>{t("history.filter.pageSize")}</span>
           <select
             value={pageSize}
             disabled={isRefreshing || isListLoading}
@@ -337,18 +337,23 @@ export function HistoryJobList({
         </label>
       </div>
       <div className="historyResultBar">
-        <span>{total === 0 ? "暂无匹配记录" : `第 ${rangeStart}-${rangeEnd} 条，共 ${total} 条`}</span>
+        <span>
+          {total === 0
+            ? t("history.result.empty")
+            : t("history.result.range", { start: rangeStart, end: rangeEnd, total })}
+        </span>
         <HistoryPagination
           page={page}
           totalPages={totalPages}
           disabled={isRefreshing || isListLoading}
           onPrevious={() => setPage((current) => Math.max(1, current - 1))}
           onNext={() => setPage((current) => Math.min(totalPages, current + 1))}
+          t={t}
         />
       </div>
       {syncMessage ? (
         <div className="stateBanner stateBannerSuccess historySyncBanner" role="status">
-          <strong>同步完成</strong>
+          <strong>{t("history.sync.success")}</strong>
           <span>{syncMessage}</span>
         </div>
       ) : null}
@@ -356,7 +361,7 @@ export function HistoryJobList({
   );
 
   if (!hasLoaded) {
-    return renderListBody(<HistorySkeleton />);
+    return renderListBody(<HistorySkeleton t={t} />);
   }
 
   if (loadError) {
@@ -364,15 +369,9 @@ export function HistoryJobList({
 
     return renderListBody(
       <div className="historyEmpty historyEmptyError">
-        <strong>加载失败</strong>
+        <strong>{t("history.error.loadFailed")}</strong>
         <p>{loadError}</p>
-        {needsMigration ? (
-          <p>
-            数据库缺少 M2 migration。重启服务后会自动补齐；若仍失败，请手动执行
-            {" "}
-            <code>packages/storage/migrations/0002_analysis_job_metadata.sql</code>。
-          </p>
-        ) : null}
+        {needsMigration ? <p>{t("history.error.migration")}</p> : null}
       </div>,
     );
   }
@@ -383,15 +382,17 @@ export function HistoryJobList({
         <div className="historyEmptyIcon" aria-hidden="true">
           <ScrollText size={24} strokeWidth={1.6} />
         </div>
-        <strong className="historyEmptyTitle">{hasHistoryFilters ? "没有匹配的历史记录" : "还没有历史记录"}</strong>
+        <strong className="historyEmptyTitle">
+          {hasHistoryFilters ? t("history.empty.filtered.title") : t("history.empty.default.title")}
+        </strong>
         <p className="historyEmptyDescription">
           {hasHistoryFilters
-            ? "试试放宽状态筛选，或搜索其他链名、来源和任务 ID。"
+            ? t("history.empty.filtered.body")
             : historyMode === "wallet"
-            ? "这个钱包还没有保存过分析记录。完成一次分析后，结果会自动同步到这里。"
+            ? t("history.empty.wallet.body")
             : storageEnabled
-              ? "完成一次分析后，任务会显示在这里。登录钱包后还能跨会话查看。"
-              : "未配置数据库时，完成的分析会临时保存在当前浏览器会话里。关闭标签页或浏览器后，这些记录可能会消失。"}
+              ? t("history.empty.session.body")
+              : t("history.empty.local.body")}
         </p>
         {hasHistoryFilters ? null : (
           <Link
@@ -400,7 +401,7 @@ export function HistoryJobList({
             onClick={clearStoredAnalysisJob}
           >
             <Play size={15} aria-hidden="true" />
-            去运行分析
+            {t("history.empty.action")}
           </Link>
         )}
       </div>,
@@ -412,19 +413,19 @@ export function HistoryJobList({
       {isListLoading ? (
         <div className="historyTableLoadingOverlay" role="status" aria-live="polite">
           <RefreshCw className="historySpinIcon" size={18} aria-hidden="true" />
-          <span>正在刷新历史记录…</span>
+          <span>{t("history.loading.refresh")}</span>
         </div>
       ) : null}
       <table className="historyTable">
         <thead>
           <tr>
-            <th>时间</th>
-            <th>范围</th>
-            <th>地址 / 事件</th>
-            <th>评分</th>
-            <th>状态</th>
-            <th>操作</th>
-            <th>对比</th>
+            <th>{t("history.table.time")}</th>
+            <th>{t("history.table.scope")}</th>
+            <th>{t("history.table.addressEvents")}</th>
+            <th>{t("history.table.score")}</th>
+            <th>{t("history.table.status")}</th>
+            <th>{t("history.table.actions")}</th>
+            <th>{t("history.table.compare")}</th>
           </tr>
         </thead>
         <tbody>
@@ -439,7 +440,10 @@ export function HistoryJobList({
                 <small>{job.sourceLabel ?? "—"}</small>
               </td>
               <td>
-                {job.watchedAddressCount ?? "—"} 地址 · {job.eventCount ?? "—"} 事件
+                {t("history.row.stats", {
+                  addresses: job.watchedAddressCount ?? "—",
+                  events: job.eventCount ?? "—",
+                })}
               </td>
               <td>
                 {job.score ? (
@@ -462,7 +466,7 @@ export function HistoryJobList({
                   {job.status === "completed" ? (
                     <Link className="secondaryButton historyOpenButton" href={`/?job=${job.id}`}>
                       <ExternalLink size={14} aria-hidden="true" />
-                      打开
+                      {t("history.row.open")}
                     </Link>
                   ) : null}
                   {historyMode === "wallet" ? (
@@ -474,10 +478,10 @@ export function HistoryJobList({
                         setPendingDeleteJob(job);
                       }}
                       disabled={Boolean(deletingJobId) || isRefreshing || isSyncing || isListLoading}
-                      title="删除这条历史记录"
+                      title={t("history.row.delete.title")}
                     >
                       <Trash2 size={14} aria-hidden="true" />
-                      删除
+                      {t("history.row.delete")}
                     </button>
                   ) : null}
                 </div>
@@ -488,10 +492,14 @@ export function HistoryJobList({
                   className={`historyCompareButton ${comparisonJobIds.includes(job.id) ? "historyCompareButtonActive" : ""}`}
                   disabled={job.status !== "completed"}
                   onClick={() => setComparisonJobIds((current) => toggleHistoryComparisonSelection(current, job))}
-                  title={job.status === "completed" ? "加入历史对比" : "只有已完成的任务可以对比"}
+                  title={
+                    job.status === "completed"
+                      ? t("history.row.compare.add")
+                      : t("history.row.compare.disabled")
+                  }
                 >
                   <GitCompareArrows size={14} aria-hidden="true" />
-                  {comparisonJobIds.includes(job.id) ? "已选" : "选择"}
+                  {comparisonJobIds.includes(job.id) ? t("history.row.compare.selected") : t("history.row.compare.select")}
                 </button>
               </td>
             </tr>
@@ -502,6 +510,7 @@ export function HistoryJobList({
         comparison={comparison}
         selectedCount={comparisonJobIds.length}
         onClear={() => setComparisonJobIds([])}
+        t={t}
       />
     </div>,
   );
@@ -513,12 +522,14 @@ function HistoryPagination({
   disabled,
   onPrevious,
   onNext,
+  t,
 }: {
   page: number;
   totalPages: number;
   disabled: boolean;
   onPrevious: () => void;
   onNext: () => void;
+  t: (key: I18nKey, params?: Record<string, string | number>) => string;
 }) {
   return (
     <div className="historyPagination">
@@ -527,17 +538,17 @@ function HistoryPagination({
         className="historyPaginationButton"
         disabled={disabled || page <= 1}
         onClick={onPrevious}
-        aria-label="上一页"
+        aria-label={t("history.pagination.previous")}
       >
         ‹
       </button>
-      <span>第 {page} / {totalPages} 页</span>
+      <span>{t("history.pagination.page", { page, totalPages })}</span>
       <button
         type="button"
         className="historyPaginationButton"
         disabled={disabled || page >= totalPages}
         onClick={onNext}
-        aria-label="下一页"
+        aria-label={t("history.pagination.next")}
       >
         ›
       </button>
@@ -549,24 +560,30 @@ function HistoryComparisonPanel({
   comparison,
   selectedCount,
   onClear,
+  t,
 }: {
   comparison: ReturnType<typeof buildHistoryComparison>;
   selectedCount: number;
   onClear: () => void;
+  t: (key: I18nKey, params?: Record<string, string | number>) => string;
 }) {
   if (selectedCount === 0) {
     return null;
   }
 
   return (
-    <aside className="historyComparePanel" aria-label="历史任务对比">
+    <aside className="historyComparePanel" aria-label={t("history.compare.aria")}>
       <div className="historyCompareHeader">
         <div>
-          <strong>历史任务对比</strong>
-          <span>{comparison ? "按完成时间从早到晚展示差异" : `已选择 ${selectedCount} / 2 个已完成任务`}</span>
+          <strong>{t("history.compare.title")}</strong>
+          <span>
+            {comparison
+              ? t("history.compare.summary.diff")
+              : t("history.compare.summary.selected", { count: selectedCount })}
+          </span>
         </div>
         <button type="button" className="historyCompareClear" onClick={onClear}>
-          清空
+          {t("history.compare.clear")}
         </button>
       </div>
       {comparison ? (
@@ -593,15 +610,19 @@ function HistoryComparisonPanel({
           </div>
         </>
       ) : (
-        <p className="historyCompareHint">再选择一个已完成任务即可查看分数、事件量和来源变化。</p>
+        <p className="historyCompareHint">{t("history.compare.hint")}</p>
       )}
     </aside>
   );
 }
 
-function HistorySkeleton() {
+function HistorySkeleton({
+  t,
+}: {
+  t: (key: I18nKey, params?: Record<string, string | number>) => string;
+}) {
   return (
-    <div className="historyTableWrap historySkeleton" aria-label="正在加载历史记录">
+    <div className="historyTableWrap historySkeleton" aria-label={t("history.loading.skeleton")}>
       <div className="historySkeletonHeader" aria-hidden="true">
         <span />
         <span />

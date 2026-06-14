@@ -3,6 +3,7 @@
 import { AlertTriangle, Trash2, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { formatAbsoluteTime } from "../../app/format";
+import { useI18n } from "../i18n/i18n-provider";
 
 export interface HistoryDeleteDialogJob {
   id: string;
@@ -27,6 +28,7 @@ export function HistoryDeleteDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useI18n();
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export function HistoryDeleteDialog({
           type="button"
           onClick={onCancel}
           disabled={isDeleting}
-          aria-label="关闭"
+          aria-label={t("history.delete.close")}
         >
           <X size={16} aria-hidden="true" />
         </button>
@@ -69,30 +71,33 @@ export function HistoryDeleteDialog({
         </div>
 
         <h2 className="historyDialogTitle" id="history-delete-dialog-title">
-          删除这条分析记录？
+          {t("history.delete.title")}
         </h2>
         <p className="historyDialogDescription" id="history-delete-dialog-description">
-          删除后会从钱包历史中永久移除这条记录，包括图谱、发现和事件快照，且无法恢复。
+          {t("history.delete.body")}
         </p>
 
         <dl className="historyDialogMeta">
           <div>
-            <dt>时间</dt>
+            <dt>{t("history.table.time")}</dt>
             <dd>{timestamp}</dd>
           </div>
           <div>
-            <dt>范围</dt>
+            <dt>{t("history.table.scope")}</dt>
             <dd>{job.chainName ?? "Unknown chain"}</dd>
           </div>
           <div>
-            <dt>规模</dt>
+            <dt>{t("history.delete.size")}</dt>
             <dd>
-              {job.watchedAddressCount ?? "—"} 地址 · {job.eventCount ?? "—"} 事件
+              {t("history.row.stats", {
+                addresses: job.watchedAddressCount ?? "—",
+                events: job.eventCount ?? "—",
+              })}
             </dd>
           </div>
           {job.sourceLabel ? (
             <div>
-              <dt>来源</dt>
+              <dt>{t("history.delete.source")}</dt>
               <dd>{job.sourceLabel}</dd>
             </div>
           ) : null}
@@ -111,7 +116,7 @@ export function HistoryDeleteDialog({
             onClick={onCancel}
             disabled={isDeleting}
           >
-            取消
+            {t("history.delete.cancel")}
           </button>
           <button
             className="historyDialogButton historyDialogButtonDanger"
@@ -120,7 +125,7 @@ export function HistoryDeleteDialog({
             disabled={isDeleting}
           >
             <Trash2 size={15} aria-hidden="true" />
-            {isDeleting ? "删除中…" : "确认删除"}
+            {isDeleting ? t("history.delete.confirming") : t("history.delete.confirm")}
           </button>
         </div>
       </div>

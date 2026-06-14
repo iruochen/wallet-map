@@ -1,3 +1,4 @@
+import { useI18n, type I18nKey } from "../i18n/i18n-provider";
 import type { AnalysisResponse } from "./analysis-types";
 
 type ScoreDimensions = AnalysisResponse["score"]["dimensions"];
@@ -6,13 +7,13 @@ type ScoreDimensionKey = keyof ScoreDimensions;
 const dimensionItems: Array<{
   key: ScoreDimensionKey;
   label: string;
-  description: string;
+  descriptionKey: I18nKey;
 }> = [
-  { key: "funding", label: "Funding", description: "资金来源 / 多跳路径" },
-  { key: "destination", label: "Destination", description: "共同去向 / 桥路径" },
-  { key: "contract", label: "Contract", description: "共同合约交互" },
-  { key: "temporal", label: "Time", description: "时间窗口重合" },
-  { key: "asset", label: "Asset", description: "资产重合信号" },
+  { key: "funding", label: "Funding", descriptionKey: "analysis.exposure.funding.description" },
+  { key: "destination", label: "Destination", descriptionKey: "analysis.exposure.destination.description" },
+  { key: "contract", label: "Contract", descriptionKey: "analysis.exposure.contract.description" },
+  { key: "temporal", label: "Time", descriptionKey: "analysis.exposure.temporal.description" },
+  { key: "asset", label: "Asset", descriptionKey: "analysis.exposure.asset.description" },
 ];
 
 interface ExposureScoreDimensionsProps {
@@ -24,16 +25,17 @@ export function ExposureScoreDimensions({
   dimensions,
   topSignals,
 }: ExposureScoreDimensionsProps) {
+  const { t } = useI18n();
   const strongestDimension = dimensionItems.reduce((strongest, item) =>
     dimensions[item.key] > dimensions[strongest.key] ? item : strongest,
   );
 
   return (
-    <section className="exposureDimensions" aria-label="Exposure score dimensions">
+    <section className="exposureDimensions" aria-label={t("analysis.exposure.title")}>
       <header className="exposureDimensionsHeader">
         <div>
-          <strong>Exposure dimensions</strong>
-          <span>{strongestDimension.label} 维度最高</span>
+          <strong>{t("analysis.exposure.title")}</strong>
+          <span>{t("analysis.exposure.strongest", { label: strongestDimension.label })}</span>
         </div>
         <span>{dimensions[strongestDimension.key]}/100</span>
       </header>
@@ -50,14 +52,14 @@ export function ExposureScoreDimensions({
               <div className="exposureDimensionTrack" aria-hidden="true">
                 <span style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
               </div>
-              <p>{item.description}</p>
+              <p>{t(item.descriptionKey)}</p>
             </div>
           );
         })}
       </div>
       {topSignals.length > 0 ? (
         <div className="exposureTopSignals">
-          <span>Top signals</span>
+          <span>{t("analysis.exposure.topSignals")}</span>
           <p>{topSignals.slice(0, 3).join(" · ")}</p>
         </div>
       ) : null}

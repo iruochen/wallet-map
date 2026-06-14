@@ -707,7 +707,7 @@ export function AnalysisWorkbench({
                 </span>
                 <small>{selectedChain?.explorerName ?? "Explorer"}</small>
               </div>
-              <div className="segmentedControl segmentedControlChains" role="radiogroup" aria-label="选择链">
+              <div className="segmentedControl segmentedControlChains" role="radiogroup" aria-label={t("analysis.config.chain.aria")}>
                 <button
                   type="button"
                   className={`segmentedButton ${chainId === String(evmAggregateChainId) ? "segmentedButtonActive" : ""}`}
@@ -756,7 +756,7 @@ export function AnalysisWorkbench({
                 </span>
                 <small>{dataProviderOptions.find((option) => option.value === dataProvider)?.description}</small>
               </div>
-              <div className="segmentedControl segmentedControlModes" role="radiogroup" aria-label="选择 provider">
+              <div className="segmentedControl segmentedControlModes" role="radiogroup" aria-label={t("analysis.config.provider.aria")}>
                 {dataProviderOptions.map((option) => (
                   <button
                     key={option.value}
@@ -782,7 +782,7 @@ export function AnalysisWorkbench({
                 </span>
                 <small>{dataMode === "live" ? t("analysis.data.live") : dataMode === "fixture" ? t("analysis.data.fixture") : t("analysis.data.auto")}</small>
               </div>
-              <div className="segmentedControl segmentedControlModes" role="radiogroup" aria-label="选择数据源">
+              <div className="segmentedControl segmentedControlModes" role="radiogroup" aria-label={t("analysis.config.dataSource.aria")}>
                 {dataModeOptions.map((option) => (
                   <button
                     key={option.value}
@@ -932,19 +932,19 @@ export function AnalysisWorkbench({
               )}
               <div className="metricGrid">
                 <div>
-                  <span><WalletCards size={14} strokeWidth={2.1} /> Watched</span>
+                  <span><WalletCards size={14} strokeWidth={2.1} /> {t("analysis.metrics.watched")}</span>
                   <strong>{result.meta.watchedAddressCount}</strong>
                 </div>
                 <div>
-                  <span><Database size={14} strokeWidth={2.1} /> Events</span>
+                  <span><Database size={14} strokeWidth={2.1} /> {t("analysis.metrics.events")}</span>
                   <strong>{result.meta.eventCount}</strong>
                 </div>
                 <div>
-                  <span>Contracts</span>
+                  <span>{t("analysis.metrics.contracts")}</span>
                   <strong>{graphSummary.contracts}</strong>
                 </div>
                 <div>
-                  <span>Edges</span>
+                  <span>{t("analysis.metrics.edges")}</span>
                   <strong>{graphSummary.edges}</strong>
                 </div>
               </div>

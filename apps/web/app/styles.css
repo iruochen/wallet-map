@@ -3611,6 +3611,8 @@ select {
   gap: 5px;
   color: #64736a;
   font-size: 0.72rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .scoreRow strong {
@@ -3653,6 +3655,8 @@ select {
 .exposureDimensionsHeader div span {
   color: #64736a;
   font-size: 0.72rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .exposureDimensionsHeader > span {
@@ -3716,6 +3720,8 @@ select {
   color: #6f7d73;
   font-size: 0.68rem;
   line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .exposureTopSignals {
@@ -3821,6 +3827,8 @@ select {
   color: #405047;
   font-size: 0.8rem;
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .pairInsightList {
@@ -3836,6 +3844,8 @@ select {
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 6px 18px rgba(31, 61, 44, 0.04);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .pairInsightHeader {
@@ -3843,12 +3853,15 @@ select {
   gap: 8px;
   align-items: flex-start;
   justify-content: space-between;
+  min-width: 0;
 }
 
 .pairInsightHeader strong {
   font-size: 0.86rem;
   min-width: 0;
   line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .pairInsightCard p {
@@ -4493,22 +4506,55 @@ code {
 }
 
 .graphToolbarMain {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .graphChainFilter {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   align-items: center;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 2px;
   border-bottom: 1px solid #e7eee8;
 }
 
+.graphScrollStrip {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.graphScrollStrip::-webkit-scrollbar,
+.graphChainFilter::-webkit-scrollbar,
+.graphLegend::-webkit-scrollbar {
+  height: 6px;
+}
+
+.graphScrollStrip::-webkit-scrollbar-thumb,
+.graphChainFilter::-webkit-scrollbar-thumb,
+.graphLegend::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(76, 91, 81, 0.28);
+}
+
 .graphChainFilterLabel {
+  flex: 0 0 auto;
   color: #64736a;
   font-size: 0.68rem;
   font-weight: 800;
@@ -4535,9 +4581,15 @@ code {
 
 .graphLegend {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   align-items: center;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .graphLegendItem {
@@ -4554,6 +4606,8 @@ code {
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
+  flex: 0 0 auto;
+  white-space: nowrap;
   transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
 }
 
@@ -4580,7 +4634,9 @@ code {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .graphChipButton {
@@ -4595,6 +4651,8 @@ code {
   font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
+  flex: 0 0 auto;
+  white-space: nowrap;
   transition: background 120ms ease, color 120ms ease;
 }
 
