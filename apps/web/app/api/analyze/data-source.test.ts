@@ -115,18 +115,20 @@ describe("resolveAnalyzeEvents", () => {
   it("keeps the primary NodeReal error visible when the Etherscan fallback also fails", async () => {
     const fetchMock = mockNodeRealFailureThenEtherscanFailureFetch();
 
-    await expect(
-      resolveAnalyzeEvents({
-        addresses: [addresses[0]],
-        chainId: 56,
-        dataMode: "auto",
-        env: {
-          ETHERSCAN_API_KEY: "etherscan-key",
-          NODEREAL_BSC_API_KEY: "nodereal-key",
-        },
-        fetchImpl: fetchMock,
-      }),
-    ).rejects.toThrow(
+    const result = await resolveAnalyzeEvents({
+      addresses: [addresses[0]],
+      chainId: 56,
+      dataMode: "auto",
+      env: {
+        ETHERSCAN_API_KEY: "etherscan-key",
+        NODEREAL_BSC_API_KEY: "nodereal-key",
+      },
+      fetchImpl: fetchMock,
+    });
+
+    expect(result.mode).toBe("live");
+    expect(result.events).toEqual([]);
+    expect(result.warnings).toContain(
       "BSC provider request failed: NodeReal BSC nr_getTransactionByAddress request failed with HTTP 500 Internal Server Error Fallback also failed: BSC txlist request failed: NOTOK (Etherscan API does not support this chain.)",
     );
   });
@@ -145,18 +147,22 @@ describe("resolveAnalyzeEvents", () => {
   it("returns a clear error when the only live provider times out", async () => {
     const fetchMock = mockSlowEtherscanFetch();
 
-    await expect(
-      resolveAnalyzeEvents({
-        addresses: [...addresses],
-        chainId: 1,
-        dataMode: "live",
-        env: {
-          ETHERSCAN_API_KEY: "etherscan-key",
-          ANALYZE_LIVE_PROVIDER_TIMEOUT_MS: "5",
-        },
-        fetchImpl: fetchMock,
-      }),
-    ).rejects.toThrow("Ethereum txlist request failed before a response was received: Ethereum provider request timed out after 5ms.");
+    const result = await resolveAnalyzeEvents({
+      addresses: [...addresses],
+      chainId: 1,
+      dataMode: "live",
+      env: {
+        ETHERSCAN_API_KEY: "etherscan-key",
+        ANALYZE_LIVE_PROVIDER_TIMEOUT_MS: "5",
+      },
+      fetchImpl: fetchMock,
+    });
+
+    expect(result.mode).toBe("live");
+    expect(result.events).toEqual([]);
+    expect(result.warnings).toContain(
+      "Ethereum skipped: Ethereum txlist request failed before a response was received: Ethereum provider request timed out after 5ms.",
+    );
   });
 });
 

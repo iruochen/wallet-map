@@ -107,12 +107,11 @@ export async function executeAnalyzeJob(jobId: string, parsed: ParsedAnalyzeRequ
       ],
       onProgress: async (update) => {
         const phase = mapPipelinePhase(update.phase);
+        await syncJobProgress(jobId, phase, update.status === "started" ? "started" : "completed", storage);
 
         if (phase === "labels" && update.status === "started") {
-          await warmWalletLabelCache(parsed.addresses, parsed.chainIds);
+          void warmWalletLabelCache(parsed.addresses, parsed.chainIds);
         }
-
-        await syncJobProgress(jobId, phase, update.status === "started" ? "started" : "completed", storage);
       },
     });
 

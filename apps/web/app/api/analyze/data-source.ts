@@ -43,10 +43,13 @@ const nodeRealApiKeyEnv = "NODEREAL_API_KEY";
 const nodeRealBscApiKeyEnv = "NODEREAL_BSC_API_KEY";
 const solscanApiKeyEnv = "SOLSCAN_API_KEY";
 const liveAddressConcurrencyEnv = "ANALYZE_LIVE_ADDRESS_CONCURRENCY";
+const liveChainConcurrencyEnv = "ANALYZE_LIVE_CHAIN_CONCURRENCY";
 const liveProviderTimeoutEnv = "ANALYZE_LIVE_PROVIDER_TIMEOUT_MS";
 const defaultLiveAddressConcurrency = 2;
 const maxLiveAddressConcurrency = 8;
-const defaultLiveProviderTimeoutMs = 30_000;
+const defaultLiveChainConcurrency = 3;
+const maxLiveChainConcurrency = 6;
+const defaultLiveProviderTimeoutMs = 20_000;
 const maxLiveProviderTimeoutMs = 120_000;
 
 const nodeRealEndpoints = new Map<ChainId, string>([
@@ -66,6 +69,7 @@ export async function resolveAnalyzeEvents(
   const solscanApiKey = env[solscanApiKeyEnv]?.trim();
   const dataProvider = input.dataProvider ?? "auto";
   const liveAddressConcurrency = parseLiveAddressConcurrency(env[liveAddressConcurrencyEnv]);
+  const liveChainConcurrency = parseLiveChainConcurrency(env[liveChainConcurrencyEnv]);
   const liveProviderTimeoutMs = parseLiveProviderTimeoutMs(env[liveProviderTimeoutEnv]);
   const livePlans = requestedChainIds.map((chainId) =>
     selectAnalyzeLiveProvider(chainId, {
@@ -99,22 +103,22 @@ export async function resolveAnalyzeEvents(
     throw new Error(`Live mode is not configured for chain ID ${unsupportedChainId}.`);
   }
 
-  const eventsByAddress: NormalizedEvent[][] = [];
-  const sources = new Set<string>();
-  const warnings: string[] = [];
   const allowPartial = requestedChainIds.length > 1;
 
   // Live mode: pick an adapter per chain, then call adapter.getEvents for each address.
-  for (const plan of livePlans) {
+  const chainResults = await mapWithConcurrency(livePlans, liveChainConcurrency, async (plan) => {
+    const eventsByAddress: NormalizedEvent[][] = [];
+    const sources = new Set<string>();
+    const warnings: string[] = [];
     const config = getSupportedAnalysisChain(plan.chainId);
     if (!config) {
-      continue;
+      return { events: [], sources: [], warnings };
     }
 
     if (!plan.provider && input.dataMode === "live") {
       if (allowPartial) {
         warnings.push(buildMissingLiveRequirementMessage(config.name, plan.chainId, dataProvider));
-        continue;
+        return { events: [], sources: [], warnings };
       }
 
       throw new Error(buildMissingLiveRequirementMessage(config.name, plan.chainId, dataProvider));
@@ -122,7 +126,7 @@ export async function resolveAnalyzeEvents(
 
     if (!plan.provider) {
       warnings.push(buildMissingLiveRequirementMessage(config.name, plan.chainId, dataProvider));
-      continue;
+      return { events: [], sources: [], warnings };
     }
 
     const adapter = buildAdapter({
@@ -157,14 +161,10 @@ export async function resolveAnalyzeEvents(
               fetchImpl: input.fetchImpl,
               timeoutMs: liveProviderTimeoutMs,
             }).catch((fallbackError: unknown) => {
-              if (allowPartial) {
-                return {
-                  events: [],
-                  warning: buildProviderFailureMessage(config.name, error, fallbackError),
-                };
-              }
-
-              throw new Error(buildProviderFailureMessage(config.name, error, fallbackError));
+              return {
+                events: [],
+                warning: buildProviderFailureMessage(config.name, error, fallbackError),
+              };
             });
 
             if (fallbackResult) {
@@ -172,14 +172,10 @@ export async function resolveAnalyzeEvents(
             }
           }
 
-          if (allowPartial) {
-            return {
-              events: [],
-              warning: `${config.name} skipped: ${formatUnknownError(error)}`,
-            };
-          }
-
-          throw error;
+          return {
+            events: [],
+            warning: `${config.name} skipped: ${formatUnknownError(error)}`,
+          };
         }
       },
     );
@@ -197,14 +193,20 @@ export async function resolveAnalyzeEvents(
     }
 
     sources.add(adapter.id);
-  }
+
+    return {
+      events: eventsByAddress.flat(),
+      sources: Array.from(sources),
+      warnings,
+    };
+  });
 
   return {
-    events: dedupeEvents(eventsByAddress.flat()),
+    events: dedupeEvents(chainResults.flatMap((result) => result.events)),
     mode: "live",
-    source: Array.from(sources).join(",") || "live-partial-empty",
+    source: Array.from(new Set(chainResults.flatMap((result) => result.sources))).join(",") || "live-partial-empty",
     chainName: buildChainName(requestedChainIds),
-    warnings,
+    warnings: chainResults.flatMap((result) => result.warnings),
   };
 }
 
@@ -477,6 +479,16 @@ function parseLiveAddressConcurrency(input: string | undefined): number {
   }
 
   return Math.min(maxLiveAddressConcurrency, Math.max(1, Math.floor(parsed)));
+}
+
+function parseLiveChainConcurrency(input: string | undefined): number {
+  const parsed = Number(input ?? defaultLiveChainConcurrency);
+
+  if (!Number.isFinite(parsed)) {
+    return defaultLiveChainConcurrency;
+  }
+
+  return Math.min(maxLiveChainConcurrency, Math.max(1, Math.floor(parsed)));
 }
 
 function parseLiveProviderTimeoutMs(input: string | undefined): number {
