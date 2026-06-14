@@ -53,6 +53,8 @@ const sampleAddresses = [
 ].join("\n");
 
 const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";
+const activeAnalysisJobRestoreAttempts = 3;
+const activeAnalysisJobRestoreDelayMs = 500;
 
 type DataModeOptionValue = "auto" | "fixture" | "live";
 type DataProviderOptionValue = "auto" | "nodereal" | "etherscan" | "solscan";
@@ -311,8 +313,24 @@ export function AnalysisWorkbench({
     setError(null);
 
     try {
-      const response = await fetch(`/api/analyze/jobs/${jobId}`);
-      const body = await readJsonResponse<AnalysisJobPollResponse | { error?: string }>(response);
+      const maxAttempts = explicitReplay ? 1 : activeAnalysisJobRestoreAttempts;
+      let response: Response | null = null;
+      let body: AnalysisJobPollResponse | { error?: string } | null = null;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        response = await fetch(`/api/analyze/jobs/${jobId}`);
+        body = await readJsonResponse<AnalysisJobPollResponse | { error?: string }>(response);
+
+        if (response.status !== 404 || attempt === maxAttempts) {
+          break;
+        }
+
+        await sleep(activeAnalysisJobRestoreDelayMs);
+      }
+
+      if (!response || !body) {
+        throw new Error(t("analysis.error.loadSaved"));
+      }
 
       if (!response.ok) {
         if (response.status === 404) {
