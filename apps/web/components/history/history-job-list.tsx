@@ -12,6 +12,7 @@ import {
 } from "./history-comparison";
 import { HistoryDeleteDialog } from "./history-delete-dialog";
 import { HistoryIdentityAvatar } from "./history-identity-avatar";
+import { readSessionHistoryJobs } from "./session-history";
 import type { HistoryJobItem, HistoryResponse } from "./history-types";
 
 const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";
@@ -113,10 +114,22 @@ export function HistoryJobList({
         throw new Error(body.error ?? "Failed to load history.");
       }
 
-      setJobs(body.jobs ?? []);
-      setTotal(body.total ?? body.jobs?.length ?? 0);
-      setComparisonJobIds((current) => current.filter((id) => body.jobs?.some((job) => job.id === id) ?? false));
-      setStorageEnabled(body.storageEnabled !== false);
+      const nextStorageEnabled = body.storageEnabled !== false;
+      const sessionHistory = nextStorageEnabled
+        ? undefined
+        : getFilteredSessionHistoryJobs({
+            statusFilter,
+            query: historyQuery,
+            offset: (page - 1) * pageSize,
+            limit: pageSize,
+          });
+      const nextJobs = nextStorageEnabled ? (body.jobs ?? []) : sessionHistory?.jobs ?? [];
+      const nextTotal = nextStorageEnabled ? (body.total ?? body.jobs?.length ?? 0) : sessionHistory?.total ?? 0;
+
+      setJobs(nextJobs);
+      setTotal(nextTotal);
+      setComparisonJobIds((current) => current.filter((id) => nextJobs.some((job) => job.id === id)));
+      setStorageEnabled(nextStorageEnabled);
       setHistoryMode(body.historyMode ?? "session");
       setWalletAddress(body.walletAddress);
       setAnonymousSessionId(body.anonymousSessionId);
@@ -263,6 +276,11 @@ export function HistoryJobList({
               同步会话记录 ({sessionSyncCount})
             </button>
           ) : null}
+          {!storageEnabled ? (
+            <span className="historyLocalBadge" title="当前没有配置 PG，历史记录只保存在这个浏览器会话中。">
+              浏览器会话历史
+            </span>
+          ) : null}
           <button className="historyIconButton" type="button" onClick={() => void loadJobs()} disabled={isRefreshing || isSyncing} title="刷新历史">
             <RefreshCw className={isRefreshing ? "historySpinIcon" : ""} size={15} aria-hidden="true" />
           </button>
@@ -339,15 +357,6 @@ export function HistoryJobList({
     return renderListBody(<HistorySkeleton />);
   }
 
-  if (!storageEnabled) {
-    return renderListBody(
-      <div className="historyEmpty">
-        <strong>数据库未配置</strong>
-        <p>在 Vercel 或本地配置 `DATABASE_URL` 并执行 migration 后，分析结果会自动保存到这里。</p>
-      </div>,
-    );
-  }
-
   if (loadError) {
     const needsMigration = loadError.includes('column "chain_name" does not exist');
 
@@ -378,7 +387,9 @@ export function HistoryJobList({
             ? "试试放宽状态筛选，或搜索其他链名、来源和任务 ID。"
             : historyMode === "wallet"
             ? "这个钱包还没有保存过分析记录。完成一次分析后，结果会自动同步到这里。"
-            : "完成一次分析后，任务会显示在这里。登录钱包后还能跨会话查看。"}
+            : storageEnabled
+              ? "完成一次分析后，任务会显示在这里。登录钱包后还能跨会话查看。"
+              : "未配置数据库时，完成的分析会临时保存在当前浏览器会话里。关闭标签页或浏览器后，这些记录可能会消失。"}
         </p>
         {hasHistoryFilters ? null : (
           <Link
@@ -625,4 +636,34 @@ function clearStoredAnalysisJob() {
   } catch {
     // Ignore blocked storage.
   }
+}
+
+function getFilteredSessionHistoryJobs(input: {
+  statusFilter: HistoryStatusFilter;
+  query: string;
+  offset: number;
+  limit: number;
+}): { jobs: HistoryJobItem[]; total: number } {
+  const normalizedQuery = input.query.trim().toLowerCase();
+  const filtered = readSessionHistoryJobs().filter((job) => {
+    if (input.statusFilter !== "all" && job.status !== input.statusFilter) {
+      return false;
+    }
+
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    return [
+      job.id,
+      job.chainName,
+      job.sourceLabel,
+      job.dataMode,
+    ].some((value) => value?.toLowerCase().includes(normalizedQuery));
+  });
+
+  return {
+    jobs: filtered.slice(input.offset, input.offset + input.limit),
+    total: filtered.length,
+  };
 }

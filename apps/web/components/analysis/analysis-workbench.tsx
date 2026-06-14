@@ -27,6 +27,7 @@ import { parseAddressImport, type AddressImportSummary } from "./address-import"
 import {
   describeFindingGroup,
   formatConfidenceLabel,
+  formatSkippedChainDetails,
   formatSkippedChainSummary,
   formatVerdictLabel,
 } from "./analysis-formatters";
@@ -35,6 +36,7 @@ import {
   downloadAnalysisReport,
 } from "./analysis-report-download";
 import { ExposureScoreDimensions } from "./analysis-score-dimensions";
+import { saveSessionHistoryJob } from "../history/session-history";
 import type {
   AnalysisJobPollResponse,
   AnalysisJobProgress,
@@ -351,6 +353,10 @@ export function AnalysisWorkbench({
 
       if (poll.status === "completed" && poll.result) {
         rememberActiveAnalysisJob(jobId);
+        saveSessionHistoryJob(jobId, poll.result, {
+          createdAt: poll.createdAt,
+          startedAt: poll.startedAt,
+        });
         setResult(poll.result);
         setIsRunning(false);
         setJobProgress(null);
@@ -394,6 +400,10 @@ export function AnalysisWorkbench({
 
       if (poll.status === "completed" && poll.result) {
         await revealCompletedProgress(poll.progress);
+        saveSessionHistoryJob(jobId, poll.result, {
+          createdAt: poll.createdAt,
+          startedAt: poll.startedAt,
+        });
         return poll.result;
       }
 
@@ -668,12 +678,9 @@ export function AnalysisWorkbench({
           </section>
 
           <div className="inputStatusStack">
-            <div
-              className={`stateBanner stateBannerCompact ${liveConfigured ? "stateBannerSuccess" : "stateBannerInfo"}`}
-              aria-live="polite"
-            >
-              <strong>{liveConfigured ? t("analysis.status.liveReady") : t("analysis.status.fixtureDefault")}</strong>
-              <span>{modeDescription}</span>
+            <div className="dataReadinessTip" title={modeDescription} aria-live="polite">
+              <Database size={14} strokeWidth={2.1} aria-hidden="true" />
+              <span>{liveConfigured ? t("analysis.status.liveReady") : t("analysis.status.fixtureDefault")}</span>
             </div>
             {anonymousAnalysisQuota ? (
               <div className="stateBanner stateBannerCompact stateBannerInfo" aria-live="polite">
@@ -857,7 +864,7 @@ export function AnalysisWorkbench({
                   <details className="warningDetails">
                     <summary>{t("analysis.summary.details")}</summary>
                     <ul>
-                      {result.meta.warnings.map((warning) => (
+                      {formatSkippedChainDetails(result.meta.warnings).map((warning) => (
                         <li key={warning}>{warning}</li>
                       ))}
                     </ul>

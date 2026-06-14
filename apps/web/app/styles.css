@@ -1002,6 +1002,20 @@ button:disabled {
   background: #ffffff;
 }
 
+.historyLocalBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #ead8aa;
+  border-radius: 999px;
+  background: #fff9e8;
+  color: #73510b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .historySyncBanner {
   margin-top: -4px;
 }
@@ -2716,6 +2730,28 @@ button:disabled {
 .inputStatusStack {
   display: grid;
   gap: 8px;
+}
+
+.dataReadinessTip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 9px;
+  border: 1px solid #cfe2d5;
+  border-radius: 999px;
+  background: #f6fbf7;
+  color: #2f6a43;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.dataReadinessTip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inputSectionLabel {

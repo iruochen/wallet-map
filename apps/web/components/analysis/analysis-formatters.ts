@@ -71,6 +71,44 @@ export function formatSkippedChainSummary(warnings: string[]): string {
   return `跳过链：${uniqueNames.join("、")}`;
 }
 
+export function formatSkippedChainDetails(warnings: string[]): string[] {
+  const details = warnings.map((warning) => {
+    const chainName = readWarningChainName(warning);
+    const reason = formatProviderWarningReason(warning);
+
+    return chainName ? `${chainName}: ${reason}` : reason;
+  });
+
+  return Array.from(new Set(details));
+}
+
+function readWarningChainName(warning: string): string | undefined {
+  return (
+    /^([^:]+?)(?: skipped| provider request failed| analysis| is required)/.exec(warning)?.[1]?.trim() ??
+    /live (.+?) analysis/.exec(warning)?.[1]?.trim()
+  );
+}
+
+function formatProviderWarningReason(warning: string): string {
+  if (/Free API access is not supported|api plan|does not support this chain/i.test(warning)) {
+    return "当前 provider 套餐不支持该链";
+  }
+
+  if (/timed out|fetch failed|could not reach|TLS connection|reset/i.test(warning)) {
+    return "网络或 provider 连接失败";
+  }
+
+  if (/API_KEY|is required|not configured/i.test(warning)) {
+    return "缺少该链所需的 provider 配置";
+  }
+
+  if (/rate limit|429/i.test(warning)) {
+    return "provider 限流";
+  }
+
+  return "provider 请求未完成";
+}
+
 export function formatFindingRiskLabel(value: string): string {
   if (value === "high") {
     return "高";
