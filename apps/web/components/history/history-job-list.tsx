@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatAbsoluteTime } from "../../app/format";
 import { formatConfidenceLabel } from "../analysis/lib/formatters";
+import { clearWorkbenchJobUrl, forgetActiveAnalysisJob, readActiveAnalysisJobId } from "../analysis/lib/active-job-restore";
 import { useI18n, type I18nKey } from "../i18n/i18n-provider";
 import { useWalletDisplayName } from "../wallet/use-wallet-display-name";
 import {
@@ -16,7 +17,6 @@ import { HistoryIdentityAvatar } from "./history-identity-avatar";
 import { readSessionHistoryJobs } from "./lib/session-history";
 import type { HistoryJobItem, HistoryResponse } from "./history-types";
 
-const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";
 const historyPageSizeOptions = [10, 20, 50] as const;
 type HistoryStatusFilter = "all" | HistoryJobItem["status"];
 
@@ -713,15 +713,8 @@ function HistorySkeleton({
 }
 
 function clearStoredAnalysisJob() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.sessionStorage.removeItem(activeAnalysisJobStorageKey);
-  } catch {
-    // Ignore blocked storage.
-  }
+  forgetActiveAnalysisJob(readActiveAnalysisJobId());
+  clearWorkbenchJobUrl();
 }
 
 function getFilteredSessionHistoryJobs(input: {

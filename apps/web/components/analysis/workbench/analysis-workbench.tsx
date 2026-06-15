@@ -31,6 +31,12 @@ import {
   formatVerdictLabel,
 } from "../lib/formatters";
 import { deriveWorkbenchInputFromResult } from "../lib/input-restore";
+import {
+  clearWorkbenchJobUrl,
+  forgetActiveAnalysisJob,
+  readActiveAnalysisJobId,
+  rememberActiveAnalysisJob,
+} from "../lib/active-job-restore";
 import { downloadAnalysisReport } from "../lib/report-download";
 import type {
   AnalysisJobPollResponse,
@@ -54,51 +60,12 @@ const sampleAddresses = [
   "0xdddddddddddddddddddddddddddddddddddddddd",
 ].join("\n");
 
-const activeAnalysisJobStorageKey = "wallet-map:active-analysis-job";
 const evidenceHintDismissedStorageKey = "wallet-map:evidence-hint-dismissed-jobs";
 const activeAnalysisJobRestoreAttempts = 3;
 const activeAnalysisJobRestoreDelayMs = 500;
 
 type DataModeOptionValue = "auto" | "fixture" | "live";
 type DataProviderOptionValue = "auto" | "nodereal" | "etherscan" | "solscan";
-
-function readActiveAnalysisJobId(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    return window.sessionStorage.getItem(activeAnalysisJobStorageKey);
-  } catch {
-    return null;
-  }
-}
-
-function rememberActiveAnalysisJob(jobId: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.sessionStorage.setItem(activeAnalysisJobStorageKey, jobId);
-  } catch {
-    // Browsers can block storage; analysis still works without resumability.
-  }
-}
-
-function forgetActiveAnalysisJob(jobId: string | null): void {
-  if (typeof window === "undefined" || !jobId) {
-    return;
-  }
-
-  try {
-    if (window.sessionStorage.getItem(activeAnalysisJobStorageKey) === jobId) {
-      window.sessionStorage.removeItem(activeAnalysisJobStorageKey);
-    }
-  } catch {
-    // Ignore blocked storage.
-  }
-}
 
 function readDismissedEvidenceHintJobIds(): Set<string> {
   if (typeof window === "undefined") {
@@ -267,6 +234,7 @@ export function AnalysisWorkbench({
 
     if (freshStart) {
       forgetActiveAnalysisJob(readActiveAnalysisJobId());
+      clearWorkbenchJobUrl();
       restoredJobIdRef.current = null;
       setError(null);
       return;
@@ -281,6 +249,42 @@ export function AnalysisWorkbench({
     restoredJobIdRef.current = activeJobId;
     void loadAnalysisJob(activeJobId, Boolean(replayJobId));
   }, [searchParams]);
+
+  useEffect(() => {
+    const resumeVisibleWorkbench = () => {
+      if (searchParams.get("fresh") === "1" || isRunning) {
+        return;
+      }
+
+      const replayJobId = searchParams.get("job");
+      const activeJobId = replayJobId ?? readActiveAnalysisJobId();
+
+      if (!activeJobId || result || restoredJobIdRef.current === activeJobId) {
+        return;
+      }
+
+      restoredJobIdRef.current = activeJobId;
+      void loadAnalysisJob(activeJobId, Boolean(replayJobId));
+    };
+
+    const handlePageShow = () => {
+      resumeVisibleWorkbench();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        resumeVisibleWorkbench();
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [searchParams, result, isRunning]);
 
   useEffect(() => {
     return () => {
