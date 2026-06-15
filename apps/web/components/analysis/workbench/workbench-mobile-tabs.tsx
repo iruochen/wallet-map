@@ -23,7 +23,7 @@ export function WorkbenchMobileTabs({
   const { t } = useI18n();
 
   return (
-    <div className="workbenchMobileNavWrap">
+    <div className="workbenchMobileTopNavWrap mobileOnly">
       {showEvidenceHint ? (
         <button
           type="button"
@@ -37,10 +37,10 @@ export function WorkbenchMobileTabs({
           <strong>{t("analysis.mobile.viewEvidence")}</strong>
         </button>
       ) : null}
-      <nav className="workbenchMobileNav" aria-label={t("analysis.mobile.navAria")}>
+      <nav className="workbenchMobileTopNav" aria-label={t("analysis.mobile.navAria")}>
         <button
           type="button"
-          className={`workbenchMobileNavLink ${activePanel === "input" ? "workbenchMobileNavLinkActive" : ""}`}
+          className={`workbenchMobileTopNavLink ${activePanel === "input" ? "workbenchMobileTopNavLinkActive" : ""}`}
           onClick={() => onChange("input")}
           aria-current={activePanel === "input" ? "page" : undefined}
         >
@@ -49,7 +49,7 @@ export function WorkbenchMobileTabs({
         </button>
         <button
           type="button"
-          className={`workbenchMobileNavLink ${activePanel === "graph" ? "workbenchMobileNavLinkActive" : ""}`}
+          className={`workbenchMobileTopNavLink ${activePanel === "graph" ? "workbenchMobileTopNavLinkActive" : ""}`}
           onClick={() => onChange("graph")}
           aria-current={activePanel === "graph" ? "page" : undefined}
         >
@@ -58,15 +58,15 @@ export function WorkbenchMobileTabs({
         </button>
         <button
           type="button"
-          className={`workbenchMobileNavLink ${activePanel === "evidence" ? "workbenchMobileNavLinkActive" : ""}`}
+          className={`workbenchMobileTopNavLink ${activePanel === "evidence" ? "workbenchMobileTopNavLinkActive" : ""}`}
           onClick={() => onChange("evidence")}
           aria-current={activePanel === "evidence" ? "page" : undefined}
         >
           <FileSearch size={17} strokeWidth={2.2} aria-hidden="true" />
-          <span className="workbenchMobileNavLabel">
+          <span className="workbenchMobileTopNavLabel">
             {t("analysis.mobile.tab.evidence")}
             {findingsCount > 0 ? (
-              <span className="workbenchMobileNavBadge" aria-label={String(findingsCount)}>
+              <span className="workbenchMobileTopNavBadge" aria-label={String(findingsCount)}>
                 {findingsCount}
               </span>
             ) : null}

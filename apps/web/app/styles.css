@@ -19,11 +19,9 @@
   --danger: #8d211b;
   --shadow-soft: 0 10px 30px rgba(31, 61, 44, 0.06);
   --mobile-nav-height: 58px;
-  --workbench-mobile-nav-height: 54px;
+  --workbench-mobile-nav-height: 44px;
   --mobile-chrome-top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
-  --mobile-chrome-bottom: calc(
-    var(--mobile-nav-height) + var(--workbench-mobile-nav-height) + 10px + env(safe-area-inset-bottom, 0px)
-  );
+  --mobile-chrome-bottom: calc(var(--mobile-nav-height) + 10px + env(safe-area-inset-bottom, 0px));
   --bp-mobile: 768px;
   --bp-tablet: 1040px;
   --bp-desktop: 1200px;
@@ -2619,10 +2617,12 @@ button:disabled {
   display: grid;
   gap: 0;
   overflow: hidden;
-  border: 1px solid #d4dfd5;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  border: 1px solid #c8d8cc;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fcf8 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 8px 22px rgba(31, 61, 44, 0.05);
 }
 
 .addressInputCardHeader {
@@ -2683,26 +2683,76 @@ button:disabled {
 .addressInputEditor {
   position: relative;
   padding: 0;
+  background: #fafcf9;
+}
+
+.addressChipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px 0;
+}
+
+.addressChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 2px 4px 2px 8px;
+  border: 1px solid #cfe0d4;
+  border-radius: 999px;
   background: #ffffff;
+  box-shadow: 0 1px 0 rgba(31, 61, 44, 0.04);
+}
+
+.addressChip code {
+  overflow: hidden;
+  color: #1a3f2d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.addressChipRemove {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #6d7d72;
+  transform: none;
+}
+
+.addressChipRemove:hover:not(:disabled) {
+  background: #f2f7f3;
+  color: #183d30;
+  transform: none;
 }
 
 .addressInputEditor:focus-within {
-  box-shadow: inset 0 0 0 2px rgba(47, 106, 77, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(47, 106, 77, 0.14);
 }
 
 .addressInputTextarea {
   width: 100%;
-  min-height: 108px;
+  min-height: 96px;
   margin: 0;
-  padding: 12px 12px 10px;
+  padding: 10px 12px 10px;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: #152018;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.78rem;
-  line-height: 1.55;
+  font-size: 0.8rem;
+  line-height: 1.65;
   resize: vertical;
+  word-break: break-all;
 }
 
 .addressInputTextarea::placeholder {
@@ -5625,27 +5675,93 @@ code {
 }
 
 .mobileControlSelect {
+  display: none;
+}
+
+.workbenchMobileTopNavWrap {
+  display: none;
+}
+
+.historyRouteLoading .historyRouteLoadingToolbar {
+  pointer-events: none;
+}
+
+.historyRouteLoadingAvatar,
+.historyRouteLoadingLines span,
+.historyRouteLoadingIcon,
+.historyRouteLoadingTitle,
+.historyRouteLoadingBody,
+.historyRouteLoadingAction {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e6eee4;
+}
+
+.historyRouteLoadingAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.historyRouteLoadingLines {
   display: grid;
   gap: 6px;
-  color: #4c5b51;
-  font-size: 0.72rem;
-  font-weight: 800;
+  flex: 1;
 }
 
-.mobileControlSelect select {
-  width: 100%;
-  min-height: 40px;
-  padding: 0 12px;
-  border: 1px solid #cbd8cd;
+.historyRouteLoadingLines span:first-child {
+  width: min(72%, 180px);
+  height: 12px;
+}
+
+.historyRouteLoadingLines span:last-child {
+  width: min(48%, 120px);
+  height: 10px;
+}
+
+.historyRouteLoadingEmpty {
+  gap: 12px;
+  padding: 28px 20px;
+}
+
+.historyRouteLoadingIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.historyRouteLoadingTitle {
+  width: min(56%, 180px);
+  height: 16px;
+}
+
+.historyRouteLoadingBody {
+  width: min(92%, 320px);
+  height: 44px;
+  border-radius: 8px;
+}
+
+.historyRouteLoadingAction {
+  width: min(72%, 220px);
+  height: 40px;
   border-radius: 10px;
-  background: #ffffff;
-  color: var(--text);
-  font-size: 0.84rem;
-  font-weight: 600;
 }
 
-.workbenchMobileNavWrap {
-  display: none;
+.historyRouteLoadingAvatar::after,
+.historyRouteLoadingLines span::after,
+.historyRouteLoadingIcon::after,
+.historyRouteLoadingTitle::after,
+.historyRouteLoadingBody::after,
+.historyRouteLoadingAction::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: translateX(-100%);
+  animation: shimmer 1.3s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
 }
 
 @media (max-width: 768px) {
@@ -5793,7 +5909,7 @@ code {
     flex: 0 0 auto;
     z-index: 6;
     margin-top: 0;
-    padding: 10px 10px calc(var(--workbench-mobile-nav-height) + 10px);
+    padding: 10px 10px 12px;
     background: #f7faf6;
     border-top: 1px solid #e2ebe3;
   }
@@ -5821,7 +5937,7 @@ code {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 8px;
-    padding-bottom: calc(var(--workbench-mobile-nav-height) + 10px);
+    padding-bottom: 12px;
     border-radius: 10px;
   }
 
@@ -5885,7 +6001,7 @@ code {
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    padding: 10px 10px calc(var(--workbench-mobile-nav-height) + 28px);
+    padding: 10px 10px 16px;
   }
 
   .workbenchFindings .workbenchScrollScrolling {
@@ -5933,14 +6049,34 @@ code {
     border-top: 1px solid #e2ebe3;
   }
 
-  .workbenchMobileNavWrap {
-    position: fixed;
-    right: 10px;
-    bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
-    left: 10px;
-    z-index: 25;
+  .mobileControlSelect {
     display: grid;
+    margin-top: 8px;
+  }
+
+  .mobileControlSelect select {
+    width: 100%;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid #cbd8cd;
+    border-radius: 10px;
+    background: #ffffff;
+    color: var(--text);
+    font-size: 0.84rem;
+    font-weight: 600;
+  }
+
+  .controlCard .controlLabelRow {
+    margin-bottom: 0;
+  }
+
+  .workbenchMobileTopNavWrap {
+    display: grid;
+    flex: 0 0 auto;
     gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #e2ebe3;
+    background: linear-gradient(180deg, #f8faf7 0%, #f3f6f2 100%);
   }
 
   .workbenchMobileHint {
@@ -5957,6 +6093,11 @@ code {
     color: #183d30;
     font-size: 0.76rem;
     font-weight: 700;
+    transform: none;
+  }
+
+  .workbenchMobileHint:hover:not(:disabled) {
+    transform: none;
   }
 
   .workbenchMobileHint strong {
@@ -5964,34 +6105,39 @@ code {
     font-size: 0.74rem;
   }
 
-  .workbenchMobileNav {
+  .workbenchMobileTopNav {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
-    padding: 4px;
+    gap: 3px;
+    padding: 3px;
     border: 1px solid #dce2d8;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.96);
-    box-shadow: var(--shadow-soft);
+    border-radius: 11px;
+    background: #e8eee8;
   }
 
-  .workbenchMobileNavLink {
+  .workbenchMobileTopNavLink {
     display: inline-flex;
-    flex-direction: column;
-    gap: 2px;
+    flex-direction: row;
+    gap: 5px;
     align-items: center;
     justify-content: center;
-    min-height: 44px;
-    padding: 4px 6px;
+    min-height: 36px;
+    padding: 4px 8px;
     border: 0;
-    border-radius: 9px;
+    border-radius: 8px;
     background: transparent;
     color: #64736a;
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     font-weight: 700;
+    transform: none;
   }
 
-  .workbenchMobileNavLabel {
+  .workbenchMobileTopNavLink:hover:not(:disabled) {
+    transform: none;
+    background: rgba(255, 255, 255, 0.55);
+  }
+
+  .workbenchMobileTopNavLabel {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -5999,12 +6145,13 @@ code {
     line-height: 1.2;
   }
 
-  .workbenchMobileNavLinkActive {
-    background: #edf6ef;
+  .workbenchMobileTopNavLinkActive {
+    background: #ffffff;
     color: #183d30;
+    box-shadow: 0 1px 4px rgba(31, 61, 44, 0.08);
   }
 
-  .workbenchMobileNavBadge {
+  .workbenchMobileTopNavBadge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -6019,7 +6166,7 @@ code {
     line-height: 1;
   }
 
-  .workbenchMobileNavLinkActive .workbenchMobileNavBadge {
+  .workbenchMobileTopNavLinkActive .workbenchMobileTopNavBadge {
     background: #183d30;
     color: #ffffff;
   }
@@ -6054,9 +6201,7 @@ code {
     position: fixed;
     top: auto;
     right: 0;
-    bottom: calc(
-      var(--mobile-nav-height) + var(--workbench-mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 8px
-    );
+    bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 8px);
     left: 0;
     width: 100%;
     max-height: min(44dvh, 360px);
@@ -6072,7 +6217,7 @@ code {
     max-height: min(
       72dvh,
       calc(
-        100dvh - var(--header-height) - var(--mobile-nav-height) - var(--workbench-mobile-nav-height) - 24px -
+        100dvh - var(--header-height) - var(--mobile-nav-height) - var(--workbench-mobile-nav-height) - 16px -
           env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
       )
     );
@@ -6168,6 +6313,30 @@ code {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     padding-bottom: calc(var(--mobile-nav-height) + 12px);
+  }
+
+  .historyListBodyEmpty {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: visible;
+    padding-bottom: calc(var(--mobile-nav-height) + 8px);
+  }
+
+  .historyTableScrollEmpty {
+    flex: 0 0 auto;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .historyTableScrollEmpty .historyEmpty,
+  .historyTableScrollEmpty .historyEmptyError {
+    min-height: 0;
+  }
+
+  .historyListBodyEmpty .historyEmpty,
+  .historyListBodyEmpty .historyEmptyError {
+    min-height: 0;
+    padding: 28px 18px 24px;
   }
 
   .historyCardList {

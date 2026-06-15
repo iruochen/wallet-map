@@ -16,6 +16,7 @@ import { HistoryDeleteDialog } from "./history-delete-dialog";
 import { HistoryIdentityAvatar } from "./history-identity-avatar";
 import { readSessionHistoryJobs } from "./lib/session-history";
 import type { HistoryJobItem, HistoryResponse } from "./history-types";
+import { useMobileViewport } from "../../lib/use-mobile-viewport";
 
 const historyPageSizeOptions = [10, 20, 50] as const;
 type HistoryStatusFilter = "all" | HistoryJobItem["status"];
@@ -28,6 +29,7 @@ export function HistoryJobList({
   initialWalletAddress?: string;
 }) {
   const { t } = useI18n();
+  const isMobile = useMobileViewport();
   const [jobs, setJobs] = useState<HistoryJobItem[]>([]);
   const [storageEnabled, setStorageEnabled] = useState(true);
   const [historyMode, setHistoryMode] = useState<"wallet" | "session">(initialHistoryMode);
@@ -42,7 +44,6 @@ export function HistoryJobList({
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [hasLoaded, setHasLoaded] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
@@ -61,7 +62,7 @@ export function HistoryJobList({
   const hasHistoryFilters = statusFilter !== "all" || Boolean(historyQuery.trim());
 
   useEffect(() => {
-    void loadJobs({ showSkeleton: true });
+    void loadJobs();
   }, [page, pageSize, statusFilter, historyQuery]);
 
   useEffect(() => {
@@ -87,10 +88,10 @@ export function HistoryJobList({
     };
   }, []);
 
-  async function loadJobs(options: { showSkeleton?: boolean; showListLoading?: boolean } = {}) {
+  async function loadJobs(options: { showListLoading?: boolean } = {}) {
     if (options.showListLoading) {
       setIsListLoading(true);
-    } else if (!options.showSkeleton) {
+    } else {
       setIsRefreshing(true);
     }
     setLoadError(null);
@@ -139,7 +140,6 @@ export function HistoryJobList({
     } catch (caught) {
       setLoadError(caught instanceof Error ? caught.message : "Failed to load history.");
     } finally {
-      setHasLoaded(true);
       setIsRefreshing(false);
       setIsListLoading(false);
     }
@@ -205,13 +205,18 @@ export function HistoryJobList({
     }
   }
 
-  function renderListBody(content: ReactNode) {
+  function renderListBody(content: ReactNode, variant: "default" | "empty" | "error" = "default") {
+    const hideHistoryChrome =
+      isMobile && total === 0 && !hasHistoryFilters && variant !== "error";
+
     return (
       <>
-        <div className="historyListBody">
-          {header}
+        <div
+          className={`historyListBody ${variant === "empty" || variant === "error" ? "historyListBodyEmpty" : ""}`}
+        >
+          {header(hideHistoryChrome)}
           <div
-            className={`historyTableScroll ${isTableScrolling ? "historyTableScrolling" : ""}`}
+            className={`historyTableScroll ${variant === "empty" || variant === "error" ? "historyTableScrollEmpty" : ""} ${isTableScrolling ? "historyTableScrolling" : ""}`}
             onScroll={handleTableScroll}
           >
             {content}
@@ -243,7 +248,7 @@ export function HistoryJobList({
   const { displayName: walletDisplayName, ensName: walletEnsName, addressLabel: walletAddressLabel } =
     useWalletDisplayName(historyMode === "wallet" ? walletAddress : undefined);
 
-  const header = (
+  const header = (hideHistoryChrome: boolean) => (
     <>
       <div className="historyToolbar">
         <div className="historyIdentity">
@@ -288,6 +293,8 @@ export function HistoryJobList({
           </button>
         </div>
       </div>
+      {hideHistoryChrome ? null : (
+        <>
       <div className="historyFilterBar" aria-label={t("history.filter.aria")}>
         <label className="historyFilterField">
           <span>{t("history.filter.status")}</span>
@@ -336,11 +343,10 @@ export function HistoryJobList({
           </select>
         </label>
       </div>
+      {total > 0 ? (
       <div className="historyResultBar">
         <span>
-          {total === 0
-            ? t("history.result.empty")
-            : t("history.result.range", { start: rangeStart, end: rangeEnd, total })}
+          {t("history.result.range", { start: rangeStart, end: rangeEnd, total })}
         </span>
         <HistoryPagination
           page={page}
@@ -351,6 +357,9 @@ export function HistoryJobList({
           t={t}
         />
       </div>
+      ) : null}
+        </>
+      )}
       {syncMessage ? (
         <div className="stateBanner stateBannerSuccess historySyncBanner" role="status">
           <strong>{t("history.sync.success")}</strong>
@@ -359,10 +368,6 @@ export function HistoryJobList({
       ) : null}
     </>
   );
-
-  if (!hasLoaded) {
-    return renderListBody(<HistorySkeleton t={t} />);
-  }
 
   if (loadError) {
     const needsMigration = loadError.includes('column "chain_name" does not exist');
@@ -373,6 +378,7 @@ export function HistoryJobList({
         <p>{loadError}</p>
         {needsMigration ? <p>{t("history.error.migration")}</p> : null}
       </div>,
+      "error",
     );
   }
 
@@ -405,6 +411,7 @@ export function HistoryJobList({
           </Link>
         )}
       </div>,
+      "empty",
     );
   }
 
@@ -676,39 +683,6 @@ function HistoryComparisonPanel({
         <p className="historyCompareHint">{t("history.compare.hint")}</p>
       )}
     </aside>
-  );
-}
-
-function HistorySkeleton({
-  t,
-}: {
-  t: (key: I18nKey, params?: Record<string, string | number>) => string;
-}) {
-  return (
-    <div className="historyTableWrap historySkeleton" aria-label={t("history.loading.skeleton")}>
-      <div className="historySkeletonHeader" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className="historySkeletonBody" aria-hidden="true">
-        {Array.from({ length: 7 }, (_, index) => (
-          <div className="historySkeletonRow" key={index}>
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 

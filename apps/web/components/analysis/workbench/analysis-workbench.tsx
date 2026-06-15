@@ -12,6 +12,7 @@ import {
   Sparkles,
   Upload,
   WalletCards,
+  X,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -20,6 +21,7 @@ import {
   getEvmAggregateChains,
 } from "../../../app/chains";
 import { ANALYSIS_PHASE_ORDER } from "../../../app/api/analyze/progress";
+import { shortenAddress } from "../../../app/format";
 import { readJsonResponse } from "../../../lib/read-json-response";
 import { useI18n } from "../../i18n/i18n-provider";
 import { AnalysisEvidencePanel } from "../evidence/analysis-evidence-panel";
@@ -168,6 +170,7 @@ export function AnalysisWorkbench({
     () => addresses.split(/\s+/).filter((address) => address.trim().length > 0).length,
     [addresses],
   );
+  const parsedAddresses = useMemo(() => parseAddressImport(addresses).addresses, [addresses]);
   const selectedChain = useMemo(
     () =>
       chainId === String(evmAggregateChainId)
@@ -670,12 +673,25 @@ export function AnalysisWorkbench({
     setShowEvidenceHint(false);
   }
 
+  function removeParsedAddress(target: string) {
+    const next = parsedAddresses.filter((address) => address !== target);
+    setAddresses(next.join("\n"));
+    setAddressImportSummary(null);
+  }
+
   return (
     <>
       <section
         className={`workbench workbenchMobilePanel-${mobilePanel}`}
         aria-label="Wallet Map workbench"
       >
+      <WorkbenchMobileTabs
+        activePanel={mobilePanel}
+        onChange={setMobilePanel}
+        findingsCount={result?.findings.length ?? 0}
+        showEvidenceHint={showEvidenceHint && mobilePanel !== "evidence"}
+        onDismissEvidenceHint={dismissEvidenceHint}
+      />
       <aside className="workbenchColumn workbenchInput">
         <div
           className={`workbenchInputBody ${isInputScrolling ? "workbenchInputScrolling" : ""}`}
@@ -742,6 +758,24 @@ export function AnalysisWorkbench({
               }}
             />
             <div className="addressInputEditor">
+              {parsedAddresses.length > 0 ? (
+                <div className="addressChipList" aria-label={t("analysis.address.label")}>
+                  {parsedAddresses.map((address) => (
+                    <span className="addressChip" key={address}>
+                      <code title={address}>{shortenAddress(address)}</code>
+                      <button
+                        type="button"
+                        className="addressChipRemove"
+                        disabled={isRunning}
+                        aria-label={shortenAddress(address)}
+                        onClick={() => removeParsedAddress(address)}
+                      >
+                        <X size={12} strokeWidth={2.4} aria-hidden="true" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <textarea
                 id="addresses"
                 name="addresses"
@@ -841,8 +875,8 @@ export function AnalysisWorkbench({
                 ))}
               </div>
               <label className="mobileControlSelect mobileOnly">
-                <span>{t("analysis.config.chain")}</span>
                 <select
+                  aria-label={t("analysis.config.chain")}
                   value={chainId}
                   disabled={isRunning}
                   onChange={(event) => applyChainSelection(event.target.value)}
@@ -881,8 +915,8 @@ export function AnalysisWorkbench({
                 ))}
               </div>
               <label className="mobileControlSelect mobileOnly">
-                <span>{t("analysis.config.provider")}</span>
                 <select
+                  aria-label={t("analysis.config.provider")}
                   value={dataProvider}
                   disabled={isRunning}
                   onChange={(event) => setDataProvider(event.target.value as DataProviderOptionValue)}
@@ -921,8 +955,8 @@ export function AnalysisWorkbench({
                 ))}
               </div>
               <label className="mobileControlSelect mobileOnly">
-                <span>{t("analysis.config.dataSource")}</span>
                 <select
+                  aria-label={t("analysis.config.dataSource")}
                   value={dataMode}
                   disabled={isRunning}
                   onChange={(event) => setDataMode(event.target.value as DataModeOptionValue)}
@@ -1192,14 +1226,6 @@ export function AnalysisWorkbench({
         </div>
       </aside>
       </section>
-
-      <WorkbenchMobileTabs
-        activePanel={mobilePanel}
-        onChange={setMobilePanel}
-        findingsCount={result?.findings.length ?? 0}
-        showEvidenceHint={showEvidenceHint && mobilePanel !== "evidence"}
-        onDismissEvidenceHint={dismissEvidenceHint}
-      />
     </>
   );
 }
