@@ -4047,7 +4047,7 @@ select {
 
 .groupedPanelList {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   padding-top: 4px;
 }
 
@@ -4056,16 +4056,22 @@ select {
 }
 
 .groupedPanel {
-  border: 1px solid #dfe7df;
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, #ffffff 0%, #fbfcfa 100%);
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  border: 1px solid rgba(207, 219, 207, 0.72);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(31, 61, 44, 0.04),
+    0 4px 12px rgba(31, 61, 44, 0.03);
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease;
 }
 
 .groupedPanelOpen {
-  border-color: #c7d8cb;
-  box-shadow: 0 12px 28px rgba(31, 61, 44, 0.07);
+  border-color: rgba(176, 201, 183, 0.92);
+  box-shadow:
+    0 1px 2px rgba(31, 61, 44, 0.05),
+    0 10px 28px rgba(31, 61, 44, 0.07);
 }
 
 .groupedPanelSummary {
@@ -4076,40 +4082,29 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  width: calc(100% + 8px);
-  margin: 0 -4px;
-  padding: 12px 18px;
-  border: 1px solid rgba(207, 219, 207, 0.72);
-  border-bottom-color: rgba(183, 203, 186, 0.92);
-  border-radius: 10px 10px 0 0;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 13px;
   cursor: pointer;
   color: inherit;
   font: inherit;
   list-style: none;
   text-align: left;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0%, rgba(248, 251, 247, 0.76) 100%);
-  backdrop-filter: blur(16px) saturate(1.12);
-  -webkit-backdrop-filter: blur(16px) saturate(1.12);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 10px 24px rgba(31, 61, 44, 0.08);
-  transition:
-    background 180ms ease,
-    border-color 180ms ease,
-    box-shadow 180ms ease;
+  background: transparent;
+  outline: none;
+  transition: background 200ms ease;
 }
 
-.groupedPanelSummary::after {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -12px;
-  height: 12px;
-  background: linear-gradient(to bottom, rgba(248, 251, 247, 0.82), rgba(248, 251, 247, 0));
-  pointer-events: none;
-  content: "";
+.groupedPanelOpen .groupedPanelSummary {
+  border-radius: 13px 13px 0 0;
+  border-bottom: 1px solid rgba(207, 219, 207, 0.55);
+  background:
+    linear-gradient(180deg, rgba(251, 253, 250, 0.96) 0%, rgba(247, 250, 246, 0.9) 100%);
+  backdrop-filter: blur(12px) saturate(1.08);
+  -webkit-backdrop-filter: blur(12px) saturate(1.08);
 }
 
 .panelTab:hover,
@@ -4118,10 +4113,16 @@ select {
 }
 
 .groupedPanelSummary:hover {
-  transform: none;
+  background: rgba(247, 250, 246, 0.88);
+}
+
+.groupedPanelOpen .groupedPanelSummary:hover {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(244, 248, 244, 0.84) 100%);
-  border-color: rgba(183, 203, 186, 0.95);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 248, 244, 0.92) 100%);
+}
+
+.groupedPanelSummary:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(47, 111, 78, 0.28);
 }
 
 .groupedPanelSummaryText {
@@ -4198,10 +4199,15 @@ select {
   min-height: 24px;
   padding: 0 8px;
   border-radius: 999px;
-  background: #eef2eb;
+  background: rgba(231, 239, 232, 0.92);
   color: #2b4a3a;
   font-size: 0.72rem;
   font-weight: 800;
+  transition: background 200ms ease;
+}
+
+.groupedPanelOpen .groupedPanelCount {
+  background: #e3ece5;
 }
 
 .groupedPanelChevron {
@@ -4217,28 +4223,26 @@ select {
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
-  transform: translateY(-6px);
   transition:
-    grid-template-rows 320ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 260ms ease,
-    transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    grid-template-rows 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 240ms ease;
 }
 
 .groupedPanelOpen .groupedPanelBody {
   grid-template-rows: 1fr;
   opacity: 1;
-  transform: translateY(0);
 }
 
 .groupedPanelBodyInner {
   min-height: 0;
   overflow: hidden;
+  border-radius: 0 0 13px 13px;
 }
 
 .groupedPanel .findingList,
 .groupedPanel .edgeList,
 .groupedPanel .sharedFindingList {
-  padding: 10px;
+  padding: 12px;
 }
 
 .sharedFindingList {
@@ -4263,18 +4267,30 @@ select {
   border: 1px solid #e4eae2;
   border-radius: 10px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdfb 100%);
-  overflow: hidden;
 }
 
 .sharedFindingSummary {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 4;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto auto;
   gap: 4px 8px;
   align-items: center;
   padding: 11px 12px;
+  border-radius: 9px;
   cursor: pointer;
   list-style: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(251, 253, 250, 0.9) 100%);
+  backdrop-filter: blur(10px) saturate(1.06);
+  -webkit-backdrop-filter: blur(10px) saturate(1.06);
+}
+
+.sharedFindingDetails[open] .sharedFindingSummary {
+  border-radius: 9px 9px 0 0;
 }
 
 .sharedFindingSummary::-webkit-details-marker {
@@ -4335,9 +4351,11 @@ select {
 
 .sharedFindingBody {
   display: grid;
-  gap: 8px;
-  padding: 0 10px 10px;
+  gap: 10px;
+  padding: 8px 10px 10px;
   border-top: 1px solid #edf2ec;
+  border-radius: 0 0 9px 9px;
+  overflow: hidden;
 }
 
 .sharedWalletChipRow {
