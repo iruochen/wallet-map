@@ -7,6 +7,7 @@ export interface AnalysisWorkbenchInputState {
   dataMode: string;
   dataProvider: string;
   historyScope: string;
+  historyDays?: number;
 }
 
 export function deriveWorkbenchInputFromResult(
@@ -20,6 +21,7 @@ export function deriveWorkbenchInputFromResult(
       dataMode: result.input.dataMode,
       dataProvider: result.input.dataProvider,
       historyScope: result.input.historyScope ?? "window",
+      historyDays: result.input.historyDays,
     };
   }
 
@@ -31,6 +33,7 @@ export function deriveWorkbenchInputFromResult(
     dataMode: result.meta.requestedMode,
     dataProvider: result.meta.dataProvider ?? "auto",
     historyScope: result.meta.historyScope ?? "window",
+    historyDays: result.meta.historyDays,
   };
 }
 

@@ -33,6 +33,12 @@ import {
 } from "../lib/formatters";
 import { deriveWorkbenchInputFromResult } from "../lib/input-restore";
 import {
+  defaultHistoryScopeSelection,
+  historyScopeOptionDefinitions,
+  parseHistoryScopeSelection,
+  resolveHistoryScopeSelection,
+} from "../lib/history-scope-options";
+import {
   clearWorkbenchJobUrl,
   forgetActiveAnalysisJob,
   readActiveAnalysisJobId,
@@ -68,7 +74,6 @@ const activeAnalysisJobRestoreDelayMs = 500;
 
 type DataModeOptionValue = "auto" | "fixture" | "live";
 type DataProviderOptionValue = "auto" | "nodereal" | "etherscan" | "solscan";
-type HistoryScopeOptionValue = "window" | "full";
 
 function readDismissedEvidenceHintJobIds(): Set<string> {
   if (typeof window === "undefined") {
@@ -118,7 +123,7 @@ export function AnalysisWorkbench({
   const [chainId, setChainId] = useState("1");
   const [dataMode, setDataMode] = useState("auto");
   const [dataProvider, setDataProvider] = useState("auto");
-  const [historyScope, setHistoryScope] = useState<HistoryScopeOptionValue>("window");
+  const [historyScopeSelection, setHistoryScopeSelection] = useState(defaultHistoryScopeSelection);
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -163,30 +168,23 @@ export function AnalysisWorkbench({
   );
   const historyScopeOptions = useMemo(
     () =>
-      [
-        {
-          value: "window",
-          label: t("analysis.history.window.label"),
-          description: t("analysis.history.window.description"),
-          helpAria: t("analysis.history.window.helpAria"),
-        },
-        {
-          value: "full",
-          label: t("analysis.history.full.label"),
-          description: t("analysis.history.full.description"),
-          helpAria: t("analysis.history.full.helpAria"),
-        },
-      ] satisfies Array<{
-        value: HistoryScopeOptionValue;
-        label: string;
-        description: string;
-        helpAria: string;
-      }>,
+      historyScopeOptionDefinitions.map((option) => ({
+        key: option.value === "full" ? "full" : `window:${option.historyDays}`,
+        value: option.value,
+        historyDays: option.historyDays,
+        label: t(option.labelKey),
+        description: t(option.descriptionKey),
+        helpAria: t(option.helpAriaKey),
+      })),
     [t],
   );
   const selectedHistoryScope = useMemo(
-    () => historyScopeOptions.find((option) => option.value === historyScope) ?? historyScopeOptions[0],
-    [historyScope, historyScopeOptions],
+    () => historyScopeOptions.find((option) => option.key === historyScopeSelection) ?? historyScopeOptions[2],
+    [historyScopeSelection, historyScopeOptions],
+  );
+  const parsedHistoryScope = useMemo(
+    () => parseHistoryScopeSelection(historyScopeSelection),
+    [historyScopeSelection],
   );
   const effectiveChainIds = useMemo(
     () =>
@@ -419,7 +417,12 @@ export function AnalysisWorkbench({
     setChainId(restored.chainId);
     setDataMode(restored.dataMode);
     setDataProvider(restored.dataProvider);
-    setHistoryScope(restored.historyScope === "full" ? "full" : "window");
+    setHistoryScopeSelection(
+      resolveHistoryScopeSelection(
+        restored.historyScope === "full" ? "full" : "window",
+        restored.historyDays,
+      ),
+    );
     setAddressImportSummary(null);
   }
 
@@ -587,7 +590,8 @@ export function AnalysisWorkbench({
           chainIds: effectiveChainIds,
           dataMode,
           dataProvider,
-          historyScope,
+          historyScope: parsedHistoryScope.historyScope,
+          ...(parsedHistoryScope.historyDays ? { historyDays: parsedHistoryScope.historyDays } : {}),
         }),
         signal: controller.signal,
       });
@@ -966,42 +970,38 @@ export function AnalysisWorkbench({
                 <span className="controlLabelHeading">
                   <Layers3 size={15} strokeWidth={2.2} />
                   {t("analysis.config.history")}
-                  <span className="mobileOnly">
-                    <FindingHelpTip
-                      description={selectedHistoryScope?.description ?? ""}
-                      label={selectedHistoryScope?.helpAria ?? t("analysis.history.helpAria")}
-                    />
-                  </span>
+                  <FindingHelpTip
+                    description={selectedHistoryScope?.description ?? ""}
+                    label={selectedHistoryScope?.helpAria ?? t("analysis.history.helpAria")}
+                  />
                 </span>
-                <small>{selectedHistoryScope?.label}</small>
               </div>
-              <div className="segmentedControl segmentedControlModes desktopOnly" role="radiogroup" aria-label={t("analysis.config.history.aria")}>
+              <div className="segmentedControl segmentedControlHistory desktopOnly" role="radiogroup" aria-label={t("analysis.config.history.aria")}>
                 {historyScopeOptions.map((option) => (
                   <button
-                    key={option.value}
+                    key={option.key}
                     type="button"
-                    className={`segmentedButton segmentedButtonWithHelp ${historyScope === option.value ? "segmentedButtonActive" : ""}`}
+                    className={`segmentedButton ${historyScopeSelection === option.key ? "segmentedButtonActive" : ""}`}
                     disabled={isRunning}
-                    onClick={() => setHistoryScope(option.value)}
+                    onClick={() => setHistoryScopeSelection(option.key)}
                     role="radio"
-                    aria-checked={historyScope === option.value}
+                    aria-checked={historyScopeSelection === option.key}
+                    title={option.description}
                   >
-                    <span className="segmentedButtonContent">
-                      <span>{option.label}</span>
-                      <FindingHelpTip description={option.description} label={option.helpAria} />
-                    </span>
+                    <span>{option.label}</span>
                   </button>
                 ))}
               </div>
+              <small className="historyScopeHint desktopOnly">{selectedHistoryScope?.description}</small>
               <label className="mobileControlSelect mobileOnly">
                 <select
                   aria-label={t("analysis.config.history")}
-                  value={historyScope}
+                  value={historyScopeSelection}
                   disabled={isRunning}
-                  onChange={(event) => setHistoryScope(event.target.value as HistoryScopeOptionValue)}
+                  onChange={(event) => setHistoryScopeSelection(event.target.value)}
                 >
                   {historyScopeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
+                    <option key={option.key} value={option.key}>
                       {option.label}
                     </option>
                   ))}

@@ -3038,6 +3038,14 @@ select {
   font-weight: 700;
 }
 
+.historyScopeHint {
+  margin: -2px 2px 0;
+  color: var(--muted);
+  font-size: 0.71rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .segmentedControl {
   display: grid;
   gap: 8px;
@@ -3053,6 +3061,28 @@ select {
 
 .segmentedControlModes {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.segmentedControlHistory {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.segmentedControlHistory .segmentedButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 6px;
+  white-space: nowrap;
+}
+
+.workbenchInput .segmentedControlHistory {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.workbenchInput .segmentedControlHistory .segmentedButton {
+  min-height: 36px;
+  font-size: 0.7rem;
 }
 
 .controlLabelHeading {
