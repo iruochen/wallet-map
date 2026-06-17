@@ -12,6 +12,23 @@ export interface BlockRange {
   toBlock?: number;
 }
 
+export type HistoryScope = "window" | "full";
+
+export interface FetchPlan {
+  scope: HistoryScope;
+  /** Unix seconds, inclusive lower bound for window scope. */
+  fromTimestamp?: number;
+  /** Unix seconds, inclusive upper bound. Defaults to now when omitted. */
+  toTimestamp?: number;
+  maxEventsPerAddress?: number;
+}
+
+export interface FetchCoverage {
+  fetched: number;
+  truncated: boolean;
+  reason?: string;
+}
+
 export interface AddressIdentity {
   address: Address;
   chainId?: ChainId;

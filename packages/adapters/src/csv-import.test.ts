@@ -16,7 +16,7 @@ describe("CsvImportAdapter", () => {
       },
     ]);
 
-    const events = await adapter.getEvents({
+    const { events } = await adapter.getEvents({
       address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     });
 

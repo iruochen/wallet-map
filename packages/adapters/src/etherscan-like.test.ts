@@ -38,7 +38,7 @@ describe("EtherscanLikeAdapter", () => {
       name: "Ethereum",
     });
 
-    const events = await adapter.getEvents({ address: watchedAddress });
+    const { events } = await adapter.getEvents({ address: watchedAddress });
 
     expect(events).toEqual([
       expect.objectContaining({
@@ -91,7 +91,7 @@ describe("EtherscanLikeAdapter", () => {
       useChainIdParam: true,
     });
 
-    const events = await adapter.getEvents({ address: watchedAddress });
+    const { events } = await adapter.getEvents({ address: watchedAddress });
 
     expect(events).toEqual([
       expect.objectContaining({
@@ -138,7 +138,7 @@ describe("EtherscanLikeAdapter", () => {
       name: "Base",
     });
 
-    const events = await adapter.getEvents({
+    const { events } = await adapter.getEvents({
       address: watchedAddress,
       range: {
         fromBlock: 10,
@@ -203,7 +203,7 @@ describe("EtherscanLikeAdapter", () => {
       useChainIdParam: true,
     });
 
-    const events = await adapter.getEvents({ address: watchedAddress });
+    const { events } = await adapter.getEvents({ address: watchedAddress });
 
     expect(events).toEqual([
       expect.objectContaining({
@@ -250,7 +250,7 @@ describe("EtherscanLikeAdapter", () => {
       useChainIdParam: true,
     });
 
-    const events = await adapter.getEvents({ address: watchedAddress });
+    const { events } = await adapter.getEvents({ address: watchedAddress });
 
     expect(events).toEqual([
       expect.objectContaining({
@@ -366,7 +366,10 @@ describe("EtherscanLikeAdapter", () => {
       name: "Ethereum",
     });
 
-    await expect(adapter.getEvents({ address: watchedAddress })).resolves.toEqual([]);
+    await expect(adapter.getEvents({ address: watchedAddress })).resolves.toMatchObject({
+      events: [],
+      coverage: { fetched: 0, truncated: false },
+    });
   });
 
   it("throws a clear error for non-OK HTTP responses", async () => {
@@ -453,8 +456,160 @@ describe("EtherscanLikeAdapter", () => {
       maxRateLimitRetries: 1,
     });
 
-    await expect(adapter.getEvents({ address: watchedAddress })).resolves.toEqual([]);
+    await expect(adapter.getEvents({ address: watchedAddress })).resolves.toMatchObject({
+      events: [],
+      coverage: { fetched: 0, truncated: false },
+    });
     expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it("paginates Etherscan account actions until a page is short", async () => {
+    const fetchMock = vi.fn(async (input: string | URL) => {
+      const url = new URL(String(input));
+      const action = url.searchParams.get("action");
+      const page = Number(url.searchParams.get("page") ?? "1");
+
+      if (action !== "txlist") {
+        return new Response(
+          JSON.stringify({
+            status: "1",
+            message: "OK",
+            result: [],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          status: "1",
+          message: "OK",
+          result:
+            page === 1
+              ? Array.from({ length: 1000 }, (_, index) => ({
+                  blockNumber: String(index + 1),
+                  timeStamp: String(1_700_000_000 + index),
+                  hash: `0x${String(index).padStart(64, "0")}`,
+                  from: watchedAddress,
+                  to: counterpartyAddress,
+                  value: "1",
+                  input: "0x",
+                  isError: "0",
+                  txreceipt_status: "1",
+                }))
+              : [
+                  {
+                    blockNumber: "1001",
+                    timeStamp: "1700001000",
+                    hash: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    from: watchedAddress,
+                    to: counterpartyAddress,
+                    value: "1",
+                    input: "0x",
+                    isError: "0",
+                    txreceipt_status: "1",
+                  },
+                ],
+        }),
+        { status: 200 },
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new EtherscanLikeAdapter({
+      baseUrl: "https://api.etherscan.io/api",
+      chainId: 1,
+      name: "Ethereum",
+      pageOffset: 1000,
+    });
+
+    const { events, coverage } = await adapter.getEvents({
+      address: watchedAddress,
+      fetchPlan: {
+        scope: "full",
+        maxEventsPerAddress: 2000,
+      },
+    });
+
+    expect(events.length).toBeGreaterThan(1000);
+    expect(fetchMock.mock.calls.some(([input]) => {
+      const url = new URL(String(input));
+      return url.searchParams.get("action") === "txlist" && url.searchParams.get("page") === "2";
+    })).toBe(true);
+    expect(coverage.truncated).toBe(false);
+  });
+
+  it("stops window fetches when records fall before fromTimestamp", async () => {
+    const fetchMock = vi.fn(async (input: string | URL) => {
+      const url = new URL(String(input));
+      const action = url.searchParams.get("action");
+
+      if (action !== "txlist") {
+        return new Response(
+          JSON.stringify({
+            status: "1",
+            message: "OK",
+            result: [],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          status: "1",
+          message: "OK",
+          result: [
+            {
+              blockNumber: "200",
+              timeStamp: "1700000000",
+              hash: "0x9999999999999999999999999999999999999999999999999999999999999999",
+              from: watchedAddress,
+              to: counterpartyAddress,
+              value: "1",
+              input: "0x",
+              isError: "0",
+              txreceipt_status: "1",
+            },
+            {
+              blockNumber: "199",
+              timeStamp: "1600000000",
+              hash: "0x8888888888888888888888888888888888888888888888888888888888888888",
+              from: watchedAddress,
+              to: counterpartyAddress,
+              value: "1",
+              input: "0x",
+              isError: "0",
+              txreceipt_status: "1",
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new EtherscanLikeAdapter({
+      baseUrl: "https://api.etherscan.io/api",
+      chainId: 1,
+      name: "Ethereum",
+    });
+
+    const { events } = await adapter.getEvents({
+      address: watchedAddress,
+      fetchPlan: {
+        scope: "window",
+        fromTimestamp: 1650000000,
+        maxEventsPerAddress: 1000,
+      },
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.txHash).toBe(
+      "0x9999999999999999999999999999999999999999999999999999999999999999",
+    );
   });
 });
 

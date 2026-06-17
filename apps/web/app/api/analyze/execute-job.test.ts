@@ -18,6 +18,8 @@ describe("executeAnalyzeJob", () => {
       chainIds: [1],
       dataMode: "fixture",
       dataProvider: "auto",
+      historyScope: "window",
+      historyDays: 365,
     });
 
     const job = await getAnalyzeJob(jobId);

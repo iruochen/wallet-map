@@ -14,6 +14,8 @@ const parsedBase: ParsedAnalyzeRequest = {
   chainIds: [1],
   dataMode: "auto",
   dataProvider: "auto",
+  historyScope: "window",
+  historyDays: 365,
 };
 
 describe("readAnalyzeRequestBody", () => {

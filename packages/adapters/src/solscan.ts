@@ -1,12 +1,17 @@
 import type { Address, ChainId, NormalizedEvent, TxHash } from "@wallet-map/core";
-import type { AdapterRequest, ChainAdapter } from "./index";
+import type { AdapterFetchResult, AdapterRequest, ChainAdapter } from "./index";
+import {
+  buildMaxEventsReason,
+  capEvents,
+  finalizeFetchCoverage,
+  resolveAdapterFetchPlan,
+} from "./fetch-helpers";
 
 export interface SolscanAdapterConfig {
   apiKey: string;
   fetchImpl?: typeof fetch;
   baseUrl?: string;
   pageSize?: number;
-  maxPages?: number;
   requestThrottleMs?: number;
 }
 
@@ -36,6 +41,7 @@ interface SolscanTransfer {
 }
 
 const solanaChainId = 101 as ChainId;
+const maxPageSize = 100;
 
 export class SolscanAdapter implements ChainAdapter {
   readonly id = "solscan:101:solana";
@@ -46,7 +52,6 @@ export class SolscanAdapter implements ChainAdapter {
   private readonly fetchImpl: typeof fetch;
   private readonly baseUrl: string;
   private readonly pageSize: number;
-  private readonly maxPages: number;
   private readonly requestThrottleMs: number;
 
   constructor(config: SolscanAdapterConfig) {
@@ -58,15 +63,14 @@ export class SolscanAdapter implements ChainAdapter {
     this.apiKey = apiKey;
     this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
     this.baseUrl = config.baseUrl ?? "https://pro-api.solscan.io/v2.0";
-    this.pageSize = Math.max(1, Math.min(config.pageSize ?? 100, 100));
-    this.maxPages = Math.max(1, config.maxPages ?? 3);
+    this.pageSize = Math.max(1, Math.min(config.pageSize ?? maxPageSize, maxPageSize));
     this.requestThrottleMs = Math.max(0, config.requestThrottleMs ?? 200);
   }
 
-  async getEvents(request: AdapterRequest): Promise<NormalizedEvent[]> {
-    const transfers = await this.fetchTransfers(request.address);
-
-    return transfers
+  async getEvents(request: AdapterRequest): Promise<AdapterFetchResult> {
+    const plan = resolveAdapterFetchPlan(request.fetchPlan);
+    const fetchResult = await this.fetchTransfers(request.address, plan);
+    const mapped = fetchResult.transfers
       .flatMap((transfer, index) => this.mapTransfer(transfer, request.address, index))
       .sort((left, right) => {
         if (left.blockNumber !== right.blockNumber) {
@@ -75,12 +79,30 @@ export class SolscanAdapter implements ChainAdapter {
 
         return left.id.localeCompare(right.id);
       });
+    const capped = capEvents(mapped, plan.maxEventsPerAddress);
+
+    return {
+      events: capped.events,
+      coverage: finalizeFetchCoverage(capped.events, {
+        truncated: fetchResult.truncated || capped.truncated,
+        reason:
+          fetchResult.reason ??
+          (capped.truncated ? buildMaxEventsReason(plan.maxEventsPerAddress) : undefined),
+      }),
+    };
   }
 
-  private async fetchTransfers(address: Address): Promise<SolscanTransfer[]> {
+  private async fetchTransfers(
+    address: Address,
+    plan: ReturnType<typeof resolveAdapterFetchPlan>,
+  ): Promise<{ transfers: SolscanTransfer[]; truncated: boolean; reason?: string }> {
     const transfers: SolscanTransfer[] = [];
+    let page = 1;
+    let truncated = false;
+    let reason: string | undefined;
+    const sortOrder = plan.scope === "window" ? "desc" : "asc";
 
-    for (let page = 1; page <= this.maxPages; page += 1) {
+    while (transfers.length < plan.maxEventsPerAddress) {
       if (this.requestThrottleMs > 0) {
         await sleep(this.requestThrottleMs);
       }
@@ -90,7 +112,15 @@ export class SolscanAdapter implements ChainAdapter {
       url.searchParams.set("page", String(page));
       url.searchParams.set("page_size", String(this.pageSize));
       url.searchParams.set("sort_by", "block_time");
-      url.searchParams.set("sort_order", "desc");
+      url.searchParams.set("sort_order", sortOrder);
+
+      if (plan.scope === "window" && plan.fromTimestamp !== undefined) {
+        url.searchParams.set("from_time", String(plan.fromTimestamp));
+      }
+
+      if (plan.toTimestamp !== undefined) {
+        url.searchParams.set("to_time", String(plan.toTimestamp));
+      }
 
       const response = await this.fetchImpl(url, {
         headers: {
@@ -117,9 +147,21 @@ export class SolscanAdapter implements ChainAdapter {
       if (data.length < this.pageSize) {
         break;
       }
+
+      if (transfers.length >= plan.maxEventsPerAddress) {
+        truncated = true;
+        reason = buildMaxEventsReason(plan.maxEventsPerAddress);
+        break;
+      }
+
+      page += 1;
     }
 
-    return transfers;
+    return {
+      transfers: transfers.slice(0, plan.maxEventsPerAddress),
+      truncated,
+      reason,
+    };
   }
 
   private mapTransfer(

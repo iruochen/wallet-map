@@ -50,6 +50,8 @@ describe("resolveAnalyzeEvents", () => {
     expect(result.chainName).toBe("BSC");
     expect(fetchMock).toHaveBeenCalledTimes(8);
     expect(calledUrl(fetchMock, "txlist").searchParams.get("chainid")).toBe("56");
+    expect(result.fetchCoverage?.scope).toBe("window");
+    expect(result.warnings).toContain("Live analysis uses the last 365 days of on-chain history.");
   });
 
   it("prefers NodeReal for BSC when a dedicated key is configured", async () => {
@@ -68,7 +70,7 @@ describe("resolveAnalyzeEvents", () => {
     expect(result.mode).toBe("live");
     expect(result.source).toBe("nodereal:56:bsc");
     expect(result.chainName).toBe("BSC");
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://bsc-mainnet.nodereal.io/v1/nodereal-key");
   });
 
@@ -299,10 +301,7 @@ function calledUrl(fetchMock: ReturnType<typeof mockEtherscanFetch>, action: str
 }
 
 function mockNodeRealFetch() {
-  let callCount = 0;
-
   return vi.fn(async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Promise<Response> => {
-    callCount += 1;
     const body = JSON.parse(String(init?.body ?? "{}")) as {
       method?: string;
       params?: Array<{ pageKey?: string }>;
@@ -315,7 +314,7 @@ function mockNodeRealFetch() {
         jsonrpc: "2.0",
         id: 1,
         result: {
-          pageKey: callCount === 1 ? "next-page" : "",
+          pageKey: "",
           transfers: [],
         },
       }),

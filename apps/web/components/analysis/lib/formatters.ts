@@ -88,6 +88,18 @@ export function describeFindingGroup(t: TranslateFn, title: string, count: numbe
     return t("analysis.findingGroup.sameContract", { count });
   }
 
+  if (title === "Multi-hop transfer path found") {
+    return t("analysis.findingGroup.multiHopPath", { count });
+  }
+
+  if (title === "Temporal pattern found") {
+    return t("analysis.findingGroup.temporalPattern", { count });
+  }
+
+  if (title === "Bridge correlation found") {
+    return t("analysis.findingGroup.bridgeCorrelation", { count });
+  }
+
   return t("analysis.findingGroup.default", { count });
 }
 
@@ -206,6 +218,25 @@ const edgeLegendKeys: Record<string, I18nKey> = {
 export function formatFindingTitle(t: TranslateFn, title: string): string {
   const key = findingTitleKeys[title];
   return key ? t(key) : title;
+}
+
+const findingDescriptionKeys: Record<string, I18nKey> = {
+  "Direct transfer found": "analysis.findingDescription.directTransfer",
+  "Shared counterparty found": "analysis.findingDescription.sharedCounterparty",
+  "Same contract interaction found": "analysis.findingDescription.sameContract",
+  "Multi-hop transfer path found": "analysis.findingDescription.multiHopPath",
+  "Shared funding source found": "analysis.findingDescription.sharedFunding",
+  "Shared withdrawal destination found": "analysis.findingDescription.sharedDestination",
+  "Temporal pattern found": "analysis.findingDescription.temporalPattern",
+  "Bridge correlation found": "analysis.findingDescription.bridgeCorrelation",
+};
+
+export function formatFindingDescription(
+  t: TranslateFn,
+  finding: { title: string; description: string },
+): string {
+  const key = findingDescriptionKeys[finding.title];
+  return key ? t(key) : finding.description;
 }
 
 export function formatEdgeKindLegendLabel(t: TranslateFn, kind: string): string {

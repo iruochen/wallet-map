@@ -133,6 +133,16 @@ export interface AnalysisRequestInput {
   chainIds: number[];
   dataMode: "auto" | "fixture" | "live";
   dataProvider: "auto" | "nodereal" | "etherscan" | "solscan";
+  historyScope: "window" | "full";
+  historyDays?: number;
+}
+
+export interface AnalysisFetchCoverage {
+  scope: "window" | "full";
+  historyDays?: number;
+  maxEventsPerAddress: number;
+  eventsPerAddress: Record<string, number>;
+  truncatedAddresses: string[];
 }
 
 export interface AnalysisResponse {
@@ -147,6 +157,9 @@ export interface AnalysisResponse {
     requestedMode: "auto" | "fixture" | "live";
     resolvedMode: "fixture" | "live";
     dataProvider?: "auto" | "nodereal" | "etherscan" | "solscan";
+    historyScope?: "window" | "full";
+    historyDays?: number;
+    fetchCoverage?: AnalysisFetchCoverage;
     watchedAddressCount: number;
     eventCount: number;
     graphWalletCount: number;

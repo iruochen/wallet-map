@@ -1,11 +1,13 @@
 import { ChevronDown } from "lucide-react";
 import { AggregatedEdgeRow, aggregateEdgesForDisplay } from "./analysis-evidence-edge-groups";
 import { EvidenceItemView, FindingChainBadges } from "./analysis-evidence";
+import { FindingHelpTip } from "./finding-help-tip";
 import { isAggregatedFindingGroup, SharedFindingRow } from "./analysis-evidence-shared";
 import {
   describeEdgeGroup,
   formatEdgeKindLegendLabel,
   formatFindingConfidenceText,
+  formatFindingDescription,
   formatFindingRiskLabel,
   formatFindingTitle,
 } from "../lib/formatters";
@@ -133,7 +135,16 @@ function FindingGroups({
               onClick={() => onToggle(group.title, index)}
             >
               <span className="groupedPanelSummaryText">
-                <span className="groupedPanelTitle">{formatFindingTitle(t, group.title)}</span>
+                <span className="groupedPanelTitleRow">
+                  <span className="groupedPanelTitle">{formatFindingTitle(t, group.title)}</span>
+                  <FindingHelpTip
+                    description={formatFindingDescription(t, {
+                      title: group.title,
+                      description: group.findings[0]?.description ?? "",
+                    })}
+                    label={t("analysis.evidence.signalHelp")}
+                  />
+                </span>
                 <span className="groupedPanelHint">{group.summary}</span>
               </span>
               <span className="groupedPanelMeta">
@@ -158,13 +169,10 @@ function FindingGroups({
                     ))}
                   </ul>
                 ) : (
-                  <ul className="findingList">
+                  <ul className="findingList findingListGrouped">
                     {group.findings.map((finding) => (
                       <li key={finding.id}>
-                        <div className="findingHeader">
-                          <strong className="findingTitleChip" title={finding.title}>
-                            {formatFindingTitle(t, finding.title)}
-                          </strong>
+                        <div className="findingHeader findingHeaderCompact">
                           <span className="findingMeta">
                             <FindingChainBadges finding={finding} fallbackChainId={result.meta.chainId} />
                             <span className={`severityPill severity-${finding.severity}`}>
@@ -175,10 +183,6 @@ function FindingGroups({
                             </span>
                           </span>
                         </div>
-                        <details className="findingDetails">
-                          <summary>{t("analysis.evidence.details")}</summary>
-                          <p>{finding.description}</p>
-                        </details>
                         {finding.evidenceTruncated ? (
                           <p className="previewHint">
                             {t("analysis.evidence.previewHint", {

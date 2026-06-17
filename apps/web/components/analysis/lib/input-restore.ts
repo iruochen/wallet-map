@@ -6,6 +6,7 @@ export interface AnalysisWorkbenchInputState {
   chainId: string;
   dataMode: string;
   dataProvider: string;
+  historyScope: string;
 }
 
 export function deriveWorkbenchInputFromResult(
@@ -18,6 +19,7 @@ export function deriveWorkbenchInputFromResult(
       chainId: resolveChainSelection(result.input.chainId, result.input.chainIds, evmAggregateChainIds),
       dataMode: result.input.dataMode,
       dataProvider: result.input.dataProvider,
+      historyScope: result.input.historyScope ?? "window",
     };
   }
 
@@ -28,6 +30,7 @@ export function deriveWorkbenchInputFromResult(
     chainId: resolveChainSelection(result.meta.chainId, chainIds, evmAggregateChainIds),
     dataMode: result.meta.requestedMode,
     dataProvider: result.meta.dataProvider ?? "auto",
+    historyScope: result.meta.historyScope ?? "window",
   };
 }
 

@@ -94,10 +94,9 @@ describe("NodeRealBscAdapter", () => {
     const adapter = new NodeRealBscAdapter({
       apiKey: "test-key",
       fetchImpl: fetchMock,
-      maxPages: 1,
     });
 
-    const events = await adapter.getEvents({
+    const { events } = await adapter.getEvents({
       address: "0x1111111111111111111111111111111111111111",
     });
 
@@ -182,7 +181,6 @@ describe("NodeRealBscAdapter", () => {
     const adapter = new NodeRealBscAdapter({
       apiKey: "test-key",
       fetchImpl: fetchMock,
-      maxPages: 4,
     });
 
     await adapter.getEvents({
@@ -242,10 +240,9 @@ describe("NodeRealBscAdapter", () => {
     const adapter = new NodeRealBscAdapter({
       apiKey: "test-key",
       fetchImpl: fetchMock,
-      maxPages: 1,
     });
 
-    const events = await adapter.getEvents({
+    const { events } = await adapter.getEvents({
       address: "0x1111111111111111111111111111111111111111",
     });
 

@@ -1,9 +1,17 @@
-import { EtherscanLikeAdapter, NodeRealEvmAdapter, SolscanAdapter } from "@wallet-map/adapters";
+import { EtherscanLikeAdapter, NodeRealEvmAdapter, resolveAnalyzeFetchPlan, SolscanAdapter } from "@wallet-map/adapters";
 import type { ChainAdapter } from "@wallet-map/adapters";
-import type { Address, ChainId, NormalizedEvent } from "@wallet-map/core";
+import type { Address, ChainId, FetchPlan, HistoryScope, NormalizedEvent } from "@wallet-map/core";
 import { getSupportedAnalysisChain } from "../../chains";
 import fixtureEvents from "../../../../../fixtures/sample-events.json";
 import type { AnalyzeDataMode, AnalyzeDataProvider } from "./schema";
+
+export interface AnalyzeFetchCoverage {
+  scope: HistoryScope;
+  historyDays?: number;
+  maxEventsPerAddress: number;
+  eventsPerAddress: Record<string, number>;
+  truncatedAddresses: Address[];
+}
 
 export interface ResolveEventsInput {
   addresses: Address[];
@@ -11,6 +19,8 @@ export interface ResolveEventsInput {
   chainIds?: ChainId[];
   dataMode: AnalyzeDataMode;
   dataProvider?: AnalyzeDataProvider;
+  historyScope?: HistoryScope;
+  historyDays?: number;
   env?: Record<string, string | undefined>;
   fetchImpl?: typeof fetch;
 }
@@ -22,6 +32,8 @@ export interface ResolveEventsResult {
   chainName: string;
   fallbackReason?: string;
   warnings?: string[];
+  fetchCoverage?: AnalyzeFetchCoverage;
+  fetchPlan?: FetchPlan & { historyDays?: number };
 }
 
 type LiveProviderId = "etherscan-v2" | "nodereal" | "solscan";
@@ -29,6 +41,8 @@ type AddressProviderResult = {
   events: NormalizedEvent[];
   source?: string;
   warning?: string;
+  truncated?: boolean;
+  eventCount?: number;
 };
 
 export interface LiveProviderPlan {
@@ -71,6 +85,11 @@ export async function resolveAnalyzeEvents(
   const liveAddressConcurrency = parseLiveAddressConcurrency(env[liveAddressConcurrencyEnv]);
   const liveChainConcurrency = parseLiveChainConcurrency(env[liveChainConcurrencyEnv]);
   const liveProviderTimeoutMs = parseLiveProviderTimeoutMs(env[liveProviderTimeoutEnv]);
+  const fetchPlan = resolveAnalyzeFetchPlan({
+    historyScope: input.historyScope,
+    historyDays: input.historyDays,
+    env,
+  });
   const livePlans = requestedChainIds.map((chainId) =>
     selectAnalyzeLiveProvider(chainId, {
       dataProvider,
@@ -104,6 +123,7 @@ export async function resolveAnalyzeEvents(
   }
 
   const allowPartial = requestedChainIds.length > 1;
+  const coverageTracker = createFetchCoverageTracker(fetchPlan);
 
   // Live mode: pick an adapter per chain, then call adapter.getEvents for each address.
   const chainResults = await mapWithConcurrency(livePlans, liveChainConcurrency, async (plan) => {
@@ -144,8 +164,19 @@ export async function resolveAnalyzeEvents(
       liveAddressConcurrency,
       async (address) => {
         try {
-          const events = await adapter.getEvents({ address });
-          return { events, source: adapter.id };
+          const result = await adapter.getEvents({ address, fetchPlan });
+          coverageTracker.record(address, result.events.length, result.coverage.truncated);
+          if (result.coverage.truncated) {
+            return {
+              events: result.events,
+              source: adapter.id,
+              warning: buildTruncationWarning(address, result.coverage.reason, fetchPlan),
+              truncated: true,
+              eventCount: result.events.length,
+            };
+          }
+
+          return { events: result.events, source: adapter.id, eventCount: result.events.length };
         } catch (error) {
           if (plan.fallbackProvider) {
             const fallbackResult: AddressProviderResult | undefined = await fetchFallbackEvents({
@@ -160,6 +191,7 @@ export async function resolveAnalyzeEvents(
               solscanApiKey,
               fetchImpl: input.fetchImpl,
               timeoutMs: liveProviderTimeoutMs,
+              fetchPlan,
             }).catch((fallbackError: unknown) => {
               return {
                 events: [],
@@ -206,7 +238,12 @@ export async function resolveAnalyzeEvents(
     mode: "live",
     source: Array.from(new Set(chainResults.flatMap((result) => result.sources))).join(",") || "live-partial-empty",
     chainName: buildChainName(requestedChainIds),
-    warnings: chainResults.flatMap((result) => result.warnings),
+    warnings: [
+      ...chainResults.flatMap((result) => result.warnings),
+      ...coverageTracker.buildScopeWarnings(),
+    ],
+    fetchCoverage: coverageTracker.snapshot(),
+    fetchPlan,
   };
 }
 
@@ -226,6 +263,51 @@ function buildProviderFailureMessage(
 
 function formatUnknownError(error: unknown): string {
   return error instanceof Error ? error.message : "provider request failed";
+}
+
+function buildTruncationWarning(
+  address: Address,
+  reason: string | undefined,
+  fetchPlan: FetchPlan & { historyDays?: number },
+): string {
+  const scopeHint =
+    fetchPlan.scope === "window" && fetchPlan.historyDays
+      ? `last ${fetchPlan.historyDays} days`
+      : fetchPlan.scope === "full"
+        ? "full history"
+        : "configured window";
+  const detail = reason ? ` ${reason}` : "";
+  return `${address} fetch was truncated (${scopeHint}).${detail}`;
+}
+
+function createFetchCoverageTracker(fetchPlan: FetchPlan & { historyDays?: number }) {
+  const eventsPerAddress: Record<string, number> = {};
+  const truncatedAddresses: Address[] = [];
+
+  return {
+    record(address: Address, count: number, truncated: boolean) {
+      eventsPerAddress[address] = count;
+      if (truncated) {
+        truncatedAddresses.push(address);
+      }
+    },
+    snapshot(): AnalyzeFetchCoverage {
+      return {
+        scope: fetchPlan.scope,
+        historyDays: fetchPlan.historyDays,
+        maxEventsPerAddress: fetchPlan.maxEventsPerAddress ?? 10_000,
+        eventsPerAddress,
+        truncatedAddresses,
+      };
+    },
+    buildScopeWarnings(): string[] {
+      if (fetchPlan.scope === "window" && fetchPlan.historyDays) {
+        return [`Live analysis uses the last ${fetchPlan.historyDays} days of on-chain history.`];
+      }
+
+      return [];
+    },
+  };
 }
 
 export function selectAnalyzeLiveProvider(
@@ -336,6 +418,7 @@ async function fetchFallbackEvents(input: {
   solscanApiKey?: string;
   fetchImpl?: typeof fetch;
   timeoutMs: number;
+  fetchPlan?: FetchPlan & { historyDays?: number };
 }): Promise<AddressProviderResult | undefined> {
   if (!input.failedProvider) {
     return undefined;
@@ -350,11 +433,22 @@ async function fetchFallbackEvents(input: {
     solscanApiKey: input.solscanApiKey,
     fetchImpl: withProviderTimeout(input.fetchImpl, input.timeoutMs, input.configName),
   });
-  const events = await fallbackAdapter.getEvents({ address: input.address });
+  const events = await fallbackAdapter.getEvents({ address: input.address, fetchPlan: input.fetchPlan });
 
   return {
-    events,
+    events: events.events,
     source: `${fallbackAdapter.id}:fallback-from-${formatProviderSourceSlug(input.failedProvider)}`,
+    truncated: events.coverage.truncated,
+    eventCount: events.events.length,
+    ...(events.coverage.truncated
+      ? {
+          warning: buildTruncationWarning(
+            input.address,
+            events.coverage.reason,
+            input.fetchPlan ?? resolveAnalyzeFetchPlan(),
+          ),
+        }
+      : {}),
   };
 }
 

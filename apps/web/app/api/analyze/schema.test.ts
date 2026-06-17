@@ -46,7 +46,37 @@ describe("analyze request schema", () => {
     ).toMatchObject({
       dataMode: "auto",
       dataProvider: "auto",
+      historyScope: "window",
+      historyDays: 365,
     });
+  });
+
+  it("parses full history scope", () => {
+    expect(
+      parseAnalyzeRequest({
+        addresses: [
+          "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        ],
+        chainId: 1,
+        historyScope: "full",
+      }),
+    ).toMatchObject({
+      historyScope: "full",
+    });
+  });
+
+  it("rejects unknown history scope", () => {
+    expect(() =>
+      parseAnalyzeRequest({
+        addresses: [
+          "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        ],
+        chainId: 1,
+        historyScope: "recent",
+      }),
+    ).toThrow('History scope must be "window" or "full".');
   });
 
   it("rejects unknown data modes", () => {

@@ -1,15 +1,17 @@
-import type { Address, BlockRange, ChainId, NormalizedEvent } from "@wallet-map/core";
+import type { Address, BlockRange, ChainId, FetchPlan, NormalizedEvent } from "@wallet-map/core";
+import type { AdapterFetchResult } from "./fetch-helpers";
 
 export interface AdapterRequest {
   address: Address;
   range?: BlockRange;
+  fetchPlan?: FetchPlan;
 }
 
 export interface ChainAdapter {
   id: string;
   name: string;
   chainId: ChainId;
-  getEvents(request: AdapterRequest): Promise<NormalizedEvent[]>;
+  getEvents(request: AdapterRequest): Promise<AdapterFetchResult>;
 }
 
 export interface AdapterRegistry {
@@ -43,14 +45,32 @@ export class CsvImportAdapter implements ChainAdapter {
     private readonly events: NormalizedEvent[] = [],
   ) {}
 
-  async getEvents(request: AdapterRequest): Promise<NormalizedEvent[]> {
+  async getEvents(request: AdapterRequest): Promise<AdapterFetchResult> {
     const target = request.address.toLowerCase();
 
-    return this.events.filter((event) => {
+    const events = this.events.filter((event) => {
       return event.from?.toLowerCase() === target || event.to?.toLowerCase() === target;
     });
+
+    return {
+      events,
+      coverage: {
+        fetched: events.length,
+        truncated: false,
+      },
+    };
   }
 }
+
+export type { AdapterFetchResult } from "./fetch-helpers";
+export {
+  buildMaxEventsReason,
+  buildWindowDaysReason,
+  defaultHistoryDays,
+  defaultMaxEventsPerAddress,
+  resolveAnalyzeFetchPlan,
+} from "./fetch-helpers";
+export type { ResolveAnalyzeFetchPlanInput } from "./fetch-helpers";
 
 export { EtherscanLikeAdapter } from "./etherscan-like";
 export type { EtherscanLikeAdapterConfig } from "./etherscan-like";

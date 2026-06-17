@@ -81,7 +81,9 @@ export function EvidenceItemView({
             t={t}
           />
         ) : null}
-        <ArrowRight size={14} strokeWidth={2.2} className="evidenceArrowIcon" aria-hidden="true" />
+        {event?.from && (event?.to || event?.contract) ? (
+          <ArrowRight size={14} strokeWidth={2.2} className="evidenceFlowArrow" aria-hidden="true" />
+        ) : null}
         {event?.to ? (
           <AddressLink address={event.to} chainId={eventChainId} role="to" watchedAddressSet={watchedAddressSet} t={t} />
         ) : event?.contract ? (
@@ -92,9 +94,9 @@ export function EvidenceItemView({
             watchedAddressSet={watchedAddressSet}
             t={t}
           />
-        ) : (
+        ) : !event?.from ? (
           <span className="evidenceUnknown">{t("analysis.evidence.unknown")}</span>
-        )}
+        ) : null}
       </div>
       <div className="evidenceItemFooter">
         {txHash ? (

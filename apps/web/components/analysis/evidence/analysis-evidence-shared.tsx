@@ -67,10 +67,12 @@ export function SharedFindingRow({
           </span>
           <span className="sharedFindingMeta">
             <FindingChainBadges finding={finding} fallbackChainId={fallbackChainId} />
-            <span>
+            <span className="sharedFindingMetaStat">
               {t("analysis.evidence.sharedWallets", { count: Math.max(walletLabels.length, watchedNodeIds.length) })}
             </span>
-            <span>{t("analysis.evidence.sharedTxs", { count: finding.evidence.length })}</span>
+            <span className="sharedFindingMetaStat">
+              {t("analysis.evidence.sharedTxs", { count: finding.evidence.length })}
+            </span>
           </span>
           <ChevronDown size={15} strokeWidth={2.2} className="sharedFindingChevron" aria-hidden="true" />
         </summary>

@@ -97,6 +97,15 @@ New analyzers should include:
 
 Analyzers should read from `AnalysisContext` and return findings. Data loading belongs in adapters or ingestion services.
 
+## Live Fetch Coverage
+
+Live analysis may not include the full on-chain history for every address.
+
+- Default live mode uses a time window (currently 365 days unless overridden).
+- Full-history mode paginates provider APIs until data is exhausted or a per-address safety cap is reached.
+- `meta.fetchCoverage` and `meta.warnings` describe the scope, per-address event counts, and any truncation.
+- Treat findings as incomplete when truncation warnings are present, especially for older funding or bridge signals.
+
 ## Report Language
 
 Use careful language:

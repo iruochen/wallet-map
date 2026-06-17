@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAddressImport } from "./address-import";
+import { mergeAddressInput, parseAddressImport } from "./address-import";
 
 describe("parseAddressImport", () => {
   it("parses CSV, TSV, and whitespace separated wallet addresses", () => {
@@ -27,6 +27,17 @@ describe("parseAddressImport", () => {
 
     expect(result.addresses).toEqual(["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]);
     expect(result.duplicateCount).toBe(1);
+  });
+
+  it("merges pasted or typed additions into a deduplicated address list", () => {
+    const result = mergeAddressInput(
+      "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    );
+
+    expect(result).toBe(
+      "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    );
   });
 
   it("keeps valid Solana addresses and reports invalid rows", () => {

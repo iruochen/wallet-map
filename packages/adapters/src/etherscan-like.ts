@@ -1,5 +1,12 @@
 import type { Address, ChainId, NormalizedEvent, TxHash } from "@wallet-map/core";
-import type { AdapterRequest, ChainAdapter } from "./index";
+import type { AdapterFetchResult, AdapterRequest, ChainAdapter } from "./index";
+import {
+  buildMaxEventsReason,
+  capEvents,
+  finalizeFetchCoverage,
+  mergeFetchCoverage,
+  resolveAdapterFetchPlan,
+} from "./fetch-helpers";
 
 export interface EtherscanLikeAdapterConfig {
   baseUrl: string;
@@ -9,6 +16,7 @@ export interface EtherscanLikeAdapterConfig {
   useChainIdParam?: boolean;
   requestThrottleMs?: number;
   maxRateLimitRetries?: number;
+  pageOffset?: number;
   fetchImpl?: typeof fetch;
 }
 
@@ -71,6 +79,7 @@ interface EtherscanNftTx {
 }
 
 type EtherscanAction = "txlist" | "txlistinternal" | "tokentx" | "tokennfttx";
+type EtherscanTx = EtherscanNativeTx | EtherscanInternalTx | EtherscanTokenTx | EtherscanNftTx;
 
 export class EtherscanLikeAdapter implements ChainAdapter {
   readonly id: string;
@@ -82,6 +91,7 @@ export class EtherscanLikeAdapter implements ChainAdapter {
   private readonly useChainIdParam: boolean;
   private readonly requestThrottleMs: number;
   private readonly maxRateLimitRetries: number;
+  private readonly pageOffset: number;
   private readonly fetchImpl: typeof fetch;
 
   constructor(config: EtherscanLikeAdapterConfig) {
@@ -93,39 +103,160 @@ export class EtherscanLikeAdapter implements ChainAdapter {
     this.useChainIdParam = config.useChainIdParam ?? false;
     this.requestThrottleMs = Math.max(0, config.requestThrottleMs ?? 0);
     this.maxRateLimitRetries = Math.max(0, config.maxRateLimitRetries ?? 2);
+    this.pageOffset = Math.max(1, Math.min(config.pageOffset ?? 1000, 1000));
     this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
   }
 
-  async getEvents(request: AdapterRequest): Promise<NormalizedEvent[]> {
-    const nativeTransfers = await this.fetchAccountAction<EtherscanNativeTx[]>(request, "txlist");
-    const internalTransfers = await this.fetchAccountAction<EtherscanInternalTx[]>(
-      request,
-      "txlistinternal",
-    );
-    const tokenTransfers = await this.fetchAccountAction<EtherscanTokenTx[]>(request, "tokentx");
-    const nftTransfers = await this.fetchAccountAction<EtherscanNftTx[]>(request, "tokennfttx");
+  async getEvents(request: AdapterRequest): Promise<AdapterFetchResult> {
+    const plan = resolveAdapterFetchPlan(request.fetchPlan);
+    const sort = plan.scope === "window" ? "desc" : "asc";
+    const remainingBudget = () => Math.max(0, plan.maxEventsPerAddress - events.length);
+    const events: NormalizedEvent[] = [];
+    let coverage = finalizeFetchCoverage(events, { truncated: false });
 
-    return [
-      ...nativeTransfers.filter(isNativeTransferTx).map((tx) => this.mapNativeTransfer(tx)),
-      ...nativeTransfers.filter(isContractCallTx).map((tx) => this.mapContractCall(tx)),
-      ...internalTransfers
-        .filter(isSuccessfulInternalTx)
-        .map((tx) => this.mapInternalTransfer(tx)),
-      ...tokenTransfers.map((tx) => this.mapTokenTransfer(tx)),
-      ...nftTransfers.map((tx) => this.mapNftTransfer(tx)),
-    ].sort((left, right) => {
+    const appendAction = async <T extends EtherscanTx>(
+      action: EtherscanAction,
+      mapper: (tx: T) => NormalizedEvent | NormalizedEvent[] | null,
+      filter?: (tx: T) => boolean,
+    ) => {
+      if (remainingBudget() === 0) {
+        coverage = mergeFetchCoverage(coverage, {
+          fetched: 0,
+          truncated: true,
+          reason: buildMaxEventsReason(plan.maxEventsPerAddress),
+        });
+        return;
+      }
+
+      const pageResult = await this.fetchAccountActionPages<T>(request, action, {
+        sort,
+        maxEvents: remainingBudget(),
+        fromTimestamp: plan.scope === "window" ? plan.fromTimestamp : undefined,
+      });
+
+      for (const tx of pageResult.records) {
+        if (filter && !filter(tx)) {
+          continue;
+        }
+
+        const mapped = mapper(tx);
+        if (!mapped) {
+          continue;
+        }
+
+        if (Array.isArray(mapped)) {
+          events.push(...mapped);
+        } else {
+          events.push(mapped);
+        }
+      }
+
+      coverage = mergeFetchCoverage(coverage, pageResult.coverage);
+    };
+
+    await appendAction<EtherscanNativeTx>(
+      "txlist",
+      (tx) => {
+        if (isNativeTransferTx(tx)) {
+          return this.mapNativeTransfer(tx);
+        }
+
+        if (isContractCallTx(tx)) {
+          return this.mapContractCall(tx);
+        }
+
+        return null;
+      },
+      (tx) => isSuccessfulNativeTx(tx),
+    );
+    await appendAction<EtherscanInternalTx>(
+      "txlistinternal",
+      (tx) => this.mapInternalTransfer(tx),
+      (tx) => isSuccessfulInternalTx(tx),
+    );
+    await appendAction<EtherscanTokenTx>("tokentx", (tx) => this.mapTokenTransfer(tx));
+    await appendAction<EtherscanNftTx>("tokennfttx", (tx) => this.mapNftTransfer(tx));
+
+    const capped = capEvents(events, plan.maxEventsPerAddress);
+    const sorted = capped.events.sort((left, right) => {
       if (left.blockNumber !== right.blockNumber) {
         return left.blockNumber - right.blockNumber;
       }
 
       return left.id.localeCompare(right.id);
     });
+
+    return {
+      events: sorted,
+      coverage: finalizeFetchCoverage(sorted, {
+        truncated: coverage.truncated || capped.truncated,
+        reason: coverage.reason ?? (capped.truncated ? buildMaxEventsReason(plan.maxEventsPerAddress) : undefined),
+      }),
+    };
   }
 
-  private async fetchAccountAction<T>(
+  private async fetchAccountActionPages<T extends EtherscanTx>(
     request: AdapterRequest,
     action: EtherscanAction,
-  ): Promise<T> {
+    input: {
+      sort: "asc" | "desc";
+      maxEvents: number;
+      fromTimestamp?: number;
+    },
+  ): Promise<{ records: T[]; coverage: AdapterFetchResult["coverage"] }> {
+    const records: T[] = [];
+    let page = 1;
+    let truncated = false;
+    let reason: string | undefined;
+
+    while (records.length < input.maxEvents) {
+      const pageRecords = await this.fetchAccountActionPage<T>(request, action, page, input.sort);
+
+      if (pageRecords.length === 0) {
+        break;
+      }
+
+      if (input.fromTimestamp !== undefined) {
+        const inWindow = pageRecords.filter((tx) => Number(tx.timeStamp) >= input.fromTimestamp!);
+        records.push(...inWindow);
+
+        const oldestInPage = Math.min(...pageRecords.map((tx) => Number(tx.timeStamp)));
+        if (oldestInPage < input.fromTimestamp) {
+          break;
+        }
+      } else {
+        records.push(...pageRecords);
+      }
+
+      if (pageRecords.length < this.pageOffset) {
+        break;
+      }
+
+      if (records.length >= input.maxEvents) {
+        truncated = true;
+        reason = buildMaxEventsReason(input.maxEvents);
+        break;
+      }
+
+      page += 1;
+    }
+
+    return {
+      records: records.slice(0, input.maxEvents),
+      coverage: {
+        fetched: records.length,
+        truncated,
+        ...(reason ? { reason } : {}),
+      },
+    };
+  }
+
+  private async fetchAccountActionPage<T>(
+    request: AdapterRequest,
+    action: EtherscanAction,
+    page: number,
+    sort: "asc" | "desc",
+  ): Promise<T[]> {
     if (this.requestThrottleMs > 0) {
       await sleep(this.requestThrottleMs);
     }
@@ -133,7 +264,7 @@ export class EtherscanLikeAdapter implements ChainAdapter {
     let attempt = 0;
 
     while (true) {
-      const url = this.buildAccountUrl(request, action);
+      const url = this.buildAccountUrl(request, action, page, sort);
       const response = await this.fetchImpl(url).catch((error: unknown) => {
         throw wrapTransportError({
           error,
@@ -158,7 +289,7 @@ export class EtherscanLikeAdapter implements ChainAdapter {
       const payload = (await response.json()) as EtherscanResponse<T>;
 
       if (payload.status === "0" && Array.isArray(payload.result) && payload.result.length === 0) {
-        return payload.result as T;
+        return payload.result as T[];
       }
 
       if (payload.status === "0") {
@@ -177,11 +308,16 @@ export class EtherscanLikeAdapter implements ChainAdapter {
         throw new Error(`${this.name} ${action} request returned an unexpected result shape`);
       }
 
-      return payload.result as T;
+      return payload.result as T[];
     }
   }
 
-  private buildAccountUrl(request: AdapterRequest, action: EtherscanAction): URL {
+  private buildAccountUrl(
+    request: AdapterRequest,
+    action: EtherscanAction,
+    page: number,
+    sort: "asc" | "desc",
+  ): URL {
     const url = new URL(this.baseUrl);
     if (this.useChainIdParam) {
       url.searchParams.set("chainid", String(this.chainId));
@@ -189,7 +325,9 @@ export class EtherscanLikeAdapter implements ChainAdapter {
     url.searchParams.set("module", "account");
     url.searchParams.set("action", action);
     url.searchParams.set("address", request.address);
-    url.searchParams.set("sort", "asc");
+    url.searchParams.set("sort", sort);
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("offset", String(this.pageOffset));
 
     if (request.range?.fromBlock !== undefined) {
       url.searchParams.set("startblock", String(request.range.fromBlock));

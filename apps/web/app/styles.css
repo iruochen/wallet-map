@@ -644,8 +644,8 @@ button:disabled {
 
 .workbenchInput .segmentedButton {
   min-width: 0;
-  min-height: 42px;
-  padding: 6px 8px;
+  min-height: 38px;
+  padding: 8px 10px;
   font-size: 0.72rem;
 }
 
@@ -2680,17 +2680,71 @@ button:disabled {
   font-size: 0.72rem;
 }
 
-.addressInputEditor {
+.addressInputComposer {
   position: relative;
-  padding: 0;
-  background: #fafcf9;
+  min-height: 104px;
+  padding: 10px 12px;
+  background:
+    radial-gradient(circle at top left, rgba(237, 246, 239, 0.72), transparent 42%),
+    linear-gradient(180deg, #fcfdfb 0%, #f7faf7 100%);
+  transition: background 180ms ease, box-shadow 180ms ease;
 }
 
-.addressChipList {
+.addressInputComposer:focus-within {
+  background:
+    radial-gradient(circle at top left, rgba(237, 246, 239, 0.9), transparent 46%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbf8 100%);
+  box-shadow: inset 0 0 0 2px rgba(47, 106, 77, 0.14);
+}
+
+.addressInputComposerEmpty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+
+.addressInputComposerIcon {
+  margin-top: 2px;
+  color: #8aa193;
+  flex-shrink: 0;
+}
+
+.addressInputChipField {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  padding: 10px 12px 0;
+  min-width: 0;
+}
+
+.addressInputComposerEmpty .addressInputChipField {
+  align-content: start;
+}
+
+.addressInputInline {
+  flex: 1 1 180px;
+  min-width: 140px;
+  min-height: 30px;
+  margin: 0;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: #152018;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.addressInputInline::placeholder {
+  color: #8b9a91;
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
+.addressInputInline:focus {
+  outline: none;
 }
 
 .addressChip {
@@ -2698,12 +2752,14 @@ button:disabled {
   align-items: center;
   gap: 4px;
   max-width: 100%;
-  min-height: 28px;
-  padding: 2px 4px 2px 8px;
+  min-height: 30px;
+  padding: 2px 4px 2px 10px;
   border: 1px solid #cfe0d4;
   border-radius: 999px;
   background: #ffffff;
-  box-shadow: 0 1px 0 rgba(31, 61, 44, 0.04);
+  box-shadow:
+    0 1px 0 rgba(31, 61, 44, 0.04),
+    0 4px 10px rgba(31, 61, 44, 0.04);
 }
 
 .addressChip code {
@@ -2733,35 +2789,6 @@ button:disabled {
   background: #f2f7f3;
   color: #183d30;
   transform: none;
-}
-
-.addressInputEditor:focus-within {
-  box-shadow: inset 0 0 0 2px rgba(47, 106, 77, 0.14);
-}
-
-.addressInputTextarea {
-  width: 100%;
-  min-height: 96px;
-  margin: 0;
-  padding: 10px 12px 10px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: #152018;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.8rem;
-  line-height: 1.65;
-  resize: vertical;
-  word-break: break-all;
-}
-
-.addressInputTextarea::placeholder {
-  color: #9aa89f;
-}
-
-.addressInputTextarea:focus {
-  outline: none;
-  border-color: transparent;
 }
 
 .addressInputHint {
@@ -3026,6 +3053,25 @@ select {
 
 .segmentedControlModes {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.controlLabelHeading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.segmentedButtonContent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.segmentedButtonWithHelp {
+  place-items: center;
 }
 
 .segmentedButton {
@@ -4131,6 +4177,61 @@ select {
   min-width: 0;
 }
 
+.groupedPanelTitleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.groupedPanelTitleRow .groupedPanelTitle {
+  min-width: 0;
+}
+
+.findingHelpTip {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #7a8f82;
+  cursor: help;
+  transform: none;
+}
+
+.findingHelpTip:hover:not(:disabled),
+.findingHelpTipOpen {
+  background: #eef4f0;
+  color: #2f5d44;
+  transform: none;
+}
+
+.findingHelpPopover {
+  position: fixed;
+  z-index: 1200;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #1a2e24;
+  box-shadow: 0 14px 36px rgba(16, 30, 22, 0.28);
+  color: #f4f8f5;
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.5;
+  pointer-events: auto;
+}
+
+@media (max-width: 768px) {
+  .findingHelpPopover {
+    font-size: 0.78rem;
+    line-height: 1.55;
+  }
+}
+
 .groupedPanelTitle {
   color: #243129;
   font-size: 0.86rem;
@@ -4144,9 +4245,10 @@ select {
   display: inline-flex;
   align-self: flex-start;
   max-width: 100%;
-  padding: 2px 8px;
+  padding: 3px 10px;
+  border: 1px solid #d5e3d8;
   border-radius: 999px;
-  background: #eef2eb;
+  background: linear-gradient(180deg, #f8fbf9 0%, #f0f5f1 100%);
   color: #243129;
   font-size: 0.74rem;
   font-weight: 700;
@@ -4160,22 +4262,59 @@ select {
 }
 
 .findingDetails summary {
-  cursor: pointer;
-  color: #64736a;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  min-height: 28px;
+  padding: 4px 10px 4px 9px;
+  border: 1px solid #d5e3d8;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f8fbf9 0%, #f1f6f2 100%);
+  color: #2f5d44;
   font-size: 0.72rem;
   font-weight: 700;
   list-style: none;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.findingDetails summary:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #eaf3ed 100%);
+  border-color: #b9d4c3;
+  box-shadow: 0 2px 8px rgba(31, 61, 44, 0.05);
+}
+
+.findingDetails[open] summary {
+  background: linear-gradient(180deg, #edf5f0 0%, #e4efe8 100%);
+  border-color: #adc8b6;
 }
 
 .findingDetails summary::-webkit-details-marker {
   display: none;
 }
 
+.findingDetailsChevron {
+  color: #5f7a69;
+  transition: transform 240ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.findingDetails[open] .findingDetailsChevron {
+  transform: rotate(180deg);
+}
+
 .findingDetails p {
-  margin: 6px 0 0;
-  color: #64736a;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #e8efe9;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fbfcfb 0%, #f5f8f6 100%);
+  color: #4a5b50;
   font-size: 0.76rem;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .groupedPanelHint {
@@ -4247,7 +4386,7 @@ select {
 
 .sharedFindingList {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -4258,15 +4397,20 @@ select {
 }
 
 .sharedFindingSubjectLabel {
-  color: #64736a;
+  color: #708078;
   font-size: 0.68rem;
   font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .sharedFindingDetails {
-  border: 1px solid #e4eae2;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdfb 100%);
+  overflow: hidden;
+  border: 1px solid rgba(207, 219, 207, 0.78);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(31, 61, 44, 0.04),
+    0 6px 18px rgba(31, 61, 44, 0.04);
 }
 
 .sharedFindingSummary {
@@ -4277,20 +4421,20 @@ select {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto auto;
-  gap: 4px 8px;
+  gap: 6px 10px;
   align-items: center;
-  padding: 11px 12px;
-  border-radius: 9px;
+  padding: 12px 14px;
+  border-radius: 0;
   cursor: pointer;
   list-style: none;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(251, 253, 250, 0.9) 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 251, 248, 0.94) 100%);
   backdrop-filter: blur(10px) saturate(1.06);
   -webkit-backdrop-filter: blur(10px) saturate(1.06);
 }
 
 .sharedFindingDetails[open] .sharedFindingSummary {
-  border-radius: 9px 9px 0 0;
+  border-bottom: 1px solid rgba(207, 219, 207, 0.55);
 }
 
 .sharedFindingSummary::-webkit-details-marker {
@@ -4298,9 +4442,8 @@ select {
 }
 
 .sharedFindingSubject {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  gap: 3px;
   min-width: 0;
   grid-column: 1;
   grid-row: 1;
@@ -4309,7 +4452,7 @@ select {
 .sharedFindingSubjectLink {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
   max-width: 100%;
   color: #183d30;
@@ -4318,22 +4461,33 @@ select {
 
 .sharedFindingSubjectLink code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.76rem;
+  font-size: 0.8rem;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .sharedFindingMeta {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  color: #64736a;
-  font-size: 0.72rem;
   grid-column: 1;
   grid-row: 2;
   min-width: 0;
+}
+
+.sharedFindingMetaStat {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f3f6f4;
+  color: #5f6f64;
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 
 .sharedFindingChevron {
@@ -4342,6 +4496,7 @@ select {
   grid-column: 2;
   grid-row: 1 / span 2;
   justify-self: end;
+  align-self: center;
   transition: transform 240ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -4352,10 +4507,8 @@ select {
 .sharedFindingBody {
   display: grid;
   gap: 10px;
-  padding: 8px 10px 10px;
-  border-top: 1px solid #edf2ec;
-  border-radius: 0 0 9px 9px;
-  overflow: hidden;
+  padding: 10px 12px 12px;
+  background: linear-gradient(180deg, #fcfdfc 0%, #f8faf8 100%);
 }
 
 .sharedWalletChipRow {
@@ -4365,12 +4518,18 @@ select {
 }
 
 .sharedWalletChip {
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 2px 10px;
+  border: 1px solid #d3e2d8;
   border-radius: 999px;
-  background: #eef2eb;
+  background: #ffffff;
   color: #2b4a3a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.72rem;
   font-weight: 700;
+  box-shadow: 0 1px 0 rgba(31, 61, 44, 0.03);
 }
 
 .pairInsightChains {
@@ -4481,23 +4640,41 @@ select {
 .findingList li {
   position: relative;
   display: grid;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
-  padding: 13px 13px 13px 15px;
-  border: 1px solid #e4eae2;
-  border-radius: 10px;
-  background:
-    linear-gradient(180deg, #ffffff 0%, #fbfdfb 100%);
-  box-shadow: 0 4px 12px rgba(31, 61, 44, 0.035);
+  padding: 14px;
+  border: 1px solid rgba(207, 219, 207, 0.78);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(31, 61, 44, 0.04),
+    0 6px 18px rgba(31, 61, 44, 0.04);
 }
 
 .findingList li::before {
   position: absolute;
-  inset: 12px auto 12px 0;
+  inset: 14px auto 14px 0;
   width: 3px;
   border-radius: 999px;
-  background: #8db79c;
+  background: linear-gradient(180deg, #9ec5a8 0%, #6fa583 100%);
   content: "";
+}
+
+.findingListGrouped li {
+  gap: 8px;
+  padding: 12px;
+}
+
+.findingListGrouped li::before {
+  display: none;
+}
+
+.findingHeaderCompact {
+  gap: 0;
+}
+
+.findingHeaderCompact .findingMeta {
+  width: 100%;
 }
 
 .findingHeader {
@@ -4576,22 +4753,22 @@ select {
 
 .evidenceList {
   display: grid;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
 }
 
 .evidenceItem {
   display: grid;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
-  padding: 10px 11px;
-  border: 1px solid #e7ede5;
-  border-radius: 8px;
+  padding: 11px 12px;
+  border: 1px solid #e2ebe4;
+  border-radius: 11px;
   background: #ffffff;
+  box-shadow: 0 1px 3px rgba(31, 61, 44, 0.04);
 }
 
 .evidenceItemHeader,
-.evidenceItemBody,
 .evidenceItemFooter {
   display: flex;
   flex-wrap: wrap;
@@ -4600,15 +4777,39 @@ select {
   min-width: 0;
 }
 
+.evidenceItemBody {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.evidenceItemHeader {
+  row-gap: 4px;
+}
+
 .evidenceItemFooter {
-  padding-top: 7px;
+  padding-top: 8px;
   border-top: 1px dashed #e1e7df;
 }
 
+.evidenceFlowArrow {
+  justify-self: center;
+  color: #9aaba0;
+  transform: rotate(90deg);
+}
+
 .evidenceTime {
+  display: inline-flex;
+  align-items: center;
   margin-left: auto;
-  color: #64736a;
-  font-size: 0.74rem;
+  padding: 2px 9px;
+  border: 1px solid #e6ece7;
+  border-radius: 999px;
+  background: #f6f8f7;
+  color: #66766c;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .evidenceArrow {
@@ -4730,10 +4931,12 @@ select {
   display: inline-flex;
   gap: 4px;
   align-items: baseline;
-  padding: 2px 8px;
+  min-height: 24px;
+  padding: 2px 10px;
   border: 1px solid #d6e3da;
   border-radius: 999px;
   background: #ffffff;
+  box-shadow: 0 1px 0 rgba(31, 61, 44, 0.03);
 }
 
 .amountChip strong {
@@ -4805,27 +5008,45 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
   padding: 2px 7px 2px 3px;
   border: 1px solid #d6e3da;
   border-radius: 999px;
   background: #ffffff;
-  min-width: 0;
+}
+
+.evidenceItemBody .addressLink {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 8px 5px 5px;
+  border-radius: 10px;
+  background: #fbfcfb;
 }
 
 .addressLink .addressRoleTag {
-  padding: 1px 5px;
+  flex-shrink: 0;
+  padding: 1px 7px;
   border-radius: 999px;
   background: #e6efe9;
   color: #2b4a3a;
-  font-size: 0.62rem;
+  font-size: 0.64rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.evidenceItemBody .addressLink .addressRoleTag {
+  padding: 2px 7px;
 }
 
 .addressLink-watched {
   border-color: #b9d8c2;
   background: #f1faf3;
+}
+
+.evidenceItemBody .addressLink-watched {
+  border-color: #c5decc;
+  background: #f4faf6;
 }
 
 .addressLink-watched .addressRoleTag {
@@ -4838,6 +5059,11 @@ select {
   background: #fffaeb;
 }
 
+.evidenceItemBody .addressLink-contract {
+  border-color: #e8dcc0;
+  background: #fffdf6;
+}
+
 .addressLink-contract .addressRoleTag {
   background: #7a5202;
   color: #ffffff;
@@ -4848,27 +5074,30 @@ select {
   color: #2b4a3a;
 }
 
+.evidenceItemBody .addressLink-observed .addressRoleTag {
+  background: #dfe7e1;
+  color: #3a5245;
+}
+
 .addressValue {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
   color: #183d30;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.76rem;
   font-weight: 600;
   text-decoration: none;
-  border-bottom: 1px dashed transparent;
-  transition: border-color 0.12s ease, color 0.12s ease;
 }
 
 .addressLinkIcon {
   color: #64736a;
   flex-shrink: 0;
-  opacity: 0.72;
+  opacity: 0.8;
 }
 
 .addressValue:hover {
-  border-bottom-color: #183d30;
   color: #0f2d23;
 }
 
@@ -4888,6 +5117,15 @@ select {
   font-size: 0.76rem;
   text-decoration: none;
   transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.evidenceItemFooter .txLink {
+  gap: 6px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  background: #fbfcfb;
 }
 
 .txLink svg,

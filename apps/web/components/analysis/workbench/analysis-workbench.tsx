@@ -12,7 +12,6 @@ import {
   Sparkles,
   Upload,
   WalletCards,
-  X,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -21,10 +20,10 @@ import {
   getEvmAggregateChains,
 } from "../../../app/chains";
 import { ANALYSIS_PHASE_ORDER } from "../../../app/api/analyze/progress";
-import { shortenAddress } from "../../../app/format";
 import { readJsonResponse } from "../../../lib/read-json-response";
 import { useI18n } from "../../i18n/i18n-provider";
 import { AnalysisEvidencePanel } from "../evidence/analysis-evidence-panel";
+import { FindingHelpTip } from "../evidence/finding-help-tip";
 import { parseAddressImport, type AddressImportSummary } from "../lib/address-import";
 import {
   describeFindingGroup,
@@ -52,6 +51,7 @@ import type {
 import { saveSessionHistoryJob } from "../../history/lib/session-history";
 import { GraphExplorer } from "../../graph/graph-explorer";
 import { AnalysisProgress } from "./analysis-progress";
+import { AddressInputComposer } from "./address-input-composer";
 import { ExposureScoreDimensions } from "./analysis-score-dimensions";
 import { PairInsightCard } from "../evidence/pair-insight-card";
 import { WorkbenchMobileTabs, type WorkbenchMobilePanel } from "./workbench-mobile-tabs";
@@ -68,6 +68,7 @@ const activeAnalysisJobRestoreDelayMs = 500;
 
 type DataModeOptionValue = "auto" | "fixture" | "live";
 type DataProviderOptionValue = "auto" | "nodereal" | "etherscan" | "solscan";
+type HistoryScopeOptionValue = "window" | "full";
 
 function readDismissedEvidenceHintJobIds(): Set<string> {
   if (typeof window === "undefined") {
@@ -117,6 +118,7 @@ export function AnalysisWorkbench({
   const [chainId, setChainId] = useState("1");
   const [dataMode, setDataMode] = useState("auto");
   const [dataProvider, setDataProvider] = useState("auto");
+  const [historyScope, setHistoryScope] = useState<HistoryScopeOptionValue>("window");
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -159,6 +161,33 @@ export function AnalysisWorkbench({
       ] satisfies Array<{ value: DataProviderOptionValue; label: string; description: string }>,
     [t],
   );
+  const historyScopeOptions = useMemo(
+    () =>
+      [
+        {
+          value: "window",
+          label: t("analysis.history.window.label"),
+          description: t("analysis.history.window.description"),
+          helpAria: t("analysis.history.window.helpAria"),
+        },
+        {
+          value: "full",
+          label: t("analysis.history.full.label"),
+          description: t("analysis.history.full.description"),
+          helpAria: t("analysis.history.full.helpAria"),
+        },
+      ] satisfies Array<{
+        value: HistoryScopeOptionValue;
+        label: string;
+        description: string;
+        helpAria: string;
+      }>,
+    [t],
+  );
+  const selectedHistoryScope = useMemo(
+    () => historyScopeOptions.find((option) => option.value === historyScope) ?? historyScopeOptions[0],
+    [historyScope, historyScopeOptions],
+  );
   const effectiveChainIds = useMemo(
     () =>
       chainId === String(evmAggregateChainId)
@@ -166,11 +195,8 @@ export function AnalysisWorkbench({
         : [Number(chainId)],
     [chainId, evmAggregateChains],
   );
-  const addressCount = useMemo(
-    () => addresses.split(/\s+/).filter((address) => address.trim().length > 0).length,
-    [addresses],
-  );
   const parsedAddresses = useMemo(() => parseAddressImport(addresses).addresses, [addresses]);
+  const addressCount = parsedAddresses.length;
   const selectedChain = useMemo(
     () =>
       chainId === String(evmAggregateChainId)
@@ -393,6 +419,7 @@ export function AnalysisWorkbench({
     setChainId(restored.chainId);
     setDataMode(restored.dataMode);
     setDataProvider(restored.dataProvider);
+    setHistoryScope(restored.historyScope === "full" ? "full" : "window");
     setAddressImportSummary(null);
   }
 
@@ -560,6 +587,7 @@ export function AnalysisWorkbench({
           chainIds: effectiveChainIds,
           dataMode,
           dataProvider,
+          historyScope,
         }),
         signal: controller.signal,
       });
@@ -673,12 +701,6 @@ export function AnalysisWorkbench({
     setShowEvidenceHint(false);
   }
 
-  function removeParsedAddress(target: string) {
-    const next = parsedAddresses.filter((address) => address !== target);
-    setAddresses(next.join("\n"));
-    setAddressImportSummary(null);
-  }
-
   return (
     <>
       <section
@@ -757,41 +779,13 @@ export function AnalysisWorkbench({
                 event.currentTarget.value = "";
               }}
             />
-            <div className="addressInputEditor">
-              {parsedAddresses.length > 0 ? (
-                <div className="addressChipList" aria-label={t("analysis.address.label")}>
-                  {parsedAddresses.map((address) => (
-                    <span className="addressChip" key={address}>
-                      <code title={address}>{shortenAddress(address)}</code>
-                      <button
-                        type="button"
-                        className="addressChipRemove"
-                        disabled={isRunning}
-                        aria-label={shortenAddress(address)}
-                        onClick={() => removeParsedAddress(address)}
-                      >
-                        <X size={12} strokeWidth={2.4} aria-hidden="true" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              <textarea
-                id="addresses"
-                name="addresses"
-                className="addressInputTextarea"
-                disabled={isRunning}
-                onChange={(event) => {
-                  setAddresses(event.target.value);
-                  setAddressImportSummary(null);
-                }}
-                placeholder={"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
-                rows={5}
-                spellCheck={false}
-                autoComplete="off"
-                value={addresses}
-              />
-            </div>
+            <AddressInputComposer
+              id="addresses"
+              addresses={addresses}
+              disabled={isRunning}
+              onChange={setAddresses}
+              onImportSummaryClear={() => setAddressImportSummary(null)}
+            />
             <p className="addressInputHint">{t("analysis.address.hint")}</p>
             {addressImportSummary ? (
               <div className="addressImportSummary" role="status">
@@ -907,7 +901,6 @@ export function AnalysisWorkbench({
                     onClick={() => setDataProvider(option.value)}
                     role="radio"
                     aria-checked={dataProvider === option.value}
-                    title={option.description}
                   >
                     <span>{option.label}</span>
                     <small>{option.description}</small>
@@ -947,7 +940,6 @@ export function AnalysisWorkbench({
                     onClick={() => setDataMode(option.value)}
                     role="radio"
                     aria-checked={dataMode === option.value}
-                    title={option.description}
                   >
                     <span>{option.label}</span>
                     <small>{option.description}</small>
@@ -962,6 +954,53 @@ export function AnalysisWorkbench({
                   onChange={(event) => setDataMode(event.target.value as DataModeOptionValue)}
                 >
                   {dataModeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="controlGroup controlCard">
+              <div className="controlLabelRow">
+                <span className="controlLabelHeading">
+                  <Layers3 size={15} strokeWidth={2.2} />
+                  {t("analysis.config.history")}
+                  <span className="mobileOnly">
+                    <FindingHelpTip
+                      description={selectedHistoryScope?.description ?? ""}
+                      label={selectedHistoryScope?.helpAria ?? t("analysis.history.helpAria")}
+                    />
+                  </span>
+                </span>
+                <small>{selectedHistoryScope?.label}</small>
+              </div>
+              <div className="segmentedControl segmentedControlModes desktopOnly" role="radiogroup" aria-label={t("analysis.config.history.aria")}>
+                {historyScopeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`segmentedButton segmentedButtonWithHelp ${historyScope === option.value ? "segmentedButtonActive" : ""}`}
+                    disabled={isRunning}
+                    onClick={() => setHistoryScope(option.value)}
+                    role="radio"
+                    aria-checked={historyScope === option.value}
+                  >
+                    <span className="segmentedButtonContent">
+                      <span>{option.label}</span>
+                      <FindingHelpTip description={option.description} label={option.helpAria} />
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <label className="mobileControlSelect mobileOnly">
+                <select
+                  aria-label={t("analysis.config.history")}
+                  value={historyScope}
+                  disabled={isRunning}
+                  onChange={(event) => setHistoryScope(event.target.value as HistoryScopeOptionValue)}
+                >
+                  {historyScopeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>

@@ -1,5 +1,11 @@
 import type { Address, ChainId, NormalizedEvent, TxHash } from "@wallet-map/core";
-import type { AdapterRequest, ChainAdapter } from "./index";
+import type { AdapterFetchResult, AdapterRequest, ChainAdapter } from "./index";
+import {
+  buildMaxEventsReason,
+  capEvents,
+  finalizeFetchCoverage,
+  resolveAdapterFetchPlan,
+} from "./fetch-helpers";
 
 export interface NodeRealBscAdapterConfig {
   apiKey: string;
@@ -7,7 +13,6 @@ export interface NodeRealBscAdapterConfig {
   name?: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
-  maxPages?: number;
   maxCountPerPage?: number;
   requestThrottleMs?: number;
   maxRateLimitRetries?: number;
@@ -59,6 +64,7 @@ interface NodeRealTransfer {
 
 const baseUrlPrefix = "https://bsc-mainnet.nodereal.io/v1/";
 const categoryList = ["external", "internal", "20", "721", "1155"] as const;
+const maxCountPerPageLimit = 1000;
 
 export class NodeRealEvmAdapter implements ChainAdapter {
   readonly id: string;
@@ -67,7 +73,6 @@ export class NodeRealEvmAdapter implements ChainAdapter {
 
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
-  private readonly maxPages: number;
   private readonly maxCountPerPage: number;
   private readonly requestThrottleMs: number;
   private readonly maxRateLimitRetries: number;
@@ -84,16 +89,15 @@ export class NodeRealEvmAdapter implements ChainAdapter {
     this.id = `nodereal:${this.chainId}:${slugify(this.name.replace(/^NodeReal\s+/i, ""))}`;
     this.baseUrl = config.baseUrl ?? `${baseUrlPrefix}${apiKey}`;
     this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
-    this.maxPages = Math.max(1, config.maxPages ?? 8);
-    this.maxCountPerPage = Math.max(1, config.maxCountPerPage ?? 100);
+    this.maxCountPerPage = Math.max(1, Math.min(config.maxCountPerPage ?? maxCountPerPageLimit, maxCountPerPageLimit));
     this.requestThrottleMs = Math.max(0, config.requestThrottleMs ?? 200);
     this.maxRateLimitRetries = Math.max(0, config.maxRateLimitRetries ?? 2);
   }
 
-  async getEvents(request: AdapterRequest): Promise<NormalizedEvent[]> {
-    const transfers = await this.fetchTransfers(request);
-
-    return transfers
+  async getEvents(request: AdapterRequest): Promise<AdapterFetchResult> {
+    const plan = resolveAdapterFetchPlan(request.fetchPlan);
+    const fetchResult = await this.fetchTransfers(request, plan);
+    const mapped = fetchResult.transfers
       .flatMap((transfer) => this.mapTransfer(transfer))
       .sort((left, right) => {
         if (left.blockNumber !== right.blockNumber) {
@@ -102,13 +106,30 @@ export class NodeRealEvmAdapter implements ChainAdapter {
 
         return left.id.localeCompare(right.id);
       });
+    const capped = capEvents(mapped, plan.maxEventsPerAddress);
+
+    return {
+      events: capped.events,
+      coverage: finalizeFetchCoverage(capped.events, {
+        truncated: fetchResult.truncated || capped.truncated,
+        reason:
+          fetchResult.reason ??
+          (capped.truncated ? buildMaxEventsReason(plan.maxEventsPerAddress) : undefined),
+      }),
+    };
   }
 
-  private async fetchTransfers(request: AdapterRequest): Promise<NodeRealTransfer[]> {
+  private async fetchTransfers(
+    request: AdapterRequest,
+    plan: ReturnType<typeof resolveAdapterFetchPlan>,
+  ): Promise<{ transfers: NodeRealTransfer[]; truncated: boolean; reason?: string }> {
     const transfers: NodeRealTransfer[] = [];
     let pageKey: string | undefined;
+    const order = plan.scope === "window" ? "desc" : "asc";
+    let truncated = false;
+    let reason: string | undefined;
 
-    for (let page = 0; page < this.maxPages; page += 1) {
+    while (transfers.length < plan.maxEventsPerAddress) {
       if (this.requestThrottleMs > 0) {
         await sleep(this.requestThrottleMs);
       }
@@ -119,6 +140,7 @@ export class NodeRealEvmAdapter implements ChainAdapter {
           {
             address: request.address,
             category: [...categoryList],
+            order,
             maxCount: toRpcHex(this.maxCountPerPage),
             ...(request.range?.fromBlock !== undefined
               ? { fromBlock: toRpcHex(request.range.fromBlock) }
@@ -131,16 +153,40 @@ export class NodeRealEvmAdapter implements ChainAdapter {
         ],
       });
 
-      transfers.push(...payload.transfers);
+      const pageTransfers = payload.transfers ?? [];
+
+      if (plan.scope === "window" && plan.fromTimestamp !== undefined) {
+        const inWindow = pageTransfers.filter((transfer) => transfer.blockTimeStamp >= plan.fromTimestamp!);
+        transfers.push(...inWindow);
+
+        if (pageTransfers.length > 0) {
+          const oldestInPage = Math.min(...pageTransfers.map((transfer) => transfer.blockTimeStamp));
+          if (oldestInPage < plan.fromTimestamp) {
+            break;
+          }
+        }
+      } else {
+        transfers.push(...pageTransfers);
+      }
 
       if (!payload.pageKey || payload.pageKey === pageKey) {
+        break;
+      }
+
+      if (transfers.length >= plan.maxEventsPerAddress) {
+        truncated = true;
+        reason = buildMaxEventsReason(plan.maxEventsPerAddress);
         break;
       }
 
       pageKey = payload.pageKey;
     }
 
-    return transfers;
+    return {
+      transfers: transfers.slice(0, plan.maxEventsPerAddress),
+      truncated,
+      reason,
+    };
   }
 
   private async callRpc<T>(input: {

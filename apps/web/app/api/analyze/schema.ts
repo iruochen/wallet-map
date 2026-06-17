@@ -1,4 +1,4 @@
-import type { Address, ChainId } from "@wallet-map/core";
+import type { Address, ChainId, HistoryScope } from "@wallet-map/core";
 
 export interface AnalyzeRequestInput {
   addresses?: unknown;
@@ -6,6 +6,8 @@ export interface AnalyzeRequestInput {
   chainIds?: unknown;
   dataMode?: unknown;
   dataProvider?: unknown;
+  historyScope?: unknown;
+  historyDays?: unknown;
 }
 
 export type AnalyzeDataMode = "auto" | "fixture" | "live";
@@ -17,12 +19,15 @@ export interface ParsedAnalyzeRequest {
   chainIds: ChainId[];
   dataMode: AnalyzeDataMode;
   dataProvider: AnalyzeDataProvider;
+  historyScope: HistoryScope;
+  historyDays?: number;
 }
 
 export function parseAnalyzeRequest(input: AnalyzeRequestInput): ParsedAnalyzeRequest {
   const chainId = parseChainId(input.chainId);
   const chainIds = parseChainIds(input.chainIds, chainId);
   const addresses = parseAddresses(input.addresses, chainIds);
+  const historyScope = parseHistoryScope(input.historyScope);
 
   if (addresses.length < 2) {
     throw new Error("At least two wallet addresses are required.");
@@ -34,6 +39,8 @@ export function parseAnalyzeRequest(input: AnalyzeRequestInput): ParsedAnalyzeRe
     chainIds,
     dataMode: parseDataMode(input.dataMode),
     dataProvider: parseDataProvider(input.dataProvider),
+    historyScope,
+    ...(historyScope === "window" ? { historyDays: parseHistoryDays(input.historyDays) } : {}),
   };
 }
 
@@ -109,6 +116,32 @@ function parseDataProvider(input: unknown): AnalyzeDataProvider {
   }
 
   throw new Error("Data provider must be auto, nodereal, etherscan, or solscan.");
+}
+
+function parseHistoryScope(input: unknown): HistoryScope {
+  if (input === undefined || input === null || input === "") {
+    return "window";
+  }
+
+  if (input === "window" || input === "full") {
+    return input;
+  }
+
+  throw new Error('History scope must be "window" or "full".');
+}
+
+function parseHistoryDays(input: unknown): number {
+  if (input === undefined || input === null || input === "") {
+    return 365;
+  }
+
+  const days = typeof input === "number" ? input : Number(input);
+
+  if (!Number.isFinite(days)) {
+    throw new Error("History days must be a number.");
+  }
+
+  return Math.min(1095, Math.max(7, Math.floor(days)));
 }
 
 function isEvmAddress(value: string): value is Address {

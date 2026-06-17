@@ -81,6 +81,7 @@ describe("deriveWorkbenchInputFromResult", () => {
         chainIds: [56],
         dataMode: "live",
         dataProvider: "nodereal",
+        historyScope: "full",
       },
     };
 
@@ -89,6 +90,7 @@ describe("deriveWorkbenchInputFromResult", () => {
       chainId: "56",
       dataMode: "live",
       dataProvider: "nodereal",
+      historyScope: "full",
     });
   });
 
@@ -110,6 +112,7 @@ describe("deriveWorkbenchInputFromResult", () => {
         chainIds: evmAggregateChainIds,
         dataMode: "auto",
         dataProvider: "auto",
+        historyScope: "window",
       },
     };
 
@@ -126,6 +129,7 @@ describe("deriveWorkbenchInputFromResult", () => {
       chainId: "1",
       dataMode: "fixture",
       dataProvider: "auto",
+      historyScope: "window",
     });
   });
 });

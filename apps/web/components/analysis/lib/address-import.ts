@@ -11,6 +11,11 @@ export interface AddressImportSummary {
 const evmAddressPattern = /^0x[a-fA-F0-9]{40}$/;
 const solanaAddressPattern = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
+export function mergeAddressInput(...parts: string[]): string {
+  const combined = parts.filter((part) => part.trim().length > 0).join("\n");
+  return parseAddressImport(combined).addresses.join("\n");
+}
+
 export function parseAddressImport(input: string): AddressImportSummary {
   const seen = new Set<string>();
   const addresses: string[] = [];
