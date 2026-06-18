@@ -26,9 +26,11 @@ import { FindingHelpTip } from "../evidence/finding-help-tip";
 import { parseAddressImport, type AddressImportSummary } from "../lib/address-import";
 import {
   describeFindingGroup,
+  formatCoverageWarnings,
   formatSkippedChainDetails,
   formatSkippedChainSummary,
   formatVerdictLabel,
+  partitionAnalysisWarnings,
 } from "../lib/formatters";
 import { deriveWorkbenchInputFromResult } from "../lib/input-restore";
 import {
@@ -409,6 +411,11 @@ export function AnalysisWorkbench({
 
     return Array.from(groups.values()).sort((left, right) => right.edges.length - left.edges.length);
   }, [result]);
+
+  const warningGroups = useMemo(
+    () => partitionAnalysisWarnings(result?.meta.warnings ?? []),
+    [result],
+  );
 
   function applyWorkbenchInputFromResult(analysisResult: AnalysisResponse) {
     const restored = deriveWorkbenchInputFromResult(analysisResult, evmAggregateChainIdList);
@@ -1042,18 +1049,24 @@ export function AnalysisWorkbench({
                   <span>{result.meta.fallbackReason}</span>
                 </div>
               ) : null}
-              {result.meta.warnings?.length ? (
+              {warningGroups.skippedChains.length ? (
                 <div className="stateBanner stateBannerWarning">
                   <strong>{t("analysis.summary.skippedChains")}</strong>
-                  <span>{formatSkippedChainSummary(t, result.meta.warnings)}</span>
+                  <span>{formatSkippedChainSummary(t, warningGroups.skippedChains)}</span>
                   <details className="warningDetails">
                     <summary>{t("analysis.summary.details")}</summary>
                     <ul>
-                      {formatSkippedChainDetails(t, result.meta.warnings).map((warning) => (
+                      {formatSkippedChainDetails(t, warningGroups.skippedChains).map((warning) => (
                         <li key={warning}>{warning}</li>
                       ))}
                     </ul>
                   </details>
+                </div>
+              ) : null}
+              {warningGroups.coverage.length ? (
+                <div className="stateBanner stateBannerInfo">
+                  <strong>{t("analysis.summary.coverage")}</strong>
+                  <span>{formatCoverageWarnings(t, warningGroups.coverage)[0]}</span>
                 </div>
               ) : null}
               {result.summary.verdict !== "none" ? (

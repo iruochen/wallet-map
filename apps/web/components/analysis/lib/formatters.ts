@@ -120,21 +120,22 @@ export function describeEdgeGroup(t: TranslateFn, kind: GraphEdge["kind"], count
 }
 
 export function formatSkippedChainSummary(t: TranslateFn, warnings: string[]): string {
-  const names = warnings
+  const skippedWarnings = warnings.filter(isSkippedChainWarning);
+  const names = skippedWarnings
     .map((warning) => /^([^:]+?)(?: skipped| analysis| is required)/.exec(warning)?.[1]?.trim())
-    .map((name, index) => /live (.+?) analysis/.exec(warnings[index] ?? "")?.[1]?.trim() ?? name)
+    .map((name, index) => /live (.+?) analysis/.exec(skippedWarnings[index] ?? "")?.[1]?.trim() ?? name)
     .filter((name): name is string => Boolean(name));
   const uniqueNames = Array.from(new Set(names));
 
   if (uniqueNames.length === 0) {
-    return t("analysis.skippedChain.summaryGeneric", { count: warnings.length });
+    return t("analysis.skippedChain.summaryGeneric", { count: skippedWarnings.length || warnings.length });
   }
 
   return t("analysis.skippedChain.summaryNamed", { chains: uniqueNames.join(t("analysis.summary.reasonSeparator")) });
 }
 
 export function formatSkippedChainDetails(t: TranslateFn, warnings: string[]): string[] {
-  const details = warnings.map((warning) => {
+  const details = warnings.filter(isSkippedChainWarning).map((warning) => {
     const chainName = readWarningChainName(warning);
     const reason = formatProviderWarningReason(t, warning);
 
@@ -144,10 +145,57 @@ export function formatSkippedChainDetails(t: TranslateFn, warnings: string[]): s
   return Array.from(new Set(details));
 }
 
+export function formatCoverageWarnings(t: TranslateFn, warnings: string[]): string[] {
+  return warnings.map((warning) => {
+    const days = /^Live analysis uses the last (\d+) days of on-chain history\./i.exec(warning)?.[1];
+    if (days) {
+      return t("analysis.coverage.liveWindow", { days });
+    }
+
+    return warning;
+  });
+}
+
 function readWarningChainName(warning: string): string | undefined {
   return (
     /^([^:]+?)(?: skipped| provider request failed| analysis| is required)/.exec(warning)?.[1]?.trim() ??
     /live (.+?) analysis/.exec(warning)?.[1]?.trim()
+  );
+}
+
+export function partitionAnalysisWarnings(warnings: string[]): {
+  skippedChains: string[];
+  coverage: string[];
+  other: string[];
+} {
+  const skippedChains: string[] = [];
+  const coverage: string[] = [];
+  const other: string[] = [];
+
+  warnings.forEach((warning) => {
+    if (isSkippedChainWarning(warning)) {
+      skippedChains.push(warning);
+      return;
+    }
+
+    if (isCoverageWarning(warning)) {
+      coverage.push(warning);
+      return;
+    }
+
+    other.push(warning);
+  });
+
+  return { skippedChains, coverage, other };
+}
+
+function isCoverageWarning(warning: string): boolean {
+  return /^Live analysis uses the last \d+ days of on-chain history\./i.test(warning);
+}
+
+function isSkippedChainWarning(warning: string): boolean {
+  return /skipped|provider request failed|is required|not configured|rate limit|429|could not reach|fetch failed|timed out/i.test(
+    warning,
   );
 }
 

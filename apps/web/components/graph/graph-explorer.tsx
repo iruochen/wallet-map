@@ -36,6 +36,7 @@ import type { GraphExplorerEdge, GraphExplorerNode, ResolvedNode } from "./lib/g
 import { buildLayoutOptions, fitOverviewViewport, runLayout } from "./lib/graph-layout";
 import { formatEdgeKindLegendLabel } from "../analysis/lib/formatters";
 import { useI18n } from "../i18n/i18n-provider";
+import { buildDenseGraphSubset } from "./lib/graph-density";
 import {
   buildElements,
   buildEdgeLabel,
@@ -108,6 +109,7 @@ export function GraphExplorer({
   const [showEdgeLabels, setShowEdgeLabels] = useState(true);
   const [layoutReady, setLayoutReady] = useState(false);
   const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
+  const [denseViewMode, setDenseViewMode] = useState<"focus" | "all">("all");
 
   const watchedWalletOptions = useMemo(() => collectWatchedWalletOptions(nodes), [nodes]);
   const showWalletFilter = watchedWalletOptions.length > 1;
@@ -133,10 +135,22 @@ export function GraphExplorer({
   }, [nodes, edges, chainId, chainFilter, walletFilter, watchedWalletOptions]);
   const visibleNodes = filteredGraph.nodes;
   const visibleEdges = filteredGraph.edges;
-
+  const visibleResolvedNodes = useMemo(() => resolveNodes(visibleNodes, visibleEdges), [visibleNodes, visibleEdges]);
   const denseGraph =
     visibleNodes.length > DENSE_GRAPH_NODE_THRESHOLD || visibleEdges.length > DENSE_GRAPH_EDGE_THRESHOLD;
-  const resolvedNodes = useMemo(() => resolveNodes(visibleNodes, visibleEdges), [visibleNodes, visibleEdges]);
+  const denseSubset = useMemo(
+    () => buildDenseGraphSubset(visibleResolvedNodes, visibleEdges),
+    [visibleResolvedNodes, visibleEdges],
+  );
+  const denseFocusAvailable = denseGraph && denseSubset.hiddenEdgeCount > 0;
+  const resolvedNodes =
+    denseViewMode === "focus" && denseFocusAvailable ? denseSubset.nodes : visibleResolvedNodes;
+  const renderEdges =
+    denseViewMode === "focus" && denseFocusAvailable ? denseSubset.edges : visibleEdges;
+  const renderDenseGraph =
+    denseViewMode === "focus" ||
+    resolvedNodes.length > DENSE_GRAPH_NODE_THRESHOLD ||
+    renderEdges.length > DENSE_GRAPH_EDGE_THRESHOLD;
   const watchedNodeIds = useMemo(
     () => resolvedNodes.filter((node) => node.role === "watched").map((node) => node.id),
     [resolvedNodes],
@@ -151,11 +165,11 @@ export function GraphExplorer({
 
   const edgeKinds = useMemo(() => {
     const set = new Set<GraphExplorerEdge["kind"]>();
-    for (const edge of visibleEdges) {
+    for (const edge of renderEdges) {
       set.add(edge.kind);
     }
     return Array.from(set);
-  }, [visibleEdges]);
+  }, [renderEdges]);
 
   const graphSignature = useMemo(
     () =>
@@ -163,11 +177,12 @@ export function GraphExplorer({
         chainId,
         chainFilter,
         walletFilter,
-        nodeIds: visibleNodes.map((node) => node.id),
-        edgeIds: visibleEdges.map((edge) => edge.id),
-        denseGraph,
+        denseViewMode,
+        nodeIds: resolvedNodes.map((node) => node.id),
+        edgeIds: renderEdges.map((edge) => edge.id),
+        denseGraph: renderDenseGraph,
       }),
-    [chainId, chainFilter, walletFilter, visibleNodes, visibleEdges, denseGraph],
+    [chainId, chainFilter, walletFilter, resolvedNodes, renderEdges, renderDenseGraph, denseViewMode],
   );
 
   useEffect(() => {
@@ -175,7 +190,14 @@ export function GraphExplorer({
     setWalletFilter("all");
     setSelection(null);
     setHiddenKinds(new Set());
+    setDenseViewMode("all");
   }, [chainId, nodes, edges]);
+
+  useEffect(() => {
+    setDenseViewMode(denseFocusAvailable ? "focus" : "all");
+    setShowEdgeLabels(!denseFocusAvailable);
+    setSelection(null);
+  }, [denseFocusAvailable, chainFilter, walletFilter]);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -195,7 +217,7 @@ export function GraphExplorer({
       pixelRatio: Math.min(2, window.devicePixelRatio || 1),
       hideEdgesOnViewport: edges.length > 120,
       textureOnViewport: edges.length > 120,
-      style: buildStylesheet(denseGraph, isMobile),
+      style: buildStylesheet(renderDenseGraph, isMobile),
     });
 
     cyRef.current = cy;
@@ -209,13 +231,13 @@ export function GraphExplorer({
     cy.on("tap", "node", (event: EventObject) => {
       const node = event.target as NodeSingular;
       setSelection({ kind: "node", id: node.id() });
-      focusElements(cy, node.closedNeighborhood(), denseGraph ? 112 : 92, { preserveZoomOut: true });
+      focusElements(cy, node.closedNeighborhood(), renderDenseGraph ? 112 : 92, { preserveZoomOut: true });
     });
 
     cy.on("tap", "edge", (event: EventObject) => {
       const edge = event.target as EdgeSingular;
       setSelection({ kind: "edge", id: edge.id() });
-      focusElements(cy, edge.connectedNodes().union(edge), denseGraph ? 128 : 104, { preserveZoomOut: true });
+      focusElements(cy, edge.connectedNodes().union(edge), renderDenseGraph ? 128 : 104, { preserveZoomOut: true });
     });
 
     cy.on("dblclick", "node", (event: EventObject) => {
@@ -239,7 +261,7 @@ export function GraphExplorer({
       cyRef.current = null;
       layoutRunningRef.current = false;
     };
-  }, [denseGraph, edges.length]);
+  }, [renderDenseGraph, edges.length]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -254,29 +276,29 @@ export function GraphExplorer({
     const elements = buildElements({
       chainId,
       resolvedNodes,
-      edges: visibleEdges,
+      edges: renderEdges,
       showEdgeLabels,
-      denseGraph,
+      denseGraph: renderDenseGraph,
     });
 
     cy.batch(() => {
       cy.elements().remove();
       cy.add(elements);
-      if (denseGraph) {
+      if (renderDenseGraph) {
         cy.nodes().addClass("dense");
       }
     });
 
-    const layout = cy.layout(buildLayoutOptions(cy, resolvedNodes, visibleEdges, denseGraph, watchedNodeIds));
+    const layout = cy.layout(buildLayoutOptions(cy, resolvedNodes, renderEdges, renderDenseGraph, watchedNodeIds));
 
     layout.one("layoutstop", () => {
-      fitOverviewViewport(cy, resolvedNodes.length, visibleEdges.length);
+      fitOverviewViewport(cy, resolvedNodes.length, renderEdges.length);
       overviewViewportRef.current = captureViewport(cy);
       layoutRunningRef.current = false;
       setLayoutReady(true);
     });
     layout.run();
-  }, [graphSignature, chainId, resolvedNodes, visibleEdges, denseGraph, watchedNodeIds, showEdgeLabels]);
+  }, [graphSignature, chainId, resolvedNodes, renderEdges, renderDenseGraph, watchedNodeIds, showEdgeLabels]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -297,7 +319,7 @@ export function GraphExplorer({
     }
 
     cy.edges().forEach((edge) => {
-      const edgeModel = visibleEdges.find((entry) => entry.id === edge.id());
+      const edgeModel = renderEdges.find((entry) => entry.id === edge.id());
       if (!edgeModel) {
         return;
       }
@@ -307,11 +329,11 @@ export function GraphExplorer({
           edgeModel,
           chainId,
           showEdgeLabels,
-          hasMultipleChains(resolvedNodes, visibleEdges, chainId),
+          hasMultipleChains(resolvedNodes, renderEdges, chainId),
         ),
       );
     });
-  }, [showEdgeLabels, visibleEdges, chainId, resolvedNodes, graphSignature]);
+  }, [showEdgeLabels, renderEdges, chainId, resolvedNodes, graphSignature]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -350,8 +372,8 @@ export function GraphExplorer({
     if (!cy) {
       return;
     }
-    cy.style(buildStylesheet(denseGraph, isMobile));
-  }, [denseGraph, isMobile]);
+    cy.style(buildStylesheet(renderDenseGraph, isMobile));
+  }, [renderDenseGraph, isMobile]);
 
   useEffect(() => {
     if (!isPanelActive) {
@@ -367,13 +389,13 @@ export function GraphExplorer({
     const frame = window.requestAnimationFrame(() => {
       cy.resize();
       if (layoutReady) {
-        fitOverviewViewport(cy, resolvedNodes.length, visibleEdges.length);
+        fitOverviewViewport(cy, resolvedNodes.length, renderEdges.length);
         overviewViewportRef.current = captureViewport(cy);
       }
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [isPanelActive, isMobile, layoutReady, resolvedNodes.length, visibleEdges.length]);
+  }, [isPanelActive, isMobile, layoutReady, resolvedNodes.length, renderEdges.length]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -412,7 +434,7 @@ export function GraphExplorer({
     }
     const currentViewport = captureViewport(cy);
     layoutRunningRef.current = true;
-    runLayout(cy, resolvedNodes, visibleEdges, denseGraph, watchedNodeIds, {
+    runLayout(cy, resolvedNodes, renderEdges, renderDenseGraph, watchedNodeIds, {
       fitAfter: false,
       onComplete: () => {
         setViewport(cy, currentViewport);
@@ -420,7 +442,7 @@ export function GraphExplorer({
         setLayoutReady(true);
       },
     });
-  }, [resolvedNodes, visibleEdges.length, denseGraph, watchedNodeIds]);
+  }, [resolvedNodes, renderEdges, renderDenseGraph, watchedNodeIds]);
 
   const handleResetView = useCallback(() => {
     const cy = cyRef.current;
@@ -428,10 +450,10 @@ export function GraphExplorer({
       return;
     }
     cy.resize();
-    fitOverviewViewport(cy, resolvedNodes.length, visibleEdges.length);
+    fitOverviewViewport(cy, resolvedNodes.length, renderEdges.length);
     overviewViewportRef.current = captureViewport(cy);
     setSelection(null);
-  }, [resolvedNodes.length, visibleEdges.length]);
+  }, [resolvedNodes.length, renderEdges.length]);
 
   const handleChainFilterChange = useCallback((nextFilter: number | "all") => {
     setChainFilter(nextFilter);
@@ -468,7 +490,7 @@ export function GraphExplorer({
     );
   }
 
-  const visibleEdgeCount = visibleEdges.filter((edge) => !hiddenKinds.has(edge.kind)).length;
+  const visibleEdgeCount = renderEdges.filter((edge) => !hiddenKinds.has(edge.kind)).length;
   const activeChainLabel = chainFilter === "all" ? "ALL" : formatChainShortName(chainFilter);
   const activeWalletLabel =
     walletFilter === "all" ? "ALL" : shortenAddress(walletFilter);
@@ -587,6 +609,18 @@ export function GraphExplorer({
           >
             {showEdgeLabels ? t("graph.edgeLabelsOn") : t("graph.edgeLabelsOff")}
           </button>
+          {denseFocusAvailable ? (
+            <button
+              type="button"
+              className={`graphChipButton ${denseViewMode === "focus" ? "graphChipButtonOn" : ""}`}
+              onClick={() => {
+                setDenseViewMode((current) => (current === "focus" ? "all" : "focus"));
+                setSelection(null);
+              }}
+            >
+              {denseViewMode === "focus" ? t("graph.focusModeOn") : t("graph.focusModeOff")}
+            </button>
+          ) : null}
           <button type="button" className="graphChipButton" onClick={handleRelayout} title={t("graph.relayoutTitle")}>
             {t("graph.relayout")}
           </button>
@@ -612,7 +646,7 @@ export function GraphExplorer({
           role="region"
           aria-label={t("graph.canvas")}
         />
-        {visibleEdges.length === 0 ? (
+        {renderEdges.length === 0 ? (
           <div className="graphExplorerEmpty graphExplorerEmptyFiltered">
             <strong>{filteredEmptyTitle}</strong>
             <p>{filteredEmptyHint}</p>
@@ -636,22 +670,28 @@ export function GraphExplorer({
             {t("graph.layouting")}
           </div>
         ) : null}
-        <SelectionDetail
-          selection={selection}
-          chainId={chainId}
-          edges={visibleEdges}
-          nodeIndex={nodeIndex}
-          onClose={() => {
-            setSelection(null);
+          <SelectionDetail
+            selection={selection}
+            chainId={chainId}
+            edges={renderEdges}
+            nodeIndex={nodeIndex}
+            onClose={() => {
+              setSelection(null);
           }}
         />
           </>
         )}
       </div>
       <p className="graphFootnote">
-        {denseGraph
+        {renderDenseGraph
           ? t("graph.footnote.dense")
           : t("graph.footnote.default")}
+        {denseViewMode === "focus" && denseFocusAvailable
+          ? ` ${t("graph.focusModeSummary", {
+              nodes: denseSubset.hiddenNodeCount,
+              edges: denseSubset.hiddenEdgeCount,
+            })}`
+          : ""}
         {totalNodes > visibleNodes.length
           ? ` ${t("graph.footnote.visibleNodes", { visible: visibleNodes.length, total: totalNodes })}`
           : ""}
