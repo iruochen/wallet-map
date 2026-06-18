@@ -44,4 +44,30 @@ describe("analysis progress helpers", () => {
       }),
     ).toBe(100);
   });
+
+  it("backfills earlier phases when a later phase starts", () => {
+    const progress = applyPhaseStarted(
+      {
+        phase: "fetch",
+        completedPhases: ["fetch"],
+      },
+      "analysis",
+    );
+
+    expect(progress.completedPhases).toEqual(["fetch", "graph", "labels"]);
+    expect(progress.phase).toBe("analysis");
+  });
+
+  it("backfills earlier phases when a later phase completes", () => {
+    const progress = applyPhaseCompleted(
+      {
+        phase: "labels",
+        completedPhases: ["fetch"],
+      },
+      "analysis",
+    );
+
+    expect(progress.completedPhases).toEqual(["fetch", "graph", "labels", "analysis"]);
+    expect(progress.phase).toBeNull();
+  });
 });

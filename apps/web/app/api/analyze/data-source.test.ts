@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { mapWithConcurrency, resolveAnalyzeEvents, selectAnalyzeLiveProvider } from "./data-source";
+import { mapWithConcurrency, resolveAnalyzeEvents, selectAnalyzeLiveProvider, validateLiveFetchResult } from "./data-source";
 
 const addresses = [
   "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -473,3 +473,34 @@ function mockSlowEtherscanFetch() {
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+describe("validateLiveFetchResult", () => {
+  it("throws when live fetch returns provider failures and no events", () => {
+    expect(() =>
+      validateLiveFetchResult(
+        {
+          events: [],
+          mode: "live",
+          source: "nodereal:56:bsc",
+          chainName: "BSC",
+          warnings: ["BSC provider request failed: fetch failed"],
+        },
+        "auto",
+      ),
+    ).toThrow("BSC provider request failed");
+  });
+
+  it("allows fixture mode with zero events", () => {
+    expect(() =>
+      validateLiveFetchResult(
+        {
+          events: [],
+          mode: "fixture",
+          source: "fixtures/sample-events.json",
+          chainName: "BSC",
+        },
+        "auto",
+      ),
+    ).not.toThrow();
+  });
+});

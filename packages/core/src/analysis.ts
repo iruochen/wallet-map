@@ -74,13 +74,11 @@ export async function runAnalysis(input: AnalysisRunInput): Promise<AnalysisRunR
 
   // Step 2: attach labels to graph nodes (exchange names, token info, etc.).
   const enrichers = input.graphEnrichers ?? [];
-  if (enrichers.length > 0) {
-    await input.onProgress?.({ phase: "labels", status: "started" });
-    for (const enricher of enrichers) {
-      graph = await enricher.enrich(graph, input.events);
-    }
-    await input.onProgress?.({ phase: "labels", status: "completed" });
+  await input.onProgress?.({ phase: "labels", status: "started" });
+  for (const enricher of enrichers) {
+    graph = await enricher.enrich(graph, input.events);
   }
+  await input.onProgress?.({ phase: "labels", status: "completed" });
 
   // Step 3: run all analyzers in parallel; each returns relationship findings.
   await input.onProgress?.({ phase: "analysis", status: "started" });

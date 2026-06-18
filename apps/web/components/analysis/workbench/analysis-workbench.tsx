@@ -19,7 +19,6 @@ import {
   evmAggregateChainId,
   getEvmAggregateChains,
 } from "../../../app/chains";
-import { ANALYSIS_PHASE_ORDER } from "../../../app/api/analyze/progress";
 import { readJsonResponse } from "../../../lib/read-json-response";
 import { useI18n } from "../../i18n/i18n-provider";
 import { AnalysisEvidencePanel } from "../evidence/analysis-evidence-panel";
@@ -522,7 +521,6 @@ export function AnalysisWorkbench({
       setAnalysisStartedAt(resolveAnalysisStartedAt(poll, analysisStartedAt));
 
       if (poll.status === "completed" && poll.result) {
-        await revealCompletedProgress(poll.progress);
         saveSessionHistoryJob(jobId, poll.result, {
           createdAt: poll.createdAt,
           startedAt: poll.startedAt,
@@ -538,29 +536,6 @@ export function AnalysisWorkbench({
     }
 
     throw new Error(t("analysis.error.cancelled"));
-  }
-
-  async function revealCompletedProgress(progress: AnalysisJobProgress) {
-    const missingPhases = ANALYSIS_PHASE_ORDER.filter((phase) => !progress.completedPhases.includes(phase));
-
-    if (missingPhases.length === 0) {
-      setJobProgress({
-        phase: null,
-        completedPhases: [...ANALYSIS_PHASE_ORDER],
-      });
-      await sleep(260);
-      return;
-    }
-
-    let completedPhases = [...progress.completedPhases];
-
-    for (const phase of missingPhases) {
-      setJobProgress({ phase, completedPhases });
-      await sleep(260);
-      completedPhases = completedPhases.includes(phase) ? completedPhases : [...completedPhases, phase];
-      setJobProgress({ phase: null, completedPhases });
-      await sleep(180);
-    }
   }
 
   async function runAnalysis() {

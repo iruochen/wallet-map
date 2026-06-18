@@ -4,7 +4,7 @@ import { runAnalysis } from "@wallet-map/core";
 import { createLabelGraphEnricher } from "@wallet-map/labels";
 import { getAnalysisStorage } from "./analysis-storage";
 import { buildAnalyzeResponse } from "./build-response";
-import { resolveAnalyzeEvents } from "./data-source";
+import { resolveAnalyzeEvents, validateLiveFetchResult } from "./data-source";
 import { warmWalletLabelCache, persistDiscoveredGraphLabels } from "./label-cache";
 import {
   createAnalyzeJob,
@@ -90,6 +90,7 @@ export async function executeAnalyzeJob(jobId: string, parsed: ParsedAnalyzeRequ
     // Phase: fetch — pull chain events via adapters (or local fixture).
     await syncJobProgress(jobId, "fetch", "started", storage);
     const resolved = await resolveAnalyzeEvents(parsed);
+    validateLiveFetchResult(resolved, parsed.dataMode);
     await syncJobProgress(jobId, "fetch", "completed", storage);
 
     // Phases: graph -> labels -> analysis -> score (all inside runAnalysis).

@@ -25,9 +25,20 @@ export function applyPhaseStarted(
   progress: AnalysisJobProgress,
   phase: AnalysisPhaseId,
 ): AnalysisJobProgress {
+  const phaseIndex = ANALYSIS_PHASE_ORDER.indexOf(phase);
+  const completedPhases = [...progress.completedPhases];
+
+  // Fast phases may finish between polls; backfill earlier phases as completed.
+  for (let index = 0; index < phaseIndex; index += 1) {
+    const priorPhase = ANALYSIS_PHASE_ORDER[index]!;
+    if (!completedPhases.includes(priorPhase)) {
+      completedPhases.push(priorPhase);
+    }
+  }
+
   return {
     phase,
-    completedPhases: progress.completedPhases,
+    completedPhases,
   };
 }
 
@@ -35,11 +46,17 @@ export function applyPhaseCompleted(
   progress: AnalysisJobProgress,
   phase: AnalysisPhaseId,
 ): AnalysisJobProgress {
-  const completedPhases = progress.completedPhases.includes(phase)
-    ? progress.completedPhases
-    : [...progress.completedPhases, phase];
+  const phaseIndex = ANALYSIS_PHASE_ORDER.indexOf(phase);
+  const completedPhases = [...progress.completedPhases];
 
-  const nextPhaseIndex = ANALYSIS_PHASE_ORDER.indexOf(phase) + 1;
+  for (let index = 0; index <= phaseIndex; index += 1) {
+    const completedPhase = ANALYSIS_PHASE_ORDER[index]!;
+    if (!completedPhases.includes(completedPhase)) {
+      completedPhases.push(completedPhase);
+    }
+  }
+
+  const nextPhaseIndex = phaseIndex + 1;
   const nextPhase = ANALYSIS_PHASE_ORDER[nextPhaseIndex] ?? null;
 
   return {

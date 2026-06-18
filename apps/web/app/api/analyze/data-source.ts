@@ -247,6 +247,31 @@ export async function resolveAnalyzeEvents(
   };
 }
 
+export function validateLiveFetchResult(
+  resolved: ResolveEventsResult,
+  dataMode: AnalyzeDataMode,
+): void {
+  if (resolved.mode !== "live" || resolved.events.length > 0) {
+    return;
+  }
+
+  const providerIssue = (resolved.warnings ?? []).find(
+    (warning) =>
+      /failed|skipped|could not reach|not configured/i.test(warning) &&
+      !warning.startsWith("Live analysis uses"),
+  );
+
+  if (providerIssue) {
+    throw new Error(providerIssue);
+  }
+
+  if (dataMode === "live") {
+    throw new Error(
+      "No on-chain events were fetched for the selected wallets in the configured history window.",
+    );
+  }
+}
+
 function buildProviderFailureMessage(
   chainName: string,
   primaryError: unknown,
