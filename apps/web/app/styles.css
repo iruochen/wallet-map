@@ -4151,6 +4151,9 @@ select {
 }
 
 .groupedPanelSummary {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -4174,9 +4177,7 @@ select {
   border-radius: 13px 13px 0 0;
   border-bottom: 1px solid rgba(207, 219, 207, 0.55);
   background:
-    linear-gradient(180deg, rgba(251, 253, 250, 0.96) 0%, rgba(247, 250, 246, 0.9) 100%);
-  backdrop-filter: blur(12px) saturate(1.08);
-  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+    linear-gradient(180deg, rgba(251, 253, 250, 0.99) 0%, rgba(247, 250, 246, 0.97) 100%);
 }
 
 .panelTab:hover,
@@ -4405,6 +4406,7 @@ select {
   min-height: 0;
   overflow: hidden;
   border-radius: 0 0 13px 13px;
+  isolation: isolate;
 }
 
 .groupedPanel .findingList,
@@ -4437,12 +4439,16 @@ select {
   border: 1px solid rgba(207, 219, 207, 0.78);
   border-radius: 12px;
   background: #ffffff;
+  isolation: isolate;
   box-shadow:
     0 1px 2px rgba(31, 61, 44, 0.04),
     0 6px 18px rgba(31, 61, 44, 0.04);
 }
 
 .sharedFindingSummary {
+  position: sticky;
+  top: 0;
+  z-index: 4;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto auto;
@@ -4453,9 +4459,7 @@ select {
   cursor: pointer;
   list-style: none;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 251, 248, 0.94) 100%);
-  backdrop-filter: blur(10px) saturate(1.06);
-  -webkit-backdrop-filter: blur(10px) saturate(1.06);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(248, 251, 248, 0.97) 100%);
 }
 
 .sharedFindingDetails[open] .sharedFindingSummary {
