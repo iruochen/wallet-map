@@ -4132,6 +4132,7 @@ select {
 }
 
 .groupedPanel {
+  position: relative;
   border: 1px solid rgba(207, 219, 207, 0.72);
   border-radius: 14px;
   background: #ffffff;
@@ -4154,6 +4155,7 @@ select {
   position: sticky;
   top: 0;
   z-index: 5;
+  isolation: isolate;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -4170,14 +4172,40 @@ select {
   text-align: left;
   background: transparent;
   outline: none;
-  transition: background 200ms ease;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.groupedPanelSummary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  border-bottom: 1px solid transparent;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(245, 249, 246, 0.62) 100%);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  opacity: 0.92;
+  transition:
+    opacity 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    border-radius 180ms ease;
 }
 
 .groupedPanelOpen .groupedPanelSummary {
   border-radius: 13px 13px 0 0;
-  border-bottom: 1px solid rgba(207, 219, 207, 0.55);
+}
+
+.groupedPanelOpen .groupedPanelSummary::before {
+  border-radius: 13px 13px 0 0;
+  border-bottom-color: rgba(207, 219, 207, 0.5);
   background:
-    linear-gradient(180deg, rgba(251, 253, 250, 0.99) 0%, rgba(247, 250, 246, 0.97) 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(244, 249, 245, 0.74) 100%);
+  opacity: 1;
 }
 
 .panelTab:hover,
@@ -4186,12 +4214,13 @@ select {
 }
 
 .groupedPanelSummary:hover {
-  background: rgba(247, 250, 246, 0.88);
+  background: transparent;
 }
 
-.groupedPanelOpen .groupedPanelSummary:hover {
+.groupedPanelSummary:hover::before {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 248, 244, 0.92) 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(242, 248, 244, 0.74) 100%);
+  opacity: 1;
 }
 
 .groupedPanelSummary:focus-visible {
@@ -4407,6 +4436,7 @@ select {
   overflow: hidden;
   border-radius: 0 0 13px 13px;
   isolation: isolate;
+  contain: paint;
 }
 
 .groupedPanel .findingList,
@@ -4446,9 +4476,7 @@ select {
 }
 
 .sharedFindingSummary {
-  position: sticky;
-  top: 0;
-  z-index: 4;
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto auto;
@@ -4458,12 +4486,35 @@ select {
   border-radius: 0;
   cursor: pointer;
   list-style: none;
+  isolation: isolate;
+  background: transparent;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.sharedFindingSummary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(248, 251, 248, 0.97) 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76) 0%, rgba(247, 250, 247, 0.68) 100%);
+  backdrop-filter: blur(12px) saturate(1.06);
+  -webkit-backdrop-filter: blur(12px) saturate(1.06);
+  opacity: 0.98;
+  transition:
+    opacity 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease;
 }
 
 .sharedFindingDetails[open] .sharedFindingSummary {
   border-bottom: 1px solid rgba(207, 219, 207, 0.55);
+}
+
+.sharedFindingSummary:hover::before {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(242, 248, 244, 0.76) 100%);
 }
 
 .sharedFindingSummary::-webkit-details-marker {
